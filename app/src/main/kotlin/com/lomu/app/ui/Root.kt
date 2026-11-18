@@ -58,6 +58,8 @@ fun LoMuRoot(seenWelcome: Boolean, onWelcomeDone: () -> Unit) {
                         is Screen.Album -> AlbumScreen(s.id)
                         is Screen.Artist -> ArtistScreen(s.id)
                         is Screen.Playlist -> PlaylistScreen(s.id)
+                        is Screen.LocalPlaylist -> LocalPlaylistScreen(s.id)
+                        Screen.Import -> ImportScreen()
                     }
                 }
                 if (meta != null) MiniPlayer({ showPlayer = true })

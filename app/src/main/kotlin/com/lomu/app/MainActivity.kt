@@ -18,7 +18,11 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import com.lomu.app.db.MusicDatabase
 import com.lomu.app.lyrics.LyricsHelper
 import com.lomu.app.playback.MusicService
@@ -34,6 +38,8 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
     @Inject lateinit var database: MusicDatabase
     @Inject lateinit var lyricsHelper: LyricsHelper
+    @Inject lateinit var syncClient: com.lomu.app.sync.SyncClient
+    @Inject lateinit var importer: com.lomu.app.sync.YtmImporter
 
     private var connection by mutableStateOf<PlayerConnection?>(null)
 
@@ -60,10 +66,20 @@ class MainActivity : ComponentActivity() {
         startService(intent)
         bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
 
+        // Sync on start and then every minute while the app is on screen.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                while (true) {
+                    syncClient.sync()
+                    delay(60_000)
+                }
+            }
+        }
+
         val prefs = getSharedPreferences("lomu", MODE_PRIVATE)
         setContent {
             LoMuTheme {
-                CompositionLocalProvider(LocalPlayer provides connection, LocalLyrics provides lyricsHelper) {
+                CompositionLocalProvider(LocalPlayer provides connection, LocalLyrics provides lyricsHelper, com.lomu.app.ui.LocalSync provides syncClient, com.lomu.app.ui.LocalImporter provides importer) {
                     LoMuRoot(
                         seenWelcome = prefs.getBoolean("seenWelcome", false),
                         onWelcomeDone = { prefs.edit().putBoolean("seenWelcome", true).apply() },

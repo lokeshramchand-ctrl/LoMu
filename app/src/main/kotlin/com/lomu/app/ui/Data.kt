@@ -31,6 +31,7 @@ fun <T> load(key: Any?, block: suspend () -> Result<T>): State<Load<T>> =
 
 val LocalPlayer = staticCompositionLocalOf<PlayerConnection?> { null }
 val LocalLyrics = staticCompositionLocalOf<LyricsHelper?> { null }
+val LocalSync = staticCompositionLocalOf<com.lomu.app.sync.SyncClient?> { null }
 val LocalNav = staticCompositionLocalOf<Nav> { error("no nav") }
 
 /** Play one song and let YouTube radio carry on after it. */
