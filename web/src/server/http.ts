@@ -1,6 +1,9 @@
 import 'server-only';
+import { gate } from './auth';
 
 export async function json<T>(fn: () => Promise<T>, maxAge = 0): Promise<Response> {
+  const denied = await gate();
+  if (denied) return denied;
   try {
     const data = await fn();
     return Response.json(data, {

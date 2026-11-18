@@ -107,7 +107,7 @@ async function tryClient(id: string, codec: Codec, client: string, itag?: number
   };
 }
 
-function parseRange(h: string | null, len: number): { start: number; end: number } | null {
+export function parseRange(h: string | null, len: number): { start: number; end: number } | null {
   if (!h) return null;
   const m = /bytes=(\d*)-(\d*)/.exec(h);
   if (!m) return null;

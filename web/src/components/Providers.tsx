@@ -7,6 +7,7 @@ import { PlayerBar } from './PlayerBar';
 import { FullPlayer } from './FullPlayer';
 import { TrackMenuHost } from './Menu';
 import { ToastHost } from './Toast';
+import { AuthGate } from './AuthGate';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [qc] = useState(
@@ -28,6 +29,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={qc}>
+      <AuthGate>
       {bare ? (
         children
       ) : (
@@ -40,6 +42,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <ToastHost />
         </div>
       )}
+      </AuthGate>
     </QueryClientProvider>
   );
 }

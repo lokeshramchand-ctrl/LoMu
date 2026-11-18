@@ -4,12 +4,14 @@ import { usePlayer } from '@/player/store';
 import { useSettings, type Theme } from '@/player/settings';
 import { Icon } from '@/components/Icon';
 import { toast } from '@/components/Toast';
+import { useAuth } from '@/player/sync';
 
 export default function SettingsPage() {
   const theme = useSettings((s) => s.theme);
   const dev = useSettings((s) => s.dev);
   const setDev = useSettings((s) => s.setDev);
   const autoplay = usePlayer((s) => s.autoplay);
+  const { user, sync, lastSync, logout } = useAuth();
 
   return (
     <div className="wrap">
@@ -18,6 +20,14 @@ export default function SettingsPage() {
         <br />
         <span className="dim">&amp; more</span>
       </h1>
+
+      <Group title="Account">
+        <Row label={user ? `Signed in as ${user}` : 'Not signed in'} hint={`Sync: ${sync === 'live' ? 'up to date' : sync}${lastSync ? ` · ${new Date(lastSync).toLocaleTimeString()}` : ''}. Likes, playlists and history follow you to your other devices.`}>
+          <button className="pill-btn" onClick={() => logout()}>
+            Sign out
+          </button>
+        </Row>
+      </Group>
 
       <Group title="Appearance">
         <Row label="Theme" hint="Follow the system, or force light / dark.">

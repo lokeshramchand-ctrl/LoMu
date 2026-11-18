@@ -1,9 +1,10 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
+import { api as authFetch } from '@/player/sync';
 import type { AlbumData, ArtistData, ExploreData, HomeData, Item, LyricsData, PlaylistData, SearchData, Shelf, Track } from './types';
 
 async function get<T>(url: string): Promise<T> {
-  const res = await fetch(url);
+  const res = await authFetch(url);
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body?.error || `Request failed (${res.status})`);
@@ -14,6 +15,7 @@ async function get<T>(url: string): Promise<T> {
 const enc = encodeURIComponent;
 export const api = {
   home: () => get<HomeData>('/api/home'),
+  recs: () => get<Shelf[]>('/api/recs'),
   explore: () => get<ExploreData>('/api/explore'),
   mood: (browseId: string, params: string) => get<Shelf[]>(`/api/mood?browseId=${enc(browseId)}&params=${enc(params)}`),
   search: (q: string) => get<SearchData>(`/api/search?q=${enc(q)}`),
@@ -30,6 +32,7 @@ export const api = {
 };
 
 const long = { staleTime: 10 * 60_000 };
+export const useRecs = () => useQuery({ queryKey: ['recs'], queryFn: api.recs, staleTime: 3 * 60_000 });
 export const useHome = () => useQuery({ queryKey: ['home'], queryFn: api.home, ...long });
 export const useExplore = () => useQuery({ queryKey: ['explore'], queryFn: api.explore, ...long });
 export const useMood = (b: string, p: string) => useQuery({ queryKey: ['mood', p], queryFn: () => api.mood(b, p), enabled: !!p, ...long });

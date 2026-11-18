@@ -1,7 +1,7 @@
 'use client';
 import { useMemo } from 'react';
 import Link from 'next/link';
-import { useHome } from '@/lib/api';
+import { useHome, useRecs } from '@/lib/api';
 import { artistNames, greeting } from '@/lib/format';
 import type { Track } from '@/lib/types';
 import { ShelfRow, ShelfSkeleton } from '@/components/Cards';
@@ -12,6 +12,7 @@ import { currentTrack, usePlayer } from '@/player/store';
 
 export default function Home() {
   const { data, isLoading, error, refetch } = useHome();
+  const { data: recs } = useRecs();
   const history = useLibrary((s) => s.history);
   const [g1, g2] = greeting();
 
@@ -42,6 +43,7 @@ export default function Home() {
       </header>
 
       {recent.length > 0 && <JumpBackIn tracks={recent} />}
+      {recs?.map((s) => <ShelfRow key={`rec-${s.title}`} shelf={s} />)}
 
       {isLoading && (
         <>
