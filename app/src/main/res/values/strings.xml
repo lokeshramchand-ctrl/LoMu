@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LoMu</string>
+    <string name="action_like">Like</string>
+    <string name="action_remove_like">Remove like</string>
+    <string name="action_shuffle_off">Shuffle off</string>
+    <string name="action_shuffle_on">Shuffle on</string>
+    <string name="albums">Albums</string>
+    <string name="android_auto_lyrics_hide">Hide lyrics</string>
+    <string name="android_auto_lyrics_no_song">Nothing is playing</string>
+    <string name="android_auto_lyrics_not_synced">No synced lyrics for this song</string>
+    <string name="android_auto_lyrics_show">Show lyrics</string>
+    <string name="artists">Artists</string>
+    <string name="backup_create_failed">Couldn\'t create backup</string>
+    <string name="backup_create_success">Backup created successfully</string>
+    <string name="cancel">Cancel</string>
+    <string name="downloaded_songs">Downloaded songs</string>
+    <string name="downloading">Downloading</string>
+    <string name="error_no_internet">No network connection</string>
+    <string name="error_timeout">Timeout</string>
+    <string name="error_unknown">Unknown error</string>
+    <string name="failed_to_parse_proxy">Failed to parse proxy url.</string>
+    <string name="liked_songs">Liked songs</string>
+    <string name="lossless_fallback_to_standard_audio">Lossless unavailable, switched to standard audio</string>
+    <string name="lyrics">Lyrics</string>
+    <string name="music_player">Music Player</string>
+    <string name="no_song_playing">No song playing</string>
+    <string name="playlists">Playlists</string>
+    <string name="repeat_mode_all">Repeat queue</string>
+    <string name="repeat_mode_off">Repeat mode off</string>
+    <string name="repeat_mode_one">Repeat current song</string>
+    <string name="restore_failed">Failed to restore backup</string>
+    <string name="shuffle">Shuffle</string>
+    <string name="songs">Songs</string>
+    <string name="start_radio">Start radio</string>
+    <string name="tap_to_open">Tap to open LoMu</string>
+    <string name="update_channel_desc">Notifications about new versions</string>
+    <string name="update_channel_name">App updates</string>
+    <plurals name="n_song">
+        <item quantity="one">%d song</item>
+        <item quantity="other">%d songs</item>
+    </plurals>
+</resources>
