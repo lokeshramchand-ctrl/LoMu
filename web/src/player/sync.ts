@@ -13,25 +13,27 @@ type Row = Doc & { deleted: boolean; seq: number };
 type AuthState = {
   status: 'loading' | 'setup' | 'login' | 'ready';
   user: string | null;
+  needsCode: boolean;
   error: string | null;
   sync: 'off' | 'syncing' | 'live' | 'error';
   lastSync: number | null;
   refresh: () => Promise<void>;
-  submit: (mode: 'setup' | 'login', username: string, password: string) => Promise<void>;
+  submit: (mode: 'setup' | 'login', username: string, password: string, code?: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
 export const useAuth = create<AuthState>((set, get) => ({
   status: 'loading',
   user: null,
+  needsCode: false,
   error: null,
   sync: 'off',
   lastSync: null,
   async refresh() {
     try {
       const r = await fetch('/api/auth/status', { cache: 'no-store' });
-      const s = (await r.json()) as { setup: boolean; user: string | null };
-      if (!s.setup) return set({ status: 'setup', user: null });
+      const s = (await r.json()) as { setup: boolean; user: string | null; needsCode?: boolean };
+      if (!s.setup) return set({ status: 'setup', user: null, needsCode: !!s.needsCode });
       if (s.user) {
         set({ status: 'ready', user: s.user });
         startSync();
@@ -46,9 +48,9 @@ export const useAuth = create<AuthState>((set, get) => ({
       set({ status: 'ready', user: get().user });
     }
   },
-  async submit(mode, username, password) {
+  async submit(mode, username, password, code) {
     set({ error: null });
-    const r = await fetch(`/api/auth/${mode}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username, password }) });
+    const r = await fetch(`/api/auth/${mode}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username, password, code }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) return set({ error: j.error ?? 'Something went wrong' });
     set({ status: 'ready', user: j.user ?? username });

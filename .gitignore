@@ -140,3 +140,8 @@ app/arm64Gms
 Convx_GitHub_Analytics.xlsx
 brag-output/
 brag-output-*/
+
+# Test output
+web/test-results/
+web/playwright-report/
+smoke-out/

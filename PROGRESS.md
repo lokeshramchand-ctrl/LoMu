@@ -13,16 +13,17 @@ _Last updated: 2026-11-18. Branch `music`. The upstream git remote has been remo
 | Repo rename to **LoMu** (folder, Gradle project, package `com.lomu.app`, app name, web name) | ✅ Done |
 | App icon (headphones avatar, unmodified, on black) — Android + web | ✅ Done |
 | Removal of bloat, gimmicks and the developer's backend | ✅ Done (source deleted) |
-| Android app compiles | ✅ **Done** (2026-11-18): `./gradlew :app:assembleDebug` produces `app-debug.apk`. `MainActivity` is only a placeholder that shows "LoMu"; the real UI is still to be written |
-| Android new UI | ❌ Not started (design decided, see below) |
+| Android app compiles and builds an APK | ✅ Done (2026-11-18) |
+| Android UI (Compose): welcome, Home, Search, Library, album / artist / playlist, full-screen vinyl player with synced lyrics and queue, Settings | ✅ Built, compiles. 🔶 **Not yet seen running on a device** (see Known issues) |
 | Web player UI | ✅ Built (all pages), 🔶 visual check pending |
 | Web catalogue APIs (home, search, album, artist, playlist, radio, lyrics) | ✅ Working against live YouTube Music |
-| Web audio playback | ✅ **Fixed 2026-11-18**: the proxy prefers the `VISIONOS` client, which serves the whole file, and verifies the file tail before choosing a client. Full tracks and mid-file seeks verified through `/api/stream/<id>` |
-| Own account system (username/password, JWT) + sync server | ❌ Not started |
-| Recommendation engine | 🔶 Only the basics: play logging + YouTube-radio autoplay |
-| One-time "Import from YouTube Music" | 🔶 Web: "Import" button on any playlist page. Phone import not built |
-| Automated tests | ❌ Not written (only a screenshot script) |
-| Deploy to homelab (LXC + nginx subdomain) | ❌ Not started |
+| Web audio playback | ✅ Fixed 2026-11-18: `VISIONOS` client first, plus a tail-of-file probe. Full tracks and mid-file seeks verified; Chromium plays past the old ~1 MB cut-off |
+| Own account system (single owner, username/password, JWT + rotating refresh tokens) | ✅ Server + web + Android |
+| Sync server (SQLite, document log with cursors, last-write-wins, tombstones, SSE) | ✅ Server + web client. Android syncs likes and listening history (polls every minute). **Playlists sync web ↔ server only**; Android playlists are not synced yet |
+| Recommendation engine | ✅ Server-side: play/skip/like signals with recency decay, YouTube-radio candidates, consensus ranking, per-artist diversity. Shelves: Your Mix, On Repeat, Because you played X, Discover. Adaptive autoplay endpoint (`/api/recs/next`) exists; the web player does not call it yet. "New from your artists" not built |
+| One-time "Import from YouTube Music" | ✅ Web: "Import" on any playlist page. ✅ Android: Settings → Import (Google sign-in in a WebView, cookie discarded afterwards). Code complete, **untested against a real account** |
+| Automated tests | ✅ 19 unit tests (vitest) + 5 Playwright end-to-end tests (account lock-down, whole-file streaming, sync LWW, real playback in Chromium, sign-out). Android: `app/smoke-test.sh` (adb) |
+| Deploy to homelab (LXC + nginx subdomain) | 🔶 **Prepared, not executed**: `deploy/` has the install script, systemd unit, nginx site and a README checklist. The production build and `next start` were verified locally |
 
 ---
 
@@ -67,17 +68,17 @@ The first compile takes about 6 minutes. **Before stripping, the original code c
 
 Left over and harmless: unused `isTidalStream` / `isSpineStream` fields on `PlaybackData`, unused preference keys in `constants/PreferenceKeys.kt`, `CastConnectionHandler.kt` (compiles; Cast is not wired to any UI), `LyricsMetadataPlayer.kt`, and the unused `isRefreshing` flows in two view models. Clean these up when convenient.
 
-**2. Write `MainActivity` + the Compose UI.**
-- **Bind to the service:** copy the binding pattern from the deleted `MainActivity`: `bindService(Intent(this, MusicService::class.java), conn, BIND_AUTO_CREATE)`, then `PlayerConnection(this, binder, database, lifecycleScope)`, and provide it through a `CompositionLocal`.
-- **APIs to use:**
-  - `PlayerConnection`: `playQueue(Queue)`, `togglePlayPause()`, `seekTo()`, `seekToNext/Previous()`, `toggleLike()`, `currentSong`, `mediaMetadata`, `queueWindows`, `isPlaying`.
-  - Queues: `YouTubeQueue(WatchEndpoint(videoId))` (radio), `ListQueue(items)`, `YouTubePlaylistQueue(playlistId)`.
-  - Catalogue: `YouTube.*` in `innertube/.../YouTube.kt` (home, explore, search, album, artist, playlist, next, related, lyrics).
-- **Screens:** mirror the web player one-for-one (same design tokens: lavender `#E9EBF3` light, `#131419` dark, ink `#0D0D11`, grey line `#8C8E9A`, heavy grotesk type, vinyl discs).
+**2. ✅ `MainActivity` + Compose UI written.** Files: `MainActivity.kt` (binds `MusicService`, provides `PlayerConnection`, sync client, importer), `ui/` (`Theme`, `Nav`, `Data`, `Components`, `Screens`, `Player`, `ImportScreen`, `Root`), `sync/SyncClient.kt`, `sync/YtmImporter.kt`. Icons are text glyphs and the layout is simpler than the web player's; polish is the open item.
 
-**3. Fix web playback** (see Known issues #1).
+**3. ✅ Web playback fixed** (see Known issues #1).
 
-**4. Then:** sync server + JWT accounts → recommendation engine → tests → homelab deploy (see Roadmap).
+**4. ✅ Sync server + accounts, recommendation engine, tests** (see the sections below).
+
+**5. What is left, in order:**
+1. Run the Android app on a real device or emulator (`app/smoke-test.sh`), fix whatever it shows, and check playback, lyrics, likes, sync and the importer for real.
+2. Deploy: follow `deploy/README.md`.
+3. Android: sync playlists, use `/api/recs/next` for autoplay, polish the UI to match the web design (vinyl list wheel, neumorphic cards), downloads UI.
+4. Web: call `/api/recs/next` for autoplay, visual pass with `tests/shots.mjs` (it predates the login gate: sign in first or seed a session).
 
 ### Gotchas already hit (save yourself the time)
 
@@ -200,23 +201,45 @@ Next.js 16 (App Router, Turbopack) · React 19 · TypeScript · TanStack Query �
    - **Where the pieces are:** `web/scripts/po-minter.mjs` speaks JSON lines over stdio (`init` with `{program, globalName, interpreterUrl}` from `Innertube.getAttestationChallenge('ENGAGEMENT_TYPE_UNBOUND')` and requestKey `O43z0dpjhgX20SCx4KAo`, then `mint` with a `binding`). It is **not yet wired into `server/stream.ts`**.
    - **Already in `server/stream.ts`:** 1 MiB chunking, range math, the per-client "flagged" cooldown and same-itag client switching. These stay useful whichever fix is chosen.
 2. **Heavy probing during this session got this IP bot-flagged** for some clients ("Sign in to confirm you're not a bot"). It is usually temporary. The server now uses a YouTube-issued visitor id, which cleared it for ANDROID_VR in testing.
-3. ~~Android app does not build yet~~ Fixed. Not yet tested on the phone.
-4. Screenshot tour (`web/tests/shots.mjs`) needs a final run after the style-registry fix; Chromium's capture is occasionally flaky, and the script retries.
+3. **The Android app has never been run on a device.** It compiles and builds; the Pixel 7 was not connected during development, so UI, playback, sync and import are unverified there. Run `app/smoke-test.sh`.
+4. The screenshot tour (`web/tests/shots.mjs`) predates the login gate; it needs a signed-in session.
+5. **Before the owner account exists the web server is open to anyone who can reach it.** Set `LOMU_SETUP_CODE` (the install script does) and create the account first.
 
 ---
 
-## Roadmap (agreed scope, not yet built)
+## Accounts, sync and recommendations (built 2026-11-18)
 
-- **Accounts & sync:** single-owner LoMu account (username + password, short-lived JWT + rotating refresh token). Server-side SQLite holding tracks, likes, playlists, play history and devices. A change log with cursors for incremental sync, plus server-sent events so the phone and web update each other instantly. Handoff ("Continue from Pixel 7 · 1:23").
-- **Recommendation engine (server side, shared by both clients):**
-  - Signals: completions, early skips (<30 s), replays and likes, all recency-weighted.
-  - Candidates: YouTube radio + related for the strongest recent seeds, top tracks of favourite artists, new releases from them.
-  - Ranking: consensus across seeds, novelty, skip penalties, per-artist diversity caps.
-  - Outputs: *Your Mix*, *Because you played X*, *On Repeat*, *Discover*, *New from your artists*, adaptive endless autoplay.
-- **Import from YouTube Music:** playlist links (done on web); phone one-time Google sign-in that imports playlists + liked songs, then discards the cookie.
-- **Offline downloads** on Android (engine already supports it; needs UI).
-- **Tests:** unit tests for mappers / stream range logic / sync; Playwright end-to-end tests including real playback past the 1 MB mark; Android smoke test over adb.
-- **Deploy:** production build of `web/` in a new LXC on the homelab (static IP, `CTID == last octet`), nginx site from the standard template with long timeouts for streaming, Uptime Kuma check.
+**Server (`web/src/server/`)**
+- `db.ts`: one SQLite file via Node's built-in `node:sqlite`, in `LOMU_DATA_DIR` (default `~/.lomu`, kept outside the project so it never triggers the dev bundler).
+- `auth.ts`: single owner (scrypt password hash), HS256 JWT access token (15 min) + random refresh token (60 days, stored hashed, **rotated on every use**). Browsers get httpOnly cookies, the phone sends `Authorization: Bearer`. Until an owner exists the API is open (first-run setup); afterwards every API route, including the audio proxy, requires a session. Login is rate-limited (8 failures / 10 min per client). Optional `LOMU_SETUP_CODE` guards account creation.
+- `sync.ts`: documents `(kind, key) -> JSON`, kinds `like`, `playlist`, `saved`, `play`, `search`, `queue`. Last write wins by the client's `updated` timestamp; deletes are tombstones; each accepted write gets the next `seq`; `GET /api/sync?since=N` is incremental; `GET /api/sync/events` is server-sent events so other devices pull immediately.
+- `recs-core.ts` (pure, unit-tested) and `recs.ts` (fetches YouTube radio for the top seeds, cached 3 min).
+- Routes: `/api/auth/{status,setup,login,refresh,logout}`, `/api/sync`, `/api/sync/events`, `/api/recs`, `/api/recs/next?seed=&recent=`.
+
+**Web client**: `player/sync.ts` diffs the library store against its previous snapshot and pushes the changes; `components/AuthGate.tsx` is the login / first-run screen; Settings shows the account and sync status; Home shows the recommendation shelves.
+
+**Android client**: `sync/SyncClient.kt` (login, refresh, incremental pull, push of likes and plays, recs), Settings screen for server address and sign-in.
+
+## Tests
+
+```bash
+cd web
+npm test            # 19 unit tests: scoring, sync log + LWW, auth/JWT/refresh rotation, client diffing, range parsing
+npm run e2e         # 5 Playwright tests on a throwaway server (port 4199): needs network (real YouTube)
+npm run typecheck
+# Android, device connected:
+app/smoke-test.sh
+```
+
+---
+
+## Roadmap (what is still open)
+
+- **Android on a device:** first real run, bug-fixing, polish to match the web design.
+- **Android playlists sync**, adaptive autoplay from `/api/recs/next` on both clients, "New from your artists" shelf.
+- **Offline downloads UI** on Android (the engine supports it).
+- **Deploy** to the homelab (see `deploy/README.md`) and add the Uptime Kuma check.
+- **Housekeeping:** remove unused preference keys / `PlaybackData` fields, restrict cleartext traffic in `network_security_config.xml` once the server has TLS.
 
 ---
 
@@ -224,16 +247,17 @@ Next.js 16 (App Router, Turbopack) · React 19 · TypeScript · TanStack Query �
 
 ```
 LoMu/
-├─ app/            Android app (com.lomu.app) — core engine kept, UI to be rewritten
+├─ app/            Android app (com.lomu.app): engine kept, new Compose UI in ui/, sync in sync/
 ├─ innertube/      YouTube Music API client (Kotlin)
 ├─ lrclib/, betterlyrics/   lyrics providers
 ├─ branding/       icon source (transparent PNG)
-├─ web/            Next.js web player + future sync server
+├─ web/            Next.js web player + sync server
+├─ deploy/         homelab install script, systemd unit, nginx site, README
 │  ├─ src/app/         pages + API routes
 │  ├─ src/components/  UI components
 │  ├─ src/player/      player engine, library, settings stores
 │  ├─ src/server/      YouTube layer, mappers, stream proxy, enrichment
-│  ├─ scripts/         po-minter.mjs (PO token experiment)
-│  └─ tests/           shots.mjs (screenshot tour)
+│  ├─ scripts/         po-chromium.mjs / po-minter.mjs (PO tokens), probe-full.mjs (per-client download probe)
+│  └─ tests/           unit/ (vitest), e2e/ (Playwright), shots.mjs (screenshot tour)
 └─ PROGRESS.md     this file
 ```

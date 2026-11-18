@@ -4,7 +4,8 @@ import { useAuth } from '@/player/sync';
 
 /** Blocks the app behind the owner login (or first-run account creation). */
 export function AuthGate({ children }: { children: React.ReactNode }) {
-  const { status, error, refresh, submit } = useAuth();
+  const { status, error, needsCode, refresh, submit } = useAuth();
+  const [code, setCode] = useState('');
   const [u, setU] = useState('');
   const [p, setP] = useState('');
   const [busy, setBusy] = useState(false);
@@ -22,7 +23,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         onSubmit={async (e) => {
           e.preventDefault();
           setBusy(true);
-          await submit(mode, u, p);
+          await submit(mode, u, p, code);
           setBusy(false);
         }}
       >
@@ -36,6 +37,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
           value={p}
           onChange={(e) => setP(e.target.value)}
         />
+        {mode === 'setup' && needsCode && <input placeholder="Setup code (from the server config)" value={code} onChange={(e) => setCode(e.target.value)} />}
         {error && <div className="err">{error}</div>}
         <button disabled={busy || !u || !p}>{mode === 'setup' ? 'Create account' : 'Sign in'}</button>
       </form>

@@ -188,9 +188,10 @@ export async function proxyAudio(id: string, codec: Codec, rangeHeader: string |
     'content-type': r.mime,
     'content-length': String(end - start + 1),
     'accept-ranges': 'bytes',
-    'cache-control': 'private, max-age=3600',
+    'cache-control': 'private, max-age=3600, no-transform',
     'x-lomu-client': r.client,
     'x-lomu-itag': String(r.itag),
+    'x-lomu-length': String(len), // total file size; Next drops content-length on streamed bodies
   });
   if (range) headers.set('content-range', `bytes ${start}-${end}/${len}`);
   return new Response(body, { status: range ? 206 : 200, headers });
