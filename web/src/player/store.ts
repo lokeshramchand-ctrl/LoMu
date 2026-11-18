@@ -319,8 +319,9 @@ const engine = (() => {
     if (!seed || extending) return;
     extending = true;
     try {
-      const radio = await api.radio(seed.id);
       const { queue } = S();
+      // Adaptive autoplay: the server ranks YouTube's radio by what you like and skip; plain radio is the fallback.
+      const radio = await api.nextUp(seed.id, queue.slice(-30).map((t) => t.id)).catch(() => api.radio(seed.id));
       const ids = new Set(queue.map((t) => t.id));
       const recent = new Set(useLibrary.getState().history.slice(0, 40).map((p) => p.track.id));
       const fresh = radio.filter((t) => !ids.has(t.id) && !t.video);
