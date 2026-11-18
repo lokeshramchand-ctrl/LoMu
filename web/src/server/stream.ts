@@ -90,11 +90,13 @@ async function tryClient(id: string, codec: Codec, client: string, itag?: number
   // Verify the URL serves the start AND the tail of the file: some clients answer the first
   // MiB and then 403 everything after it, which would cut playback off after ~50 s.
   const len = Number(f.content_length);
-  for (const range of ['bytes=0-1', `bytes=${Math.max(0, len - 2)}-${len - 1}`]) {
-    const probe = await fetch(url, { headers: { range }, signal: AbortSignal.timeout(8000) });
-    await probe.body?.cancel().catch(() => {});
-    if (probe.status !== 206 && probe.status !== 200) throw new Error(`googlevideo ${probe.status} (${range})`);
-  }
+  await Promise.all(
+    ['bytes=0-1', `bytes=${Math.max(0, len - 2)}-${len - 1}`].map(async (range) => {
+      const probe = await fetch(url, { headers: { range }, signal: AbortSignal.timeout(8000) });
+      await probe.body?.cancel().catch(() => {});
+      if (probe.status !== 206 && probe.status !== 200) throw new Error(`googlevideo ${probe.status} (${range})`);
+    }),
+  );
   const expire = Number(new URL(url).searchParams.get('expire')) * 1000 || Date.now() + 5 * 3600_000;
   return {
     url,
@@ -105,6 +107,11 @@ async function tryClient(id: string, codec: Codec, client: string, itag?: number
     client,
     expiresAt: expire,
   };
+}
+
+/** Resolves a stream ahead of time so pressing play only has to start downloading. */
+export async function warmAudio(id: string, codec: Codec): Promise<void> {
+  await resolveAudio(id, codec);
 }
 
 export function parseRange(h: string | null, len: number): { start: number; end: number } | null {
@@ -144,43 +151,71 @@ export async function proxyAudio(id: string, codec: Codec, rangeHeader: string |
   const tried: string[] = [];
 
   let offset = start;
-  const body = new ReadableStream<Uint8Array>({
-    async pull(controller) {
-      if (offset > end) {
-        controller.close();
-        return;
+  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+  let chunkEnd = -1;
+
+  /** Opens the next upstream piece, failing over to another client (same itag) when it is refused. */
+  async function openChunk(): Promise<ReadableStreamDefaultReader<Uint8Array> | Uint8Array | null> {
+    const b = Math.min(offset + CHUNK - 1, end);
+    for (let attempt = 0; attempt < 4; attempt++) {
+      let res: Response;
+      try {
+        res = await fetchChunk(r, offset, b, signal);
+      } catch (e) {
+        if (signal.aborted) return null;
+        if (attempt === 3) throw e;
+        continue;
       }
-      const b = Math.min(offset + CHUNK - 1, end);
-      for (let attempt = 0; attempt < 4; attempt++) {
-        let res: Response;
-        try {
-          res = await fetchChunk(r, offset, b, signal);
-        } catch (e) {
-          if (signal.aborted) return controller.close();
-          if (attempt === 3) return controller.error(e);
-          continue;
+      if (res.status === 206 && res.body) {
+        chunkEnd = b;
+        return res.body.getReader();
+      }
+      if (res.status === 200) {
+        // The server ignored the range; slice what we asked for.
+        const buf = new Uint8Array(await res.arrayBuffer());
+        chunkEnd = b;
+        return buf.subarray(offset, b + 1);
+      }
+      await res.body?.cancel().catch(() => {});
+      tried.push(r.client);
+      invalidate(id, codec);
+      r = await resolveAudio(id, codec, { skip: tried, itag: r.itag });
+    }
+    throw new Error('upstream kept failing');
+  }
+
+  const body = new ReadableStream<Uint8Array>({
+    // Bytes are forwarded as they arrive instead of waiting for a whole 1 MiB piece, so
+    // playback starts after one network round trip.
+    async pull(controller) {
+      try {
+        if (offset > end) return controller.close();
+        if (!reader) {
+          const opened = await openChunk();
+          if (!opened) return controller.close();
+          if (opened instanceof Uint8Array) {
+            controller.enqueue(opened);
+            offset += opened.byteLength;
+            return;
+          }
+          reader = opened;
         }
-        if (res.status === 206 || res.status === 200) {
-          const buf = new Uint8Array(await res.arrayBuffer());
-          // A 200 means the server ignored the range; slice what we asked for.
-          const piece = res.status === 200 ? buf.subarray(offset, b + 1) : buf;
-          controller.enqueue(piece);
-          offset += piece.byteLength;
+        const { done, value } = await reader.read();
+        if (done) {
+          reader = null;
+          if (offset <= chunkEnd) throw new Error('upstream ended early');
           return;
         }
-        await res.body?.cancel().catch(() => {});
-        tried.push(r.client);
-        invalidate(id, codec);
-        try {
-          r = await resolveAudio(id, codec, { skip: tried, itag: r.itag });
-        } catch (e) {
-          return controller.error(e);
-        }
+        controller.enqueue(value);
+        offset += value.byteLength;
+      } catch (e) {
+        if (signal.aborted) return controller.close();
+        controller.error(e);
       }
-      controller.error(new Error('upstream kept failing'));
     },
     cancel() {
       offset = end + 1;
+      reader?.cancel().catch(() => {});
     },
   });
 

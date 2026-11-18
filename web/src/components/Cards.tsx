@@ -7,6 +7,7 @@ import { useLibrary } from '@/player/library';
 import { Avatar, Cover } from './Art';
 import { Icon } from './Icon';
 import { useMenu } from './Menu';
+import { warmProps } from '@/lib/warm';
 
 const CARD = 164;
 
@@ -31,6 +32,7 @@ export function ItemCard({ item, siblings }: { item: Item; siblings?: Track[] })
           useMenu.getState().open(item, e);
         }}
         title={`${item.title} — ${artistNames(item.artists)}`}
+        {...warmProps(item.id)}
       >
         <div className="art">
           <Cover src={item.thumb} size="100%" />
@@ -135,6 +137,7 @@ export function TrackRow({
       className={`trow${active ? ' active' : ''}`}
       role="button"
       tabIndex={0}
+      {...warmProps(track.id)}
       onClick={() => usePlayer.getState().play(list, index, { source: 'list' })}
       onKeyDown={(e) => e.key === 'Enter' && usePlayer.getState().play(list, index)}
       onContextMenu={(e) => {

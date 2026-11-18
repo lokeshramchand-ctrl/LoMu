@@ -1,4 +1,4 @@
-import { proxyAudio, type Codec } from '@/server/stream';
+import { proxyAudio, warmAudio, type Codec } from '@/server/stream';
 import { idParam } from '@/server/http';
 import { gate } from '@/server/auth';
 export const dynamic = 'force-dynamic';
@@ -8,6 +8,10 @@ export const GET = async (req: Request, ctx: { params: Promise<{ id: string }> }
   const id = await idParam(ctx);
   const codec: Codec = new URL(req.url).searchParams.get('codec') === 'aac' ? 'aac' : 'opus';
   try {
+    if (new URL(req.url).searchParams.get('warm')) {
+      await warmAudio(id, codec);
+      return new Response(null, { status: 204 });
+    }
     return await proxyAudio(id, codec, req.headers.get('range'), req.signal);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);

@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useExplore, useHome, useMood, useRecs } from '@/lib/api';
 import { artistNames, greeting } from '@/lib/format';
@@ -13,6 +13,7 @@ import { useLibrary } from '@/player/library';
 import { currentTrack, usePlayer } from '@/player/store';
 import { HOME_SECTIONS, useSettings } from '@/player/settings';
 import { useAuth } from '@/player/sync';
+import { warm, warmProps } from '@/lib/warm';
 
 const dateLine = () => new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
 
@@ -187,6 +188,11 @@ function WeekStats({ stats }: { stats: ReturnType<typeof weekStats> }) {
 function QuickPicks({ tracks, personal, loading }: { tracks: Track[]; personal: boolean; loading: boolean }) {
   const cur = usePlayer((s) => currentTrack(s)?.id);
   const playing = usePlayer((s) => s.playing);
+  // The first few quick picks are the likeliest next play: resolve them while the page is idle.
+  useEffect(() => {
+    const t = setTimeout(() => tracks.slice(0, 4).forEach((x) => warm(x.id)), 600);
+    return () => clearTimeout(t);
+  }, [tracks]);
   if (loading) {
     return (
       <section>
@@ -214,7 +220,7 @@ function QuickPicks({ tracks, personal, loading }: { tracks: Track[]; personal: 
         {tracks.map((t, i) => {
           const active = cur === t.id;
           return (
-            <button key={t.id} className={`q card${active ? ' active' : ''}`} onClick={() => usePlayer.getState().play(tracks, i, { source: 'home-quick' })} title={`${t.title} — ${artistNames(t.artists)}`}>
+            <button key={t.id} className={`q card${active ? ' active' : ''}`} onClick={() => usePlayer.getState().play(tracks, i, { source: 'home-quick' })} title={`${t.title} — ${artistNames(t.artists)}`} {...warmProps(t.id)}>
               <Cover src={t.thumb} size={64} radius={0} />
               <div className="grow tx">
                 <div className="clamp1 t">{t.title}</div>

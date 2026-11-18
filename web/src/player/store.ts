@@ -5,6 +5,7 @@ import type { Track } from '@/lib/types';
 import { api } from '@/lib/api';
 import { artistNames } from '@/lib/format';
 import { useLibrary } from './library';
+import { warm } from '@/lib/warm';
 
 export type Repeat = 'off' | 'all' | 'one';
 type Panel = 'lyrics' | 'queue' | null;
@@ -311,8 +312,8 @@ const engine = (() => {
 
   function warmNext() {
     const { queue, index } = S();
-    const n = queue[index + 1];
-    if (n) setTimeout(() => fetch(streamUrl(n.id), { headers: { range: 'bytes=0-1' } }).catch(() => {}), 4000);
+    // The next two songs, a little after this one starts so it gets the bandwidth first.
+    [queue[index + 1], queue[index + 2]].forEach((n, i) => n && setTimeout(() => warm(n.id), 1500 + i * 2500));
   }
 
   async function extendWithRadio(seed: Track | undefined, immediate = false) {
