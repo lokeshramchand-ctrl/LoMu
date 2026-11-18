@@ -14,10 +14,11 @@ export type Resolved = {
   expiresAt: number;
 };
 
-// ANDROID_VR / VISIONOS are fastest and serve Opus without extra tokens, but YouTube
-// bot-flags them per IP from time to time. IOS keeps working (AAC only). Web clients
-// need a GVS proof-of-origin token, so they are last.
-const CLIENTS = ['ANDROID_VR', 'VISIONOS', 'IOS', 'YTMUSIC', 'MWEB'] as const;
+// VISIONOS serves the whole Opus file without extra tokens (measured 2026-11-18). ANDROID_VR
+// is similar but currently 403s from this network; IOS / YTMUSIC / MWEB only serve the first
+// MiB without a proof-of-origin token, so they are last-resort fallbacks. YouTube bot-flags
+// clients per IP from time to time, hence the ordering plus the deep probe below.
+const CLIENTS = ['VISIONOS', 'ANDROID_VR', 'IOS', 'YTMUSIC', 'MWEB'] as const;
 
 // googlevideo rejects open-ended / large ranges for most clients; ≤1 MiB pieces are accepted.
 const CHUNK = 1024 * 1024;
@@ -86,10 +87,14 @@ async function tryClient(id: string, codec: Codec, client: string, itag?: number
   })[0];
   const url: string = await f.decipher(it.session.player);
   if (!url) throw new Error('decipher failed');
-  // Verify the URL actually serves bytes before committing to this client.
-  const probe = await fetch(url, { headers: { range: 'bytes=0-1' }, signal: AbortSignal.timeout(8000) });
-  await probe.body?.cancel().catch(() => {});
-  if (probe.status !== 206 && probe.status !== 200) throw new Error(`googlevideo ${probe.status}`);
+  // Verify the URL serves the start AND the tail of the file: some clients answer the first
+  // MiB and then 403 everything after it, which would cut playback off after ~50 s.
+  const len = Number(f.content_length);
+  for (const range of ['bytes=0-1', `bytes=${Math.max(0, len - 2)}-${len - 1}`]) {
+    const probe = await fetch(url, { headers: { range }, signal: AbortSignal.timeout(8000) });
+    await probe.body?.cancel().catch(() => {});
+    if (probe.status !== 206 && probe.status !== 200) throw new Error(`googlevideo ${probe.status} (${range})`);
+  }
   const expire = Number(new URL(url).searchParams.get('expire')) * 1000 || Date.now() + 5 * 3600_000;
   return {
     url,

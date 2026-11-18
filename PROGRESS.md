@@ -17,7 +17,7 @@ _Last updated: 2026-11-18. Branch `music`. The upstream git remote has been remo
 | Android new UI | ❌ Not started (design decided, see below) |
 | Web player UI | ✅ Built (all pages), 🔶 visual check pending |
 | Web catalogue APIs (home, search, album, artist, playlist, radio, lyrics) | ✅ Working against live YouTube Music |
-| Web audio playback | 🔶 **Partly works**: YouTube now cuts streams after ~1 MB (~50 s) without a valid proof-of-origin token; fix in progress (see Known issues) |
+| Web audio playback | ✅ **Fixed 2026-11-18**: the proxy prefers the `VISIONOS` client, which serves the whole file, and verifies the file tail before choosing a client. Full tracks and mid-file seeks verified through `/api/stream/<id>` |
 | Own account system (username/password, JWT) + sync server | ❌ Not started |
 | Recommendation engine | 🔶 Only the basics: play logging + YouTube-radio autoplay |
 | One-time "Import from YouTube Music" | 🔶 Web: "Import" button on any playlist page. Phone import not built |
@@ -174,7 +174,7 @@ Next.js 16 (App Router, Turbopack) · React 19 · TypeScript · TanStack Query �
 
 ## Known issues (most important first)
 
-1. **Web playback stops after about 50 seconds.**
+1. ~~Web playback stops after about 50 seconds.~~ **Resolved** (see status table; notes below kept for history). If it regresses, `web/scripts/po-chromium.mjs` (real-Chromium BotGuard minter, mints 716-char tokens) and `scripts/probe-full.mjs` (per-client full-download probe) are the tools to start from. Tokens alone did not unlock the blocked clients.
    - **Cause:** googlevideo now serves only the first ~1 MB of any audio stream unless the request carries a valid proof-of-origin (PO) token. This was measured from every client (ANDROID_VR, IOS, MWEB, YTMUSIC) and every request pattern.
    - **Tried:** a token minter that runs YouTube's BotGuard in jsdom in a separate process (`web/scripts/po-minter.mjs`) mints tokens, but googlevideo still rejects them.
    - **Next options, in order:**
