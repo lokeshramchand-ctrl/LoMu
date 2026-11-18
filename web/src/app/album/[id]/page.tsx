@@ -26,12 +26,12 @@ export default function AlbumPage({ params }: { params: Promise<{ id: string }> 
         numbered
         actions={
           <button
-            className="pill-btn"
+            className="btn"
             onClick={() =>
               useLibrary.getState().toggleSaved({ kind: 'album', id: data.id, title: data.title, artists: data.artists, year: data.year, thumb: data.thumb })
             }
           >
-            <Icon name={saved ? 'check' : 'bookmark'} size={18} /> {saved ? 'Saved' : 'Save'}
+            <Icon name={saved ? 'check' : 'plus'} size={16} /> {saved ? 'Saved' : 'Save'}
           </button>
         }
       />

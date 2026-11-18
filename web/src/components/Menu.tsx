@@ -58,15 +58,15 @@ export function TrackMenuHost() {
 
   const Item = ({ icon, label, onClick }: { icon: IconName; label: string; onClick: () => void }) => (
     <button className="menu-item" onClick={onClick}>
-      <Icon name={icon} size={19} />
+      <Icon name={icon} size={17} />
       <span>{label}</span>
     </button>
   );
 
   return (
-    <div ref={ref} className="menu neu fade-in" style={{ left, top, width: W }} role="menu">
+    <div ref={ref} className="menu fade-in" style={{ left, top, width: W }} role="menu">
       <div className="menu-head">
-        <div className="clamp1" style={{ fontWeight: 700 }}>{track.title}</div>
+        <div className="clamp1" style={{ fontWeight: 600 }}>{track.title}</div>
         <div className="clamp1 muted" style={{ fontSize: 13 }}>{track.artists.map((a) => a.name).join(', ')}</div>
       </div>
       {mode === 'main' ? (
@@ -75,12 +75,12 @@ export function TrackMenuHost() {
           <Item icon="queue" label="Play next" onClick={() => (usePlayer.getState().playNext(track), toast('Playing next'), close())} />
           <Item icon="plus" label="Add to queue" onClick={() => (usePlayer.getState().enqueue([track]), toast('Added to queue'), close())} />
           <Item icon={liked ? 'heartFill' : 'heart'} label={liked ? 'Remove from liked' : 'Like'} onClick={() => (lib.toggleLike(track), close())} />
-          <Item icon="bookmark" label="Add to playlist" onClick={() => setMode('playlists')} />
+          <Item icon="addList" label="Add to playlist" onClick={() => setMode('playlists')} />
           {playlistId != null && playlistIndex != null && (
             <Item icon="close" label="Remove from this playlist" onClick={() => (lib.removeFromPlaylist(playlistId, playlistIndex), close())} />
           )}
           {track.artists[0]?.id && <Item icon="user" label="Go to artist" onClick={() => go(`/artist/${track.artists[0].id}`)} />}
-          {track.album?.id && <Item icon="lyrics" label="Go to album" onClick={() => go(`/album/${track.album!.id}`)} />}
+          {track.album?.id && <Item icon="disc" label="Go to album" onClick={() => go(`/album/${track.album!.id}`)} />}
         </>
       ) : (
         <>
@@ -97,15 +97,15 @@ export function TrackMenuHost() {
             }}
           />
           {lib.playlists.map((p) => (
-            <Item key={p.id} icon="bookmark" label={p.name} onClick={() => (lib.addToPlaylist(p.id, [track]), toast(`Added to ${p.name}`), close())} />
+            <Item key={p.id} icon="playlist" label={p.name} onClick={() => (lib.addToPlaylist(p.id, [track]), toast(`Added to ${p.name}`), close())} />
           ))}
         </>
       )}
       <style jsx>{`
-        .menu { position: fixed; z-index: 80; border-radius: 22px; padding: 8px; }
-        .menu-head { padding: 10px 12px 12px; border-bottom: 1px solid var(--line); margin-bottom: 6px; }
-        :global(.menu-item) { display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 12px; border-radius: 14px; text-align: left; font-weight: 550; font-size: 14.5px; }
-        :global(.menu-item:hover) { background: color-mix(in oklab, var(--ink) 6%, transparent); }
+        .menu { position: fixed; z-index: 80; border-radius: 14px; padding: 6px; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--lift-hi); }
+        .menu-head { padding: 8px 10px 10px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+        :global(.menu-item) { display: flex; align-items: center; gap: 12px; width: 100%; padding: 9px 10px; border-radius: 9px; text-align: left; font-weight: 500; font-size: 13.5px; color: var(--text); }
+        :global(.menu-item:hover) { background: var(--surface-2); }
       `}</style>
     </div>
   );

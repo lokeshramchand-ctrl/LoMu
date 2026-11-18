@@ -2,11 +2,11 @@
 import Link from 'next/link';
 import type { ArtistRef, Track } from '@/lib/types';
 import { usePlayer } from '@/player/store';
-import { Cover, Disc } from './Art';
+import { Cover } from './Art';
 import { Icon } from './Icon';
 import { TrackRow } from './Cards';
 
-/** Shared header + tracklist for albums and playlists: the sleeve with its record sliding out. */
+/** Shared header + tracklist for albums and playlists. */
 export function Collection({
   kind,
   title,
@@ -36,16 +36,11 @@ export function Collection({
 }) {
   return (
     <div className="fade-in">
-      <header className="ch">
-        <div className="rec">
-          <div className="vinyl">
-            <Disc src={thumb} size="100%" />
-          </div>
-          <div className="sleeve">{cover ?? <Cover src={thumb} size="100%" radius={24} />}</div>
-        </div>
+      <header className="ch card pad">
+        <div className="art">{cover ?? <Cover src={thumb} size="100%" radius={14} />}</div>
         <div className="info">
           <div className="eyebrow">{kind}</div>
-          <h1 className="display ttl clamp2">{title}</h1>
+          <h1 className="h1 ttl clamp2">{title}</h1>
           {artists && artists.length > 0 && (
             <div className="by">
               {artists.map((a, i) => (
@@ -56,14 +51,14 @@ export function Collection({
               ))}
             </div>
           )}
-          {meta && <div className="muted meta">{meta}</div>}
+          {meta && <div className="muted small meta">{meta}</div>}
           {description && <p className="muted desc clamp2">{description}</p>}
-          <div className="row" style={{ marginTop: 22, flexWrap: 'wrap' }}>
-            <button className="pill-btn solid" disabled={!tracks.length} onClick={() => usePlayer.getState().play(tracks, 0, { source })}>
-              <Icon name="play" size={16} /> Play
+          <div className="row" style={{ marginTop: 18, flexWrap: 'wrap' }}>
+            <button className="btn primary" disabled={!tracks.length} onClick={() => usePlayer.getState().play(tracks, 0, { source })}>
+              <Icon name="play" size={14} /> Play
             </button>
-            <button className="pill-btn" disabled={!tracks.length} onClick={() => usePlayer.getState().play(tracks, 0, { source, shuffle: true })}>
-              <Icon name="shuffle" size={18} /> Shuffle
+            <button className="btn" disabled={!tracks.length} onClick={() => usePlayer.getState().play(tracks, 0, { source, shuffle: true })}>
+              <Icon name="shuffle" size={16} /> Shuffle
             </button>
             {actions}
           </div>
@@ -75,22 +70,16 @@ export function Collection({
         ))}
       </div>
       <style jsx>{`
-        .ch { display: flex; align-items: flex-end; gap: 44px; flex-wrap: wrap; }
-        .rec { position: relative; width: 260px; height: 260px; flex: none; margin-right: 90px; }
-        .vinyl { position: absolute; inset: 4%; transform: translateX(34%); transition: transform 0.8s var(--ease); }
-        .rec:hover .vinyl { transform: translateX(42%) rotate(20deg); }
-        .sleeve { position: absolute; inset: 0; }
-        .info { flex: 1; min-width: 260px; }
-        .ttl { font-size: clamp(34px, 4.6vw, 64px); margin: 8px 0 10px; }
-        .by { font-size: 19px; font-weight: 700; letter-spacing: -0.02em; }
+        .ch { display: flex; align-items: flex-end; gap: 28px; flex-wrap: wrap; }
+        .art { width: 208px; height: 208px; flex: none; }
+        .info { flex: 1; min-width: 240px; }
+        .ttl { margin: 6px 0 6px; font-size: clamp(1.6rem, 3vw, 2.4rem); }
+        .by { font-size: 15px; font-weight: 500; }
         .by :global(a:hover) { text-decoration: underline; }
-        .meta { margin-top: 6px; font-weight: 550; }
-        .desc { max-width: 640px; margin: 12px 0 0; line-height: 1.5; font-size: 14.5px; }
-        .tl { margin-top: 40px; display: flex; flex-direction: column; gap: 2px; }
-        @media (max-width: 900px) {
-          .rec { width: 200px; height: 200px; margin-right: 70px; }
-          .ch { gap: 26px; }
-        }
+        .meta { margin-top: 4px; }
+        .desc { max-width: 640px; margin: 10px 0 0; font-size: 13.5px; }
+        .tl { margin-top: 18px; display: flex; flex-direction: column; gap: 1px; }
+        @media (max-width: 900px) { .art { width: 148px; height: 148px; } .ch { gap: 18px; } }
       `}</style>
     </div>
   );
@@ -98,11 +87,14 @@ export function Collection({
 
 export function PageError({ error, retry }: { error: unknown; retry?: () => void }) {
   return (
-    <div className="neu" style={{ padding: 28, borderRadius: 26, maxWidth: 560 }}>
-      <div className="h3">Couldn&apos;t load this page</div>
-      <p className="muted">{error instanceof Error ? error.message : String(error ?? 'Unknown error')}</p>
+    <div className="callout err" style={{ maxWidth: 560 }}>
+      <Icon name="warn" size={20} />
+      <div className="grow">
+        <b>Couldn&apos;t load this page</b>
+        <div className="small">{error instanceof Error ? error.message : String(error ?? 'Unknown error')}</div>
+      </div>
       {retry && (
-        <button className="pill-btn" onClick={retry}>
+        <button className="btn sm" onClick={retry}>
           Retry
         </button>
       )}
@@ -112,11 +104,11 @@ export function PageError({ error, retry }: { error: unknown; retry?: () => void
 
 export function PageSkeleton() {
   return (
-    <div style={{ display: 'flex', gap: 40, alignItems: 'flex-end' }}>
-      <div className="skeleton" style={{ width: 260, height: 260, borderRadius: 24 }} />
+    <div className="card pad" style={{ display: 'flex', gap: 28, alignItems: 'flex-end' }}>
+      <div className="skeleton" style={{ width: 208, height: 208, borderRadius: 14 }} />
       <div style={{ flex: 1 }}>
-        <div className="skeleton" style={{ width: '60%', height: 54, borderRadius: 12 }} />
-        <div className="skeleton" style={{ width: '30%', height: 20, borderRadius: 8, marginTop: 16 }} />
+        <div className="skeleton" style={{ width: '55%', height: 38, borderRadius: 8 }} />
+        <div className="skeleton" style={{ width: '25%', height: 16, borderRadius: 6, marginTop: 14 }} />
       </div>
     </div>
   );

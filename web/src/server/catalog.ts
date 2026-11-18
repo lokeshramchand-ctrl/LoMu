@@ -158,7 +158,8 @@ export function album(id: string): Promise<AlbumData> {
     const fallback = { artists, album: { id, name: title }, thumb };
     const tracks = compact<Track>((al.contents ?? []).map((n: any) => toTrack(n, fallback))).map((t) => ({
       ...t,
-      artists: t.artists.length ? t.artists : artists,
+      // YouTube reports a missing artist as the text "N/A"; fall back to the album's artists.
+      artists: t.artists.filter((a) => a.name && a.name !== 'N/A').length ? t.artists.filter((a) => a.name && a.name !== 'N/A') : artists,
       album: { id, name: title },
       thumb,
       video: false,

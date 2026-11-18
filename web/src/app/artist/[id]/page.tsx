@@ -29,23 +29,23 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
             <img src={data.banner} alt="" referrerPolicy="no-referrer" />
           </div>
         )}
-        <div className="row hero">
-          <Avatar src={photo} size={220} alt={data.name} />
+        <div className="row hero card pad">
+          <Avatar src={photo} size={168} alt={data.name} />
           <div className="grow">
             <div className="eyebrow">Artist</div>
-            <h1 className="display name">{data.name}</h1>
+            <h1 className="h1 name">{data.name}</h1>
             {facts.length > 0 && <div className="muted facts">{facts.join(' · ')}</div>}
             <div className="row" style={{ marginTop: 20, flexWrap: 'wrap' }}>
-              <button className="pill-btn solid" disabled={!data.topSongs.length} onClick={() => usePlayer.getState().play(data.topSongs, 0, { source: `artist:${id}` })}>
-                <Icon name="play" size={16} /> Play
+              <button className="btn primary" disabled={!data.topSongs.length} onClick={() => usePlayer.getState().play(data.topSongs, 0, { source: `artist:${id}` })}>
+                <Icon name="play" size={14} /> Play
               </button>
               {data.topSongs[0] && (
-                <button className="pill-btn" onClick={() => usePlayer.getState().playRadio(data.topSongs[0])}>
-                  <Icon name="radio" size={17} /> Radio
+                <button className="btn" onClick={() => usePlayer.getState().playRadio(data.topSongs[0])}>
+                  <Icon name="radio" size={16} /> Radio
                 </button>
               )}
-              <button className="pill-btn" onClick={() => useLibrary.getState().toggleSaved({ kind: 'artist', id, title: data.name, thumb: photo })}>
-                <Icon name={following ? 'check' : 'plus'} size={17} /> {following ? 'Following' : 'Follow'}
+              <button className="btn" onClick={() => useLibrary.getState().toggleSaved({ kind: 'artist', id, title: data.name, thumb: photo })}>
+                <Icon name={following ? 'check' : 'plus'} size={16} /> {following ? 'Following' : 'Follow'}
               </button>
             </div>
           </div>
@@ -53,8 +53,8 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
       </header>
 
       {data.topSongs.length > 0 && (
-        <section className="section">
-          <h2 className="h3" style={{ marginBottom: 12 }}>Top songs</h2>
+        <section>
+          <div className="section-head"><h2>Top songs</h2></div>
           {data.topSongs.map((t, i) => (
             <TrackRow key={t.id} track={t} index={i} list={data.topSongs} />
           ))}
@@ -66,9 +66,9 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
       ))}
 
       {data.description && (
-        <section className="section">
-          <h2 className="h3" style={{ marginBottom: 12 }}>About</h2>
-          <div className="about neu">
+        <section>
+          <div className="section-head"><h2>About</h2></div>
+          <div className="about card pad">
             <p className={bioOpen ? '' : 'clamp4'}>{data.description}</p>
             <div className="row" style={{ justifyContent: 'space-between', marginTop: 10 }}>
               <button className="more" onClick={() => setBioOpen(!bioOpen)}>{bioOpen ? 'Show less' : 'Read more'}</button>
@@ -79,18 +79,19 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
       )}
 
       <style jsx>{`
-        .ah { position: relative; }
-        .banner { position: absolute; left: calc(-1 * var(--gutter)); right: calc(-1 * var(--gutter)); top: -36px; height: 260px; overflow: hidden; z-index: -1; opacity: 0.35; mask-image: linear-gradient(180deg, #000, transparent); }
-        .banner img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(0.4); }
-        .hero { gap: 40px; align-items: flex-end; flex-wrap: wrap; padding-top: 80px; }
-        .name { font-size: clamp(40px, 6vw, 84px); margin: 6px 0 10px; }
-        .facts { font-weight: 600; }
-        .about { border-radius: 28px; padding: 24px 26px; max-width: 860px; }
-        .about p { margin: 0; line-height: 1.6; color: var(--ink); white-space: pre-line; }
+        .fade-in { display: flex; flex-direction: column; gap: 20px; }
+        .ah { position: relative; padding-top: 12px; }
+        .banner { position: absolute; left: 0; right: 0; top: 12px; height: 100%; min-height: 200px; overflow: hidden; border-radius: var(--r); opacity: .25; mask-image: linear-gradient(180deg, #000, transparent); pointer-events: none; }
+        .banner img { width: 100%; height: 100%; object-fit: cover; }
+        .hero { position: relative; gap: 28px; align-items: flex-end; flex-wrap: wrap; }
+        .name { font-size: clamp(1.8rem, 4vw, 3rem); font-weight: 600; margin: 4px 0 6px; }
+        .facts { font-weight: 500; font-size: 13.5px; }
+        .about { max-width: 860px; }
+        .about p { margin: 0; line-height: 1.6; color: var(--text); white-space: pre-line; font-size: 14px; }
         .clamp4 { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
-        .more { font-weight: 700; font-size: 14px; }
-        .src { font-size: 12.5px; font-weight: 600; }
-        @media (max-width: 900px) { .hero { gap: 22px; padding-top: 40px; } }
+        .more { font-weight: 500; font-size: 13px; color: var(--signal); }
+        .src { font-size: 12px; font-weight: 500; }
+        @media (max-width: 900px) { .hero { gap: 18px; } }
       `}</style>
     </div>
   );

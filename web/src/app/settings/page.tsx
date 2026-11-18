@@ -1,8 +1,9 @@
 'use client';
 import { useLibrary } from '@/player/library';
 import { usePlayer } from '@/player/store';
-import { useSettings, type Theme } from '@/player/settings';
-import { Icon } from '@/components/Icon';
+import { HOME_SECTIONS, useSettings, type Theme } from '@/player/settings';
+import { Icon, type IconName } from '@/components/Icon';
+import { PageHeader, Toggle } from '@/components/ui';
 import { toast } from '@/components/Toast';
 import { useAuth } from '@/player/sync';
 
@@ -12,142 +13,155 @@ export default function SettingsPage() {
   const setDev = useSettings((s) => s.setDev);
   const autoplay = usePlayer((s) => s.autoplay);
   const { user, sync, lastSync, logout } = useAuth();
+  const themes: { id: Theme; icon: IconName; label: string }[] = [
+    { id: 'system', icon: 'system', label: 'System' },
+    { id: 'light', icon: 'sun', label: 'Light' },
+    { id: 'dark', icon: 'moon', label: 'Dark' },
+  ];
 
   return (
-    <div className="wrap">
-      <h1 className="display h1">
-        Settings
-        <br />
-        <span className="dim">&amp; more</span>
-      </h1>
-
-      <Group title="Account">
-        <Row label={user ? `Signed in as ${user}` : 'Not signed in'} hint={`Sync: ${sync === 'live' ? 'up to date' : sync}${lastSync ? ` · ${new Date(lastSync).toLocaleTimeString()}` : ''}. Likes, playlists and history follow you to your other devices.`}>
-          <button className="pill-btn" onClick={() => logout()}>
-            Sign out
-          </button>
-        </Row>
-      </Group>
-
-      <Group title="Appearance">
-        <Row label="Theme" hint="Follow the system, or force light / dark.">
-          <div className="seg neu-in">
-            {(['system', 'light', 'dark'] as Theme[]).map((t) => (
-              <button key={t} className={theme === t ? 'on' : ''} onClick={() => useSettings.getState().setTheme(t)}>
-                {t[0].toUpperCase() + t.slice(1)}
-              </button>
-            ))}
-          </div>
-        </Row>
-      </Group>
-
-      <Group title="Playback">
-        <Row label="Autoplay" hint="When the queue ends, keep going with songs like the last one.">
-          <Toggle on={autoplay} onChange={(v) => usePlayer.setState({ autoplay: v })} />
-        </Row>
-        <Row label="Audio quality" hint="Always the best stream YouTube offers without Premium (Opus ~160 kbps, AAC fallback).">
-          <span className="pill muted">Best</span>
-        </Row>
-      </Group>
-
-      <Group title="Library">
-        <Row label="Clear listening history" hint="Recommendations start learning again from scratch.">
-          <button
-            className="pill-btn"
-            onClick={() => {
-              if (confirm('Clear your whole listening history?')) {
-                useLibrary.setState({ history: [] });
-                toast('History cleared');
-              }
-            }}
+    <>
+      <PageHeader eyebrow="Settings" title="Settings" sub="Account, appearance, playback and the things you can turn on or off." />
+      <div className="stack">
+        <Group title="Account" sub="One owner account. It syncs likes, playlists and history to your other devices.">
+          <Row
+            icon="user"
+            label={user ? `Signed in as ${user}` : 'Not signed in'}
+            hint={`Sync: ${sync === 'live' ? 'up to date' : sync}${lastSync ? ` · ${new Date(lastSync).toLocaleTimeString()}` : ''}`}
           >
-            Clear
-          </button>
-        </Row>
-      </Group>
+            <button className="btn" onClick={() => logout()}>
+              <Icon name="logout" size={16} /> Sign out
+            </button>
+          </Row>
+        </Group>
 
-      <Group title="Developer" icon="settings">
-        <Row label="Explore" hint="Show the Explore tab (trending wheel, new releases, moods).">
-          <Toggle on={dev.explore} onChange={(v) => setDev('explore', v)} />
-        </Row>
-        <Row label="Artist enrichment" hint="Sharper artist photos, fan counts and bios from Deezer and Wikipedia.">
-          <Toggle on={dev.artistEnrichment} onChange={(v) => setDev('artistEnrichment', v)} />
-        </Row>
-        <Row label="Stream info" hint="Show codec, bitrate and source client in the player.">
-          <Toggle on={dev.streamInfo} onChange={(v) => setDev('streamInfo', v)} />
-        </Row>
-        <Row label="Replay welcome screen" hint="Show the Get Started screen again on next load.">
-          <button
-            className="pill-btn"
-            onClick={() => {
-              try {
-                localStorage.removeItem('lomu-welcomed');
-              } catch {}
-              location.href = '/welcome';
-            }}
-          >
-            Show
-          </button>
-        </Row>
-      </Group>
+        <Group title="Appearance">
+          <Row icon="sun" label="Theme" hint="Follow the system, or force light or dark.">
+            <div className="chips">
+              {themes.map((t) => (
+                <button key={t.id} className={theme === t.id ? 'on' : ''} onClick={() => useSettings.getState().setTheme(t.id)}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </Row>
+        </Group>
 
-      <p className="muted foot">LoMu · web player</p>
+        <Group title="Home" sub="Pick what the home page shows. The Customise button on Home does the same.">
+          {HOME_SECTIONS.map((s) => (
+            <HomeToggle key={s.id} id={s.id} label={s.label} hint={s.hint} />
+          ))}
+        </Group>
+
+        <Group title="Playback">
+          <Row icon="radio" label="Autoplay" hint="When the queue ends, keep going with songs picked for you.">
+            <Switch on={autoplay} label="Autoplay" onChange={(v) => usePlayer.setState({ autoplay: v })} />
+          </Row>
+          <Row icon="waveform" label="Audio quality" hint="Always the best stream YouTube offers without Premium: Opus around 160 kbps, AAC as a fallback.">
+            <span className="badge">Best</span>
+          </Row>
+        </Group>
+
+        <Group title="Library">
+          <Row icon="history" label="Clear listening history" hint="Recommendations start learning again from scratch.">
+            <button
+              className="btn"
+              onClick={() => {
+                if (confirm('Clear your whole listening history?')) {
+                  useLibrary.setState({ history: [] });
+                  toast('History cleared');
+                }
+              }}
+            >
+              Clear
+            </button>
+          </Row>
+        </Group>
+
+        <Group title="Developer">
+          <Row icon="compass" label="Explore" hint="Show the Explore tab (charts, new releases, moods).">
+            <Switch on={dev.explore} label="Explore" onChange={(v) => setDev('explore', v)} />
+          </Row>
+          <Row icon="user" label="Artist enrichment" hint="Sharper artist photos, banners and bios from TheAudioDB and Wikipedia.">
+            <Switch on={dev.artistEnrichment} label="Artist enrichment" onChange={(v) => setDev('artistEnrichment', v)} />
+          </Row>
+          <Row icon="info" label="Stream info" hint="Show codec, bitrate and source client in the player.">
+            <Switch on={dev.streamInfo} label="Stream info" onChange={(v) => setDev('streamInfo', v)} />
+          </Row>
+        </Group>
+      </div>
+
+      <p className="muted small">LoMu · web player</p>
 
       <style jsx>{`
-        .wrap { max-width: 860px; }
-        .foot { margin-top: 40px; font-size: 13px; font-weight: 600; }
-        .seg { display: flex; gap: 4px; padding: 5px; border-radius: 999px; }
-        .seg button { height: 36px; padding: 0 16px; border-radius: 999px; font-weight: 650; font-size: 13.5px; color: var(--ink-2); }
-        .seg button.on { background: var(--surface); box-shadow: var(--neu-sm); color: var(--ink); }
-        .pill { font-weight: 700; font-size: 14px; padding: 8px 14px; border-radius: 999px; box-shadow: var(--neu-in); }
+        .stack { display: flex; flex-direction: column; gap: 20px; max-width: 860px; }
+      `}</style>
+    </>
+  );
+}
+
+function HomeToggle({ id, label, hint }: { id: (typeof HOME_SECTIONS)[number]['id']; label: string; hint: string }) {
+  const on = useSettings((s) => s.home[id]);
+  return (
+    <div className="hp">
+      <Toggle on={on} label={label} hint={hint} onChange={(v) => useSettings.getState().setHome(id, v)} />
+      <style jsx>{`
+        .hp { padding: 0 20px; }
+        .hp + .hp { border-top: 1px solid var(--border); }
+        .hp :global(.tg) { border-bottom: 0; }
       `}</style>
     </div>
   );
 }
 
-function Group({ title, icon, children }: { title: string; icon?: 'settings'; children: React.ReactNode }) {
+function Group({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
   return (
-    <section className="g fade-in">
-      <div className="eyebrow gt">
-        {icon && <Icon name={icon} size={14} />} {title}
+    <section className="fade-in">
+      <div className="section-head">
+        <div>
+          <h2>{title}</h2>
+          {sub && <div className="sub">{sub}</div>}
+        </div>
       </div>
-      <div className="box neu">{children}</div>
+      <div className="card box">{children}</div>
       <style jsx>{`
-        .g { margin-top: 38px; }
-        .gt { display: flex; align-items: center; gap: 6px; margin: 0 0 14px 6px; }
-        .box { border-radius: 28px; padding: 6px 0; }
+        .box { padding: 0; overflow: hidden; }
       `}</style>
     </section>
   );
 }
 
-function Row({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function Row({ icon, label, hint, children }: { icon: IconName; label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="r">
+      <span className="chip-ic">
+        <Icon name={icon} size={16} />
+      </span>
       <div className="grow">
         <div className="l">{label}</div>
         {hint && <div className="h">{hint}</div>}
       </div>
       {children}
       <style jsx>{`
-        .r { display: flex; align-items: center; gap: 18px; padding: 18px 24px; }
-        .r + .r { border-top: 1px solid var(--line); }
-        .l { font-weight: 700; letter-spacing: -0.015em; }
-        .h { color: var(--ink-2); font-size: 13.5px; margin-top: 3px; line-height: 1.4; }
+        .r { display: flex; align-items: center; gap: 14px; padding: 16px 20px; }
+        .r + .r { border-top: 1px solid var(--border); }
+        .l { font-weight: 500; font-size: 14px; }
+        .h { color: var(--muted); font-size: 12.5px; margin-top: 2px; line-height: 1.4; }
+        @media (max-width: 600px) { .r { flex-wrap: wrap; } }
       `}</style>
     </div>
   );
 }
 
-function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
-    <button role="switch" aria-checked={on} className={`sw${on ? ' on' : ''}`} onClick={() => onChange(!on)}>
-      <span />
+    <button role="switch" aria-checked={on} aria-label={label} className={`sw${on ? ' on' : ''}`} onClick={() => onChange(!on)}>
+      <i />
       <style jsx>{`
-        .sw { position: relative; width: 58px; height: 32px; border-radius: 999px; background: var(--surface); box-shadow: var(--neu-in); flex: none; transition: background .25s; }
-        .sw span { position: absolute; top: 4px; left: 4px; width: 24px; height: 24px; border-radius: 50%; background: var(--surface-2); box-shadow: var(--neu-sm); transition: transform .3s var(--ease), background .25s; }
-        .sw.on { background: var(--accent); box-shadow: none; }
-        .sw.on span { transform: translateX(26px); background: var(--accent-ink); }
+        .sw { position: relative; width: 44px; height: 24px; border-radius: 999px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border-2); flex: none; transition: background .25s var(--ease); }
+        .sw i { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--muted); transition: transform .35s var(--spring), background .25s; }
+        .sw.on { background: var(--ink); box-shadow: none; }
+        .sw.on i { transform: translateX(20px); background: var(--on-ink); }
       `}</style>
     </button>
   );

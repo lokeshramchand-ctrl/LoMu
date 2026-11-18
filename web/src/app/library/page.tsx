@@ -5,9 +5,10 @@ import { useLibrary } from '@/player/library';
 import { usePlayer } from '@/player/store';
 import type { Track } from '@/lib/types';
 import { TrackRow, ItemCard } from '@/components/Cards';
-import { Disc } from '@/components/Art';
+import { Cover } from '@/components/Art';
 import { Mosaic } from '@/components/Mosaic';
-import { Icon } from '@/components/Icon';
+import { Icon, type IconName } from '@/components/Icon';
+import { EmptyState, PageHeader, Stat } from '@/components/ui';
 
 type Tab = 'liked' | 'playlists' | 'albums' | 'artists' | 'history';
 const TABS: { id: Tab; label: string }[] = [
@@ -27,28 +28,24 @@ export default function Library() {
   const saved = useLibrary((s) => s.savedPlaylists);
   const history = useLibrary((s) => s.history);
 
-  const likedTracks: Track[] = useMemo(
-    () => Object.values(liked).sort((a, b) => b.at - a.at).map((x) => x.track),
-    [liked],
-  );
+  const likedTracks: Track[] = useMemo(() => Object.values(liked).sort((a, b) => b.at - a.at).map((x) => x.track), [liked]);
   const historyTracks: Track[] = useMemo(() => history.slice(0, 300).map((p) => p.track), [history]);
+  const savedCount = Object.keys(saved).length;
 
   return (
-    <div>
-      <header className="head">
-        <h1 className="display h1">
-          Your
-          <br />
-          <span className="dim">Library</span>
-        </h1>
-        <div className="stats muted">
-          <b>{likedTracks.length}</b> liked · <b>{playlists.length + Object.keys(saved).length}</b> playlists · <b>{history.length}</b> plays
-        </div>
-      </header>
+    <>
+      <PageHeader eyebrow="Library" title="Your library" sub="Everything you have liked, saved and played. Synced to your other devices." />
 
-      <div className="tabs" role="tablist">
+      <section className="grid-stats">
+        <Stat icon="heart" label="Liked songs" value={likedTracks.length} />
+        <Stat icon="playlist" label="Playlists" value={playlists.length + savedCount} />
+        <Stat icon="disc" label="Albums saved" value={Object.keys(albums).length} />
+        <Stat icon="history" label="Plays logged" value={history.length} />
+      </section>
+
+      <div className="chips" role="tablist" style={{ alignSelf: 'flex-start' }}>
         {TABS.map((t) => (
-          <button key={t.id} role="tab" aria-selected={tab === t.id} className={`tb${tab === t.id ? ' on' : ''}`} onClick={() => setTab(t.id)}>
+          <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>
             {t.label}
           </button>
         ))}
@@ -56,23 +53,23 @@ export default function Library() {
 
       {tab === 'liked' && (
         <section className="fade-in">
-          <div className="hero neu">
-            <Disc src={likedTracks[0]?.thumb} size={150} />
+          <div className="hero card pad">
+            <Cover src={likedTracks[0]?.thumb} size={112} radius={14} />
             <div className="grow">
               <div className="eyebrow">Collection</div>
-              <div className="ht">Liked songs</div>
-              <div className="muted">{likedTracks.length} songs</div>
-              <div className="row" style={{ marginTop: 16 }}>
-                <button className="pill-btn solid" disabled={!likedTracks.length} onClick={() => usePlayer.getState().play(likedTracks, 0, { source: 'liked' })}>
-                  <Icon name="play" size={16} /> Play
+              <h2 className="ht">Liked songs</h2>
+              <div className="muted small">{likedTracks.length} songs</div>
+              <div className="row" style={{ marginTop: 14 }}>
+                <button className="btn primary" disabled={!likedTracks.length} onClick={() => usePlayer.getState().play(likedTracks, 0, { source: 'liked' })}>
+                  <Icon name="play" size={14} /> Play
                 </button>
-                <button className="pill-btn" disabled={!likedTracks.length} onClick={() => usePlayer.getState().play(likedTracks, 0, { source: 'liked', shuffle: true })}>
-                  <Icon name="shuffle" size={18} /> Shuffle
+                <button className="btn" disabled={!likedTracks.length} onClick={() => usePlayer.getState().play(likedTracks, 0, { source: 'liked', shuffle: true })}>
+                  <Icon name="shuffle" size={16} /> Shuffle
                 </button>
               </div>
             </div>
           </div>
-          {likedTracks.length === 0 && <Empty text="Tap the heart on any song and it lands here." />}
+          {likedTracks.length === 0 && <EmptyState icon="heart" title="No liked songs yet" hint="Tap the heart on any song and it lands here." />}
           <div className="list">
             {likedTracks.map((t, i) => (
               <TrackRow key={t.id} track={t} index={i} list={likedTracks} />
@@ -84,20 +81,20 @@ export default function Library() {
       {tab === 'playlists' && (
         <section className="fade-in grid">
           <button
-            className="newpl neu"
+            className="newpl card"
             onClick={() => {
               const name = prompt('Playlist name');
               if (name) useLibrary.getState().createPlaylist(name);
             }}
           >
-            <span className="plus neu-in">
-              <Icon name="plus" size={28} />
+            <span className="chip-ic lg">
+              <Icon name="plus" size={20} />
             </span>
             New playlist
           </button>
           {playlists.map((p) => (
             <Link key={p.id} href={`/library/playlist/${p.id}`} className="pl">
-              <Mosaic tracks={p.tracks} />
+              <Mosaic tracks={p.tracks} size={164} />
               <div className="t clamp1">{p.name}</div>
               <div className="s muted">{p.tracks.length} songs</div>
             </Link>
@@ -112,7 +109,7 @@ export default function Library() {
 
       {tab === 'albums' && (
         <section className="fade-in grid">
-          {Object.values(albums).length === 0 && <Empty text="Save albums with the bookmark button on any album page." />}
+          {Object.values(albums).length === 0 && <Empty icon="disc" title="No saved albums" text="Save albums with the Save button on any album page." />}
           {Object.values(albums)
             .sort((a, b) => b.at - a.at)
             .map((x) => (
@@ -123,7 +120,7 @@ export default function Library() {
 
       {tab === 'artists' && (
         <section className="fade-in grid">
-          {Object.values(artists).length === 0 && <Empty text="Follow artists from their page and they show up here." />}
+          {Object.values(artists).length === 0 && <Empty icon="user" title="No followed artists" text="Follow artists from their page and they show up here." />}
           {Object.values(artists)
             .sort((a, b) => b.at - a.at)
             .map((x) => (
@@ -134,7 +131,7 @@ export default function Library() {
 
       {tab === 'history' && (
         <section className="fade-in list">
-          {historyTracks.length === 0 && <Empty text="Songs you play will appear here." />}
+          {historyTracks.length === 0 && <EmptyState icon="history" title="Nothing played yet" hint="Songs you play will appear here." />}
           {historyTracks.map((t, i) => (
             <TrackRow key={`${t.id}-${i}`} track={t} index={i} list={historyTracks} />
           ))}
@@ -142,27 +139,25 @@ export default function Library() {
       )}
 
       <style jsx>{`
-        .head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
-        .stats b { color: var(--ink); }
-        .tabs { display: flex; gap: 10px; margin: 34px 0 26px; overflow-x: auto; scrollbar-width: none; padding: 6px 4px 12px; }
-        .tb { height: 42px; padding: 0 20px; border-radius: 999px; font-weight: 650; font-size: 14.5px; color: var(--ink-2); background: var(--surface); box-shadow: var(--neu-sm); white-space: nowrap; }
-        .tb.on { color: var(--ink); box-shadow: var(--neu-in); }
-        .hero { display: flex; align-items: center; gap: 28px; padding: 26px; border-radius: 32px; margin-bottom: 22px; }
-        .ht { font-size: 36px; font-weight: 800; letter-spacing: -0.045em; line-height: 1; margin: 6px 0; }
-        .list { display: flex; flex-direction: column; gap: 2px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 28px 24px; }
-        .newpl { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; height: 210px; border-radius: 26px; font-weight: 700; }
-        .plus { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; }
+        .hero { display: flex; align-items: center; gap: 22px; margin-bottom: 14px; }
+        .ht { font-size: 1.7rem; font-weight: 600; letter-spacing: -.04em; line-height: 1.1; margin: 4px 0; }
+        .list { display: flex; flex-direction: column; gap: 1px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(164px, 1fr)); gap: 24px 20px; }
+        .newpl { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; aspect-ratio: 1; font-weight: 500; transition: box-shadow .25s var(--ease), transform .3s var(--spring); }
+        .newpl:hover { box-shadow: var(--lift-hi); transform: translateY(-2px); }
         :global(.pl) { display: block; }
-        .t { font-weight: 700; margin-top: 14px; }
-        .s { font-size: 13.5px; margin-top: 3px; }
-        :global(.pill-btn:disabled) { opacity: .45; pointer-events: none; }
+        .t { font-weight: 600; font-size: 13.5px; margin-top: 10px; }
+        .s { font-size: 12.5px; margin-top: 2px; }
         @media (max-width: 900px) { .grid { grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); } .hero { flex-direction: column; align-items: flex-start; } }
       `}</style>
-    </div>
+    </>
   );
 }
 
-function Empty({ text }: { text: string }) {
-  return <p className="muted" style={{ padding: '30px 6px', fontWeight: 500 }}>{text}</p>;
+function Empty({ icon, title, text }: { icon: IconName; title: string; text: string }) {
+  return (
+    <div style={{ gridColumn: '1 / -1' }}>
+      <EmptyState icon={icon} title={title} hint={text} />
+    </div>
+  );
 }

@@ -145,3 +145,6 @@ brag-output-*/
 web/test-results/
 web/playwright-report/
 smoke-out/
+
+# Reference project (its own git repo), not part of LoMu
+Dashboard/

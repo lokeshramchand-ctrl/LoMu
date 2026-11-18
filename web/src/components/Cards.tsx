@@ -4,11 +4,18 @@ import type { Item, Shelf, Track } from '@/lib/types';
 import { artistNames, fmtTime, hrefFor } from '@/lib/format';
 import { currentTrack, usePlayer } from '@/player/store';
 import { useLibrary } from '@/player/library';
-import { Avatar, Cover, Disc } from './Art';
+import { Avatar, Cover } from './Art';
 import { Icon } from './Icon';
 import { useMenu } from './Menu';
 
-const CARD = 168;
+const CARD = 164;
+
+export function playTrackFrom(item: Track, siblings?: Track[], source = 'shelf') {
+  const list = siblings?.length ? siblings : [item];
+  const i = list.findIndex((t) => t.id === item.id);
+  if (list.length > 1) usePlayer.getState().play(list, Math.max(0, i), { source });
+  else usePlayer.getState().playRadio(item);
+}
 
 export function ItemCard({ item, siblings }: { item: Item; siblings?: Track[] }) {
   const cur = usePlayer((s) => currentTrack(s)?.id);
@@ -17,13 +24,8 @@ export function ItemCard({ item, siblings }: { item: Item; siblings?: Track[] })
     const active = cur === item.id;
     return (
       <button
-        className="card"
-        onClick={() => {
-          const list = siblings?.length ? siblings : [item];
-          const i = list.findIndex((t) => t.id === item.id);
-          if (list.length > 1) usePlayer.getState().play(list, Math.max(0, i), { source: 'shelf' });
-          else usePlayer.getState().playRadio(item);
-        }}
+        className={`it${active ? ' active' : ''}`}
+        onClick={() => playTrackFrom(item, siblings)}
         onContextMenu={(e) => {
           e.preventDefault();
           useMenu.getState().open(item, e);
@@ -31,8 +33,8 @@ export function ItemCard({ item, siblings }: { item: Item; siblings?: Track[] })
         title={`${item.title} — ${artistNames(item.artists)}`}
       >
         <div className="art">
-          <Disc src={item.thumb} size={CARD} spin={active} paused={active && !playing} />
-          <span className="hover-play neu-sm"><Icon name={active && playing ? 'pause' : 'play'} size={18} /></span>
+          <Cover src={item.thumb} size="100%" />
+          <span className="go"><Icon name={active && playing ? 'pause' : 'play'} size={16} /></span>
         </div>
         <div className="t clamp1">{item.title}</div>
         <div className="s clamp1">{artistNames(item.artists)}</div>
@@ -41,13 +43,12 @@ export function ItemCard({ item, siblings }: { item: Item; siblings?: Track[] })
     );
   }
   const href = hrefFor(item)!;
+  const round = item.kind === 'artist';
   return (
-    <Link href={href} className="card" title={item.title}>
-      <div className="art">
-        {item.kind === 'artist' ? <Avatar src={item.thumb} size={CARD} /> : <Cover src={item.thumb} size={CARD} />}
-      </div>
-      <div className="t clamp1" style={item.kind === 'artist' ? { textAlign: 'center' } : undefined}>{item.title}</div>
-      <div className="s clamp1" style={item.kind === 'artist' ? { textAlign: 'center' } : undefined}>
+    <Link href={href} className="it" title={item.title}>
+      <div className="art">{round ? <Avatar src={item.thumb} size="100%" /> : <Cover src={item.thumb} size="100%" />}</div>
+      <div className={`t clamp1${round ? ' c' : ''}`}>{item.title}</div>
+      <div className={`s clamp1${round ? ' c' : ''}`}>
         {item.kind === 'album' ? [item.subtitle ?? artistNames(item.artists)].filter(Boolean).join(' · ') : item.subtitle}
       </div>
       <CardStyle />
@@ -58,14 +59,17 @@ export function ItemCard({ item, siblings }: { item: Item; siblings?: Track[] })
 function CardStyle() {
   return (
     <style jsx global>{`
-      .card { display: block; width: ${CARD}px; text-align: left; }
-      .card .art { position: relative; margin-bottom: 14px; transition: transform .35s var(--ease); }
-      .card:hover .art { transform: translateY(-3px); }
-      .card .t { font-weight: 700; font-size: 15px; letter-spacing: -0.015em; }
-      .card .s { color: var(--ink-2); font-size: 13.5px; margin-top: 3px; }
-      .card .hover-play { position: absolute; right: 6px; bottom: 6px; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; opacity: 0; transform: scale(.85); transition: all .25s var(--ease); z-index: 3; }
-      .card:hover .hover-play, .card:focus-visible .hover-play { opacity: 1; transform: none; }
-      @media (max-width: 900px) { .card { width: 138px; } .card .art > * { width: 138px !important; height: 138px !important; } }
+      .it { display: block; width: ${CARD}px; text-align: left; border-radius: 14px; padding: 8px; margin: -8px; transition: background .2s var(--ease), transform .3s var(--spring); }
+      .it:hover { background: var(--surface); }
+      .it:active { transform: scale(.98); }
+      .it .art { position: relative; width: 100%; aspect-ratio: 1; margin-bottom: 10px; }
+      .it .t { font-weight: 600; font-size: 13.5px; letter-spacing: -.015em; }
+      .it .s { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+      .it .c { text-align: center; }
+      .it.active .t { color: var(--signal); }
+      .it .go { position: absolute; right: 8px; bottom: 8px; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--ink); color: var(--on-ink); box-shadow: var(--lift-hi); opacity: 0; transform: translateY(6px); transition: opacity .2s var(--ease), transform .35s var(--spring); }
+      .it:hover .go, .it:focus-visible .go, .it.active .go { opacity: 1; transform: none; }
+      @media (max-width: 900px) { .it { width: 138px; } }
     `}</style>
   );
 }
@@ -73,9 +77,12 @@ function CardStyle() {
 export function ShelfRow({ shelf, action }: { shelf: Shelf; action?: React.ReactNode }) {
   const songs = shelf.items.filter((i): i is Track => i.kind === 'song');
   return (
-    <section className="section fade-in">
+    <section className="fade-in">
       <div className="section-head">
-        <h2 className="h3">{shelf.title}</h2>
+        <div>
+          <h2>{shelf.title}</h2>
+          {shelf.subtitle && <div className="sub">{shelf.subtitle}</div>}
+        </div>
         {action}
       </div>
       <div className="hscroll">
@@ -89,13 +96,13 @@ export function ShelfRow({ shelf, action }: { shelf: Shelf; action?: React.React
 
 export function ShelfSkeleton({ title = true }: { title?: boolean }) {
   return (
-    <section className="section">
-      {title && <div className="skeleton" style={{ width: 180, height: 22, borderRadius: 8, marginBottom: 18 }} />}
+    <section>
+      {title && <div className="skeleton" style={{ width: 160, height: 18, borderRadius: 6, marginBottom: 14 }} />}
       <div className="hscroll">
         {Array.from({ length: 7 }).map((_, i) => (
-          <div key={i}>
-            <div className="skeleton" style={{ width: CARD, height: CARD, borderRadius: '50%', marginBottom: 14 }} />
-            <div className="skeleton" style={{ width: 120, height: 14, borderRadius: 6 }} />
+          <div key={i} style={{ width: CARD }}>
+            <div className="skeleton" style={{ width: CARD, height: CARD, borderRadius: 12, marginBottom: 10 }} />
+            <div className="skeleton" style={{ width: 110, height: 13, borderRadius: 5 }} />
           </div>
         ))}
       </div>
@@ -136,7 +143,7 @@ export function TrackRow({
       }}
     >
       {showIndex && <span className="idx">{active && playing ? <Bars /> : index + 1}</span>}
-      {showArt && <Disc src={track.thumb} size={48} spin={active} paused={active && !playing} />}
+      {showArt && <Cover src={track.thumb} size={44} radius={8} />}
       <div className="grow">
         <div className="tt clamp1">
           {track.title}
@@ -159,40 +166,41 @@ export function TrackRow({
         </div>
       </div>
       <button
-        className={`icon-btn like${liked ? ' on' : ''}`}
+        className={`icon-btn sm like${liked ? ' on' : ''}`}
         aria-label={liked ? 'Unlike' : 'Like'}
         onClick={(e) => {
           e.stopPropagation();
           toggleLike(track);
         }}
       >
-        <Icon name={liked ? 'heartFill' : 'heart'} size={19} />
+        <Icon name={liked ? 'heartFill' : 'heart'} size={17} />
       </button>
       <span className="dur">{track.duration ? fmtTime(track.duration) : ''}</span>
       <button
-        className="icon-btn"
+        className="icon-btn sm"
         aria-label="More"
         onClick={(e) => {
           e.stopPropagation();
           openMenu(e);
         }}
       >
-        <Icon name="more" size={20} />
+        <Icon name="more" size={18} />
       </button>
       <style jsx>{`
-        .trow { display: flex; align-items: center; gap: 16px; padding: 10px 14px; border-radius: 20px; cursor: pointer; transition: background .2s; }
-        .trow:hover { background: color-mix(in oklab, var(--surface-2) 70%, transparent); }
-        .trow.active { background: var(--surface); box-shadow: var(--neu-sm); }
-        .idx { width: 22px; text-align: center; color: var(--ink-2); font-variant-numeric: tabular-nums; font-weight: 600; font-size: 14px; }
-        .tt { font-weight: 650; font-size: 15px; letter-spacing: -0.01em; }
-        .ta { color: var(--ink-2); font-size: 13.5px; margin-top: 2px; }
-        .ta :global(a:hover) { color: var(--ink); text-decoration: underline; }
-        .e { display: inline-grid; place-items: center; width: 16px; height: 16px; font-size: 10px; font-weight: 800; border-radius: 4px; background: var(--ink-3); color: var(--surface); margin-left: 8px; vertical-align: 2px; }
-        .dur { width: 44px; text-align: right; color: var(--ink-2); font-variant-numeric: tabular-nums; font-size: 13.5px; }
-        .like { opacity: 0; color: var(--ink-2); }
-        .trow:hover .like, .like.on { opacity: 1; }
-        .like.on { color: var(--ink); }
-        @media (max-width: 900px) { .dur { display: none; } .like { display: none; } .trow { gap: 12px; padding: 8px 6px; } }
+        .trow { display: flex; align-items: center; gap: 14px; padding: 7px 12px; border-radius: 12px; cursor: pointer; transition: background .2s var(--ease); }
+        .trow:hover { background: var(--surface); }
+        .trow.active { background: var(--signal-soft); }
+        .idx { width: 22px; text-align: center; color: var(--muted); font-size: 13px; font-weight: 500; }
+        .tt { font-weight: 500; font-size: 14px; letter-spacing: -.012em; }
+        .trow.active .tt { color: var(--signal); }
+        .ta { color: var(--muted); font-size: 12.5px; margin-top: 1px; }
+        .ta :global(a:hover) { color: var(--text); text-decoration: underline; }
+        .e { display: inline-grid; place-items: center; width: 15px; height: 15px; font-size: 9.5px; font-weight: 700; border-radius: 4px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border-2); color: var(--muted); margin-left: 8px; vertical-align: 1px; }
+        .dur { width: 42px; text-align: right; color: var(--muted); font-size: 12.5px; }
+        .like { opacity: 0; color: var(--muted); }
+        .trow:hover .like, .like.on, .trow:focus-within .like { opacity: 1; }
+        .like.on { color: var(--signal); }
+        @media (max-width: 900px) { .dur { display: none; } .like { display: none; } .trow { gap: 12px; padding: 7px 4px; } }
       `}</style>
     </div>
   );
@@ -203,11 +211,11 @@ export function Bars() {
     <span className="bars" aria-label="Playing">
       <i /><i /><i />
       <style jsx>{`
-        .bars { display: inline-flex; gap: 2px; align-items: flex-end; height: 14px; }
-        .bars i { width: 3px; background: var(--ink); border-radius: 2px; animation: b 0.9s ease-in-out infinite; }
-        .bars i:nth-child(2) { animation-delay: -0.3s; }
-        .bars i:nth-child(3) { animation-delay: -0.6s; }
-        @keyframes b { 0%, 100% { height: 4px; } 50% { height: 14px; } }
+        .bars { display: inline-flex; gap: 2px; align-items: flex-end; height: 13px; }
+        .bars i { width: 3px; background: var(--signal); border-radius: 2px; animation: b .9s ease-in-out infinite; }
+        .bars i:nth-child(2) { animation-delay: -.3s; }
+        .bars i:nth-child(3) { animation-delay: -.6s; }
+        @keyframes b { 0%, 100% { height: 4px; } 50% { height: 13px; } }
       `}</style>
     </span>
   );

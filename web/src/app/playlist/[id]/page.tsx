@@ -24,19 +24,19 @@ export default function PlaylistPage({ params }: { params: Promise<{ id: string 
       actions={
         <>
           <button
-            className="pill-btn"
+            className="btn"
             onClick={() => useLibrary.getState().toggleSaved({ kind: 'playlist', id, title: data.title, subtitle: data.author, thumb: data.thumb })}
           >
-            <Icon name={saved ? 'check' : 'bookmark'} size={18} /> {saved ? 'Saved' : 'Save'}
+            <Icon name={saved ? 'check' : 'plus'} size={16} /> {saved ? 'Saved' : 'Save'}
           </button>
           <button
-            className="pill-btn"
+            className="btn"
             onClick={() => {
               useLibrary.getState().createPlaylist(data.title, data.tracks);
               toast(`Imported ${data.tracks.length} songs into your library`);
             }}
           >
-            <Icon name="download" size={18} /> Import
+            <Icon name="download" size={16} /> Import
           </button>
         </>
       }

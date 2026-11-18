@@ -1,20 +1,43 @@
 // Screenshot tour of the web player. Usage: node tests/shots.mjs <outDir> [baseUrl]
+// Start a server first with a throwaway data dir, e.g.
+//   LOMU_DATA_DIR=/tmp/lomu-shots npm run dev
+// The script creates the owner account if none exists, signs in, and seeds a listening history so
+// the personalised parts of the home page have something to show.
 import { chromium } from '@playwright/test';
 import fs from 'node:fs';
 
 const out = process.argv[2] ?? 'shots';
 const base = process.argv[3] ?? 'http://localhost:4100';
+const USER = 'lo';
+const PASS = 'screenshot-password';
 fs.mkdirSync(out, { recursive: true });
 
-const album = await (await fetch(`${base}/api/album/MPREb_FWIMEPTHFsY`)).json();
-const tracks = album.tracks.slice(0, 8);
+// Sign in (or create the owner) once, with plain fetch, to read the seed album.
+async function session() {
+  const st = await (await fetch(`${base}/api/auth/status`)).json();
+  const res = await fetch(`${base}/api/auth/${st.setup ? 'login' : 'setup'}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ username: USER, password: PASS, code: process.env.LOMU_SETUP_CODE }),
+  });
+  if (!res.ok) throw new Error(`could not sign in: ${await res.text()}`);
+  return res.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ');
+}
+const cookie = await session();
+const album = await (await fetch(`${base}/api/album/MPREb_FWIMEPTHFsY`, { headers: { cookie } })).json().catch(() => null);
+if (!album?.tracks) throw new Error('could not load the seed album (needs network, and the server must be open or have no owner yet)');
+const tracks = album.tracks.slice(0, 10);
 const now = Date.now();
+const DAY = 86_400_000;
+const history = tracks.flatMap((t, i) => [
+  { track: t, at: now - i * 3_600_000, playedMs: 190_000, completed: true, skipped: false },
+  { track: t, at: now - (i % 5) * DAY - 5_000_000, playedMs: 200_000, completed: true, skipped: false },
+]);
 const seed = {
-  'lomu-welcomed': '1',
   'lomu-library': JSON.stringify({
     state: {
-      liked: Object.fromEntries(tracks.slice(0, 5).map((t, i) => [t.id, { track: t, at: now - i * 1000 }])),
-      history: tracks.map((t, i) => ({ track: t, at: now - i * 600000, playedMs: 180000, completed: true, skipped: false })),
+      liked: Object.fromEntries(tracks.slice(0, 6).map((t, i) => [t.id, { track: t, at: now - i * 1000 }])),
+      history,
       playlists: [{ id: 'p1', name: 'Late night drive', tracks, createdAt: now, updatedAt: now }],
       albums: {},
       artists: {},
@@ -27,7 +50,8 @@ const seed = {
 };
 
 const browser = await chromium.launch();
-async function shot(name, path, { mobile = false, dark = false, welcome = false, before } = {}) {
+
+async function shot(name, path, { mobile = false, dark = false, before } = {}) {
   const ctx = await browser.newContext({
     viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 900 },
     deviceScaleFactor: mobile ? 2 : 1,
@@ -35,13 +59,16 @@ async function shot(name, path, { mobile = false, dark = false, welcome = false,
     isMobile: mobile,
     hasTouch: mobile,
   });
+  const status = await (await ctx.request.get(`${base}/api/auth/status`)).json();
+  if (!status.setup) await ctx.request.post(`${base}/api/auth/setup`, { data: { username: USER, password: PASS, code: process.env.LOMU_SETUP_CODE } });
+  else await ctx.request.post(`${base}/api/auth/login`, { data: { username: USER, password: PASS } });
   await ctx.addInitScript((s) => {
     for (const [k, v] of Object.entries(s)) localStorage.setItem(k, v);
-  }, welcome ? {} : seed);
+  }, seed);
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  page.on('console', (m) => m.type() === 'error' && !/Failed to load resource/.test(m.text()) && errors.push(m.text()));
   await page.goto(base + path, { waitUntil: 'networkidle', timeout: 60000 }).catch(() => {});
   if (before) await before(page);
   await page.waitForTimeout(1800);
@@ -59,20 +86,22 @@ async function shot(name, path, { mobile = false, dark = false, welcome = false,
   await ctx.close();
 }
 
-await shot('01-welcome-mobile', '/welcome', { mobile: true, welcome: true });
-await shot('02-home', '/');
-await shot('03-search', '/search?q=the%20weeknd');
-await shot('04-album', '/album/MPREb_FWIMEPTHFsY');
-await shot('05-artist', '/artist/UClYV6hHlupm_S_ObS1W-DYw');
-await shot('06-library', '/library');
-await shot('07-player', '/', { before: (p) => p.getByRole('button', { name: 'Open player' }).click() });
-await shot('08-player-lyrics', '/', {
+await shot('01-home', '/');
+await shot('02-home-dark', '/', { dark: true });
+await shot('03-home-mobile', '/', { mobile: true });
+await shot('04-home-customise', '/', { before: (p) => p.getByRole('button', { name: 'Customise' }).click() });
+await shot('05-search', '/search?q=the%20weeknd');
+await shot('06-album', '/album/MPREb_FWIMEPTHFsY');
+await shot('07-artist', '/artist/UClYV6hHlupm_S_ObS1W-DYw');
+await shot('08-library', '/library');
+await shot('09-player', '/', { before: (p) => p.getByRole('button', { name: 'Open player' }).click() });
+await shot('10-player-lyrics', '/', {
   before: async (p) => {
-    await p.getByRole('button', { name: 'Lyrics' }).first().click();
+    await p.getByRole('button', { name: 'Open player' }).click();
+    await p.getByRole('button', { name: 'Lyrics' }).last().click();
     await p.waitForTimeout(2500);
   },
 });
-await shot('09-settings', '/settings');
-await shot('10-home-mobile', '/', { mobile: true });
-await shot('11-home-dark', '/', { dark: true });
+await shot('11-settings', '/settings');
+await shot('12-library-mobile', '/library', { mobile: true });
 await browser.close();

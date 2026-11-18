@@ -1,48 +1,37 @@
 'use client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
-import { Nav } from './Nav';
+import { useState } from 'react';
+import { Sidebar, Topbar, MobileTabs } from './Nav';
 import { PlayerBar } from './PlayerBar';
 import { FullPlayer } from './FullPlayer';
 import { TrackMenuHost } from './Menu';
 import { ToastHost } from './Toast';
 import { AuthGate } from './AuthGate';
+import { useSettings } from '@/player/settings';
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [qc] = useState(
-    () => new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } } }),
-  );
-  const path = usePathname();
-  const router = useRouter();
-  const [ready, setReady] = useState(false);
-  const bare = path.startsWith('/welcome');
-
-  useEffect(() => {
-    let seen = false;
-    try {
-      seen = localStorage.getItem('lomu-welcomed') === '1';
-    } catch {}
-    if (!seen && !bare) router.replace('/welcome');
-    setReady(true);
-  }, [bare, router]);
+  const [qc] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } } }));
+  const mini = useSettings((s) => s.sideMini);
 
   return (
     <QueryClientProvider client={qc}>
       <AuthGate>
-      {bare ? (
-        children
-      ) : (
-        <div className="shell" style={{ visibility: ready ? 'visible' : 'hidden' }}>
-          <Nav />
-          <main className="main">{children}</main>
+        <div className="app" style={mini ? ({ ['--side-w' as string]: '72px' } as React.CSSProperties) : undefined}>
+          <Sidebar />
+          <div className="col">
+            <Topbar />
+            <main className="content">{children}</main>
+          </div>
           <PlayerBar />
-          <FullPlayer />
-          <TrackMenuHost />
-          <ToastHost />
+          <MobileTabs />
         </div>
-      )}
+        <FullPlayer />
+        <TrackMenuHost />
+        <ToastHost />
       </AuthGate>
+      <style jsx>{`
+        .col { min-width: 0; display: flex; flex-direction: column; }
+      `}</style>
     </QueryClientProvider>
   );
 }

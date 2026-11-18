@@ -10,13 +10,13 @@ export default function UserPlaylistPage({ params }: { params: Promise<{ id: str
   const { id } = use(params);
   const router = useRouter();
   const p = useLibrary((s) => s.playlists.find((x) => x.id === id));
-  if (!p) return <p className="muted">This playlist no longer exists.</p>;
+  if (!p) return <div className="empty"><b>This playlist no longer exists</b></div>;
   return (
     <Collection
       kind="Your playlist"
       title={p.name}
       thumb={p.tracks[0]?.thumb}
-      cover={<Mosaic tracks={p.tracks} size={260} />}
+      cover={<Mosaic tracks={p.tracks} size={208} />}
       meta={`${p.tracks.length} songs`}
       tracks={p.tracks}
       source={`user:${p.id}`}
@@ -24,7 +24,7 @@ export default function UserPlaylistPage({ params }: { params: Promise<{ id: str
       actions={
         <>
           <button
-            className="pill-btn"
+            className="btn"
             onClick={() => {
               const name = prompt('Rename playlist', p.name);
               if (name) useLibrary.getState().renamePlaylist(p.id, name);
@@ -33,7 +33,7 @@ export default function UserPlaylistPage({ params }: { params: Promise<{ id: str
             Rename
           </button>
           <button
-            className="pill-btn"
+            className="btn"
             onClick={() => {
               if (confirm(`Delete “${p.name}”?`)) {
                 useLibrary.getState().deletePlaylist(p.id);
@@ -41,7 +41,7 @@ export default function UserPlaylistPage({ params }: { params: Promise<{ id: str
               }
             }}
           >
-            <Icon name="close" size={16} /> Delete
+            <Icon name="trash" size={16} /> Delete
           </button>
         </>
       }

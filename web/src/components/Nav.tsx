@@ -1,71 +1,228 @@
 'use client';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 import { Icon, type IconName } from './Icon';
-import { useSettings } from '@/player/settings';
+import { useSettings, type Theme } from '@/player/settings';
+import { useLibrary } from '@/player/library';
+import { useAuth } from '@/player/sync';
 
-const ALL: { href: string; icon: IconName; label: string; flag?: 'explore' }[] = [
+type Tab = { href: string; icon: IconName; label: string; flag?: 'explore' };
+const TABS: Tab[] = [
   { href: '/', icon: 'home', label: 'Home' },
   { href: '/search', icon: 'search', label: 'Search' },
-  { href: '/explore', icon: 'planet', label: 'Explore', flag: 'explore' },
-  { href: '/library', icon: 'bookmark', label: 'Library' },
+  { href: '/explore', icon: 'compass', label: 'Explore', flag: 'explore' },
+  { href: '/library', icon: 'library', label: 'Library' },
 ];
 
-export function Nav() {
-  const path = usePathname();
+function useTabs() {
   const dev = useSettings((s) => s.dev);
-  const TABS = ALL.filter((t) => !t.flag || dev[t.flag]);
-  const active = (href: string) => (href === '/' ? path === '/' : path.startsWith(href));
-  return (
-    <>
-      <nav className="rail" aria-label="Main">
-        <Link href="/" className="logo" aria-label="LoMu home">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/icon-192.png" alt="" />
-        </Link>
-        <div className="rail-tabs neu">
-          {TABS.map((t) => (
-            <Link key={t.href} href={t.href} className={`tab${active(t.href) ? ' on' : ''}`} aria-label={t.label} title={t.label}>
-              <Icon name={t.icon} size={23} />
-            </Link>
-          ))}
-        </div>
-        <Link href="/settings" className={`tab gear${active('/settings') ? ' on' : ''}`} aria-label="Settings" title="Settings">
-          <Icon name="settings" size={21} />
-        </Link>
-      </nav>
+  return TABS.filter((t) => !t.flag || dev[t.flag]);
+}
+const isActive = (path: string, href: string) => (href === '/' ? path === '/' : path.startsWith(href));
 
-      <nav className="bottom neu" aria-label="Main">
-        {TABS.map((t) => (
-          <Link key={t.href} href={t.href} className={`btab${active(t.href) ? ' on' : ''}`} aria-label={t.label}>
-            <Icon name={t.icon} size={24} />
+/** Small wordmark: the mark is a flat ink square, no big logo. */
+export function Brand({ mini }: { mini?: boolean }) {
+  return (
+    <Link href="/" className="brand" aria-label="LoMu home">
+      <span className="mark" aria-hidden>
+        <Icon name="waveform" size={16} />
+      </span>
+      {!mini && <span className="word">LoMu</span>}
+      <style jsx>{`
+        :global(.brand) { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+        .mark { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; background: var(--ink); color: var(--on-ink); flex: none; }
+        .word { font-size: 17px; font-weight: 600; letter-spacing: -.04em; }
+      `}</style>
+    </Link>
+  );
+}
+
+export function Sidebar() {
+  const path = usePathname();
+  const tabs = useTabs();
+  const mini = useSettings((s) => s.sideMini);
+  const setMini = useSettings((s) => s.setSideMini);
+  const theme = useSettings((s) => s.theme);
+  const playlists = useLibrary((s) => s.playlists);
+  const { user, sync, logout } = useAuth();
+  const themes: { id: Theme; icon: IconName; label: string }[] = [
+    { id: 'system', icon: 'system', label: 'System' },
+    { id: 'light', icon: 'sun', label: 'Light' },
+    { id: 'dark', icon: 'moon', label: 'Dark' },
+  ];
+
+  return (
+    <aside className={`side${mini ? ' mini' : ''}`} aria-label="Main">
+      <div className="top">
+        <Brand mini={mini} />
+        <button className="icon-btn sm hide-mini" aria-label="Collapse sidebar" onClick={() => setMini(true)}>
+          <Icon name="left" size={15} />
+        </button>
+      </div>
+      {mini && (
+        <button className="icon-btn sm expand" aria-label="Expand sidebar" onClick={() => setMini(false)}>
+          <Icon name="right" size={15} />
+        </button>
+      )}
+
+      <nav className="nav">
+        <div className="label">Listen</div>
+        {tabs.map((t) => (
+          <Link key={t.href} href={t.href} className={`link${isActive(path, t.href) ? ' active' : ''}`} title={t.label}>
+            <Icon name={t.icon} size={18} />
+            <span>{t.label}</span>
           </Link>
         ))}
+
+        {playlists.length > 0 && (
+          <>
+            <div className="label">Playlists</div>
+            {playlists.slice(0, 8).map((p) => (
+              <Link key={p.id} href={`/library/playlist/${p.id}`} className={`link sub${path === `/library/playlist/${p.id}` ? ' active' : ''}`} title={p.name}>
+                <Icon name="playlist" size={18} />
+                <span className="clamp1">{p.name}</span>
+              </Link>
+            ))}
+          </>
+        )}
       </nav>
 
+      <div className="foot">
+        <Link href="/settings" className={`link${path.startsWith('/settings') ? ' active' : ''}`} title="Settings">
+          <Icon name="settings" size={18} />
+          <span>Settings</span>
+        </Link>
+        <div className="themes hide-mini" role="group" aria-label="Theme">
+          {themes.map((t) => (
+            <button key={t.id} className={theme === t.id ? 'on' : ''} aria-label={t.label} title={t.label} onClick={() => useSettings.getState().setTheme(t.id)}>
+              <Icon name={t.icon} size={15} />
+            </button>
+          ))}
+        </div>
+        {user && (
+          <div className="user hide-mini">
+            <span className="av">{user[0]?.toUpperCase()}</span>
+            <div className="grow">
+              <div className="clamp1 who">{user}</div>
+              <div className="st">
+                <i className={`dot ${sync}`} />
+                {sync === 'live' ? 'Synced' : sync === 'syncing' ? 'Syncing…' : sync === 'error' ? 'Offline' : 'Local'}
+              </div>
+            </div>
+            <button className="icon-btn sm" aria-label="Sign out" title="Sign out" onClick={() => logout()}>
+              <Icon name="logout" size={15} />
+            </button>
+          </div>
+        )}
+      </div>
+
       <style jsx>{`
-        .rail {
-          position: fixed; left: 0; top: 0; bottom: 0; width: var(--nav-w); z-index: 40;
-          display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 26px 0;
-        }
-        .logo img { width: 46px; height: 46px; border-radius: 15px; box-shadow: var(--neu-sm); }
-        .rail-tabs { display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 999px; }
-        :global(.tab) { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; color: var(--ink-3); transition: color .2s, box-shadow .25s, background .25s; }
-        :global(.tab:hover) { color: var(--ink); }
-        :global(.tab.on) { color: var(--ink); background: var(--surface); box-shadow: var(--neu-in); }
-        :global(.gear) { color: var(--ink-3); }
-        .bottom { display: none; }
+        .side { position: sticky; top: 0; height: 100dvh; display: flex; flex-direction: column; background: var(--side-bg); border-right: 1px solid var(--border); z-index: 40; overflow: hidden; }
+        .top { height: var(--top-h); display: flex; align-items: center; justify-content: space-between; padding: 0 16px 0 20px; border-bottom: 1px solid var(--border); flex: none; }
+        .expand { margin: 8px auto 0; }
+        .nav { flex: 1; overflow-y: auto; padding: 12px; scrollbar-width: thin; }
+        .label { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 14px 10px 6px; white-space: nowrap; }
+        .nav .label:first-child { padding-top: 6px; }
+        .foot { border-top: 1px solid var(--border); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+        :global(.side .link) { display: flex; align-items: center; gap: 12px; height: 38px; padding: 0 10px; border-radius: var(--r-sm); color: var(--muted); font-weight: 500; font-size: 14px; white-space: nowrap; transition: background .2s var(--ease), color .2s var(--ease); }
+        :global(.side .link:hover) { background: var(--surface-2); color: var(--text); }
+        :global(.side .link.active) { background: var(--ink); color: var(--on-ink); }
+        :global(.side .link.sub) { height: 34px; font-size: 13.5px; }
+        :global(.side .link svg) { flex: none; }
+        .themes { display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border); }
+        .themes button { flex: 1; height: 28px; border-radius: 999px; display: grid; place-items: center; color: var(--muted); transition: all .2s; }
+        .themes button.on { background: var(--surface); color: var(--text); box-shadow: var(--lift); }
+        .user { display: flex; align-items: center; gap: 10px; padding: 4px 2px 0; }
+        .av { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--signal-soft); color: var(--signal); font-weight: 600; font-size: 13px; flex: none; }
+        .who { font-size: 13px; font-weight: 500; }
+        .st { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); }
+        .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border-2); }
+        .dot.live { background: var(--green); }
+        .dot.syncing { background: var(--peri); }
+        .dot.error { background: var(--red); }
+        .mini { align-items: stretch; }
+        .mini :global(.link span), .mini .label, .mini .hide-mini { display: none; }
+        .mini :global(.link) { justify-content: center; padding: 0; }
+        .mini .top { justify-content: center; padding: 0; }
+        @media (max-width: 900px) { .side { display: none; } }
+      `}</style>
+    </aside>
+  );
+}
+
+/** Sticky top bar: search that jumps to /search, quick sync state on small screens. */
+export function Topbar() {
+  const router = useRouter();
+  const path = usePathname();
+  const input = useRef<HTMLInputElement>(null);
+  const [q, setQ] = useState('');
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (e.key === '/' && !/INPUT|TEXTAREA/.test(t.tagName)) {
+        e.preventDefault();
+        input.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+  useEffect(() => {
+    if (!path.startsWith('/search')) setQ('');
+  }, [path]);
+
+  return (
+    <header className="top">
+      <div className="mobile-brand">
+        <Brand />
+      </div>
+      <form
+        className="search"
+        role="search"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (q.trim()) router.push(`/search?q=${encodeURIComponent(q.trim())}`);
+        }}
+      >
+        <Icon name="search" size={16} />
+        <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search songs, artists, albums" aria-label="Search" />
+        <kbd>/</kbd>
+      </form>
+      <style jsx>{`
+        .top { position: sticky; top: 0; z-index: 30; height: var(--top-h); display: flex; align-items: center; gap: 16px; padding: 0 var(--gutter); background: var(--glass); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); }
+        .mobile-brand { display: none; }
+        .search { display: flex; align-items: center; gap: 10px; height: 38px; width: min(420px, 100%); padding: 0 14px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border-2); color: var(--muted); transition: border-color .2s, box-shadow .2s; }
+        .search:focus-within { border-color: var(--signal); box-shadow: 0 0 0 4px var(--signal-soft); color: var(--text); }
+        .search input { flex: 1; min-width: 0; background: none; border: 0; outline: none; font-size: 14px; }
+        .search input::placeholder { color: var(--muted); }
+        kbd { font: inherit; font-size: 11px; font-weight: 600; color: var(--muted); border: 1px solid var(--border-2); border-radius: 6px; padding: 0 6px; line-height: 18px; }
+        @media (max-width: 900px) { .mobile-brand { display: block; } .search { flex: 1; } kbd { display: none; } }
+      `}</style>
+    </header>
+  );
+}
+
+export function MobileTabs() {
+  const path = usePathname();
+  const tabs = useTabs();
+  return (
+    <nav className="tabs" aria-label="Main">
+      {[...tabs, { href: '/settings', icon: 'settings' as IconName, label: 'Settings' }].map((t) => (
+        <Link key={t.href} href={t.href} className={isActive(path, t.href) ? 'on' : ''} aria-label={t.label}>
+          <Icon name={t.icon} size={22} />
+          <span>{t.label}</span>
+        </Link>
+      ))}
+      <style jsx>{`
+        .tabs { display: none; }
         @media (max-width: 900px) {
-          .rail { display: none; }
-          .bottom {
-            display: flex; justify-content: space-around; align-items: center;
-            position: fixed; left: 14px; right: 14px; bottom: calc(10px + env(safe-area-inset-bottom)); height: 66px;
-            border-radius: 26px; z-index: 40;
-          }
-          :global(.btab) { width: 64px; height: 50px; display: grid; place-items: center; color: var(--ink-3); border-radius: 18px; }
-          :global(.btab.on) { color: var(--ink); }
+          .tabs { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; height: calc(60px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); background: var(--glass); backdrop-filter: blur(14px); border-top: 1px solid var(--border); }
+          .tabs :global(a) { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--muted); font-size: 10.5px; font-weight: 500; }
+          .tabs :global(a.on) { color: var(--text); }
         }
       `}</style>
-    </>
+    </nav>
   );
 }

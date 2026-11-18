@@ -27,7 +27,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
           setBusy(false);
         }}
       >
-        <h1>{mode === 'setup' ? 'Create your LoMu account' : 'Welcome back'}</h1>
+        <div className="mk"><span className="mark" /><b>LoMu</b></div>
+        <h1>{mode === 'setup' ? 'Create your account' : 'Welcome back'}</h1>
         <p>{mode === 'setup' ? 'One account for you. It syncs this browser and your phone.' : 'Sign in to your LoMu.'}</p>
         <input autoFocus placeholder="Username" autoComplete="username" value={u} onChange={(e) => setU(e.target.value)} />
         <input
@@ -43,13 +44,18 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       </form>
       <style jsx>{`
         .gate { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg); padding: 24px; z-index: 100; }
-        form { width: min(380px, 100%); display: flex; flex-direction: column; gap: 12px; }
-        h1 { font-size: 34px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; margin: 0; }
-        p { color: var(--ink-2); margin: 0 0 8px; }
-        input { padding: 14px 18px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); font: inherit; outline: none; }
-        button { padding: 14px; border-radius: 999px; border: 0; background: var(--ink); color: var(--bg); font: inherit; font-weight: 700; cursor: pointer; }
-        button:disabled { opacity: 0.4; }
-        .err { color: #d33; font-size: 14px; }
+        form { width: min(380px, 100%); display: flex; flex-direction: column; gap: 10px; padding: 28px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--lift); }
+        .mk { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+        .mark { width: 28px; height: 28px; border-radius: 9px; background: var(--ink); }
+        .mk b { font-size: 17px; font-weight: 600; letter-spacing: -.04em; }
+        h1 { font-size: 1.6rem; font-weight: 600; line-height: 1.15; margin: 0; }
+        p { color: var(--muted); margin: 0 0 8px; }
+        input { height: 48px; padding: 0 16px; border-radius: 12px; border: 1px solid var(--border-2); background: var(--surface); color: var(--text); font: inherit; outline: none; transition: border-color .2s, box-shadow .2s; }
+        input:focus { border-color: var(--signal); box-shadow: 0 0 0 4px var(--signal-soft); }
+        button { height: 48px; border-radius: 999px; border: 0; background: var(--ink); color: var(--on-ink); font: inherit; font-weight: 500; cursor: pointer; margin-top: 4px; transition: transform .3s var(--spring); }
+        button:active { transform: scale(.97); }
+        button:disabled { opacity: .4; cursor: not-allowed; }
+        .err { color: var(--red-t); font-size: 13px; background: var(--red-soft); padding: 10px 12px; border-radius: 10px; }
       `}</style>
     </div>
   );

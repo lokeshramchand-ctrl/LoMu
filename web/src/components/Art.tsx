@@ -8,14 +8,7 @@ function Img({ src, alt }: { src?: string; alt: string }) {
   return <img src={src} alt={alt} loading="lazy" decoding="async" draggable={false} onError={() => setOk(false)} referrerPolicy="no-referrer" />;
 }
 
-export function Disc({ src, size, spin, paused, alt = '' }: { src?: string; size: number | string; spin?: boolean; paused?: boolean; alt?: string }) {
-  return (
-    <div className={`disc${spin ? ' spin' : ''}${paused ? ' paused' : ''}`} style={{ width: size, height: size }}>
-      <Img src={src} alt={alt} />
-    </div>
-  );
-}
-
+/** Square artwork with a hairline edge. */
 export function Cover({ src, size, radius, alt = '' }: { src?: string; size: number | string; radius?: number; alt?: string }) {
   return (
     <div className="cover" style={{ width: size, height: size, borderRadius: radius }}>
@@ -24,9 +17,10 @@ export function Cover({ src, size, radius, alt = '' }: { src?: string; size: num
   );
 }
 
+/** Round artwork, used for artists. */
 export function Avatar({ src, size, alt = '' }: { src?: string; size: number | string; alt?: string }) {
   return (
-    <div className="avatar" style={{ width: size, height: size }}>
+    <div className="cover round" style={{ width: size, height: size }}>
       <Img src={src} alt={alt} />
     </div>
   );

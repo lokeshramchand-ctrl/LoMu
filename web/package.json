@@ -24,6 +24,7 @@
     "zustand": "^5.1.0"
   },
   "devDependencies": {
+    "@phosphor-icons/core": "^2.1.1",
     "@playwright/test": "^1.65.1",
     "@types/jsdom": "^30.0.0",
     "@types/node": "^26.6.6",

@@ -81,6 +81,6 @@ test('UI: signing out returns to the login screen', async ({ page }) => {
   await page.getByPlaceholder('Username').fill(USER);
   await page.getByPlaceholder('Password').fill(PASS);
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await page.getByRole('button', { name: 'Sign out' }).click();
+  await page.getByRole('main').getByRole('button', { name: 'Sign out' }).click();
   await expect(page.getByPlaceholder('Username')).toBeVisible();
 });
