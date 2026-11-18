@@ -14,13 +14,8 @@ import com.lomu.app.constants.PreferredLyricsProvider
  */
 object LyricsProviderRegistry {
     private val providerMap = mapOf(
-        "YouLyPlus"       to YouLyPlusLyricsProvider,
-        "Paxsenix"        to PaxSenixLyricsProvider,
-        "Musixmatch"      to MusixmatchLyricsProvider,
         "BetterLyrics"    to BetterLyricsProvider,
-        "SimpMusic"       to SimpMusicLyricsProvider,
         "LrcLib"          to LrcLibLyricsProvider,
-        "Kugou"           to KuGouLyricsProvider,
         "YouTubeSubtitle" to YouTubeSubtitleLyricsProvider,
         "YouTubeMusic"    to YouTubeLyricsProvider,
     )
@@ -38,13 +33,8 @@ object LyricsProviderRegistry {
         providers.filter { it in providerNames }.joinToString(",")
 
     fun getDefaultProviderOrder(): List<String> = listOf(
-        "YouLyPlus",
-        "Paxsenix",
-        "Musixmatch",
         "BetterLyrics",
-        "SimpMusic",
         "LrcLib",
-        "Kugou",
         "YouTubeSubtitle",
         "YouTubeMusic",
     )
@@ -55,22 +45,14 @@ object LyricsProviderRegistry {
     /** Maps a [PreferredLyricsProvider] enum value to its registry name, used for migration. */
     fun getProviderNameForEnum(enum: PreferredLyricsProvider): String = when (enum) {
         PreferredLyricsProvider.LRCLIB        -> "LrcLib"
-        PreferredLyricsProvider.KUGOU         -> "Kugou"
         PreferredLyricsProvider.BETTER_LYRICS -> "BetterLyrics"
-        PreferredLyricsProvider.SIMPMUSIC     -> "SimpMusic"
-        PreferredLyricsProvider.YOULYPLUS     -> "YouLyPlus"
-        PreferredLyricsProvider.PAXSENIX      -> "Paxsenix"
+        else -> "LrcLib"
     }
 
     /** Returns the human-readable display name for a registry provider key. */
     fun getDisplayName(name: String): String = when (name) {
-        "YouLyPlus"       -> "YouLyPlus"
-        "Paxsenix"        -> "PaxSenix"
-        "Musixmatch"      -> "Musixmatch"
         "BetterLyrics"    -> "Better Lyrics"
-        "SimpMusic"       -> "SimpMusic"
         "LrcLib"          -> "LrcLib"
-        "Kugou"           -> "KuGou"
         "YouTubeSubtitle" -> "YouTube Subtitle"
         "YouTubeMusic"    -> "YouTube Music"
         else              -> name

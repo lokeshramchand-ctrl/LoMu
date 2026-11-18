@@ -19,8 +19,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
-import com.lomu.app.utils.Wikipedia
-import com.lomu.app.utils.AppleMusicAboutAlbum
 import javax.inject.Inject
 
 @HiltViewModel
@@ -94,7 +92,7 @@ constructor(
                         viewModelScope.launch(Dispatchers.IO) {
                             val artistName = album?.artists?.firstOrNull()?.name 
                                 ?: database.albumWithSongs(albumId).first()?.artists?.firstOrNull()?.name
-                            val wikiDescription = Wikipedia.fetchAlbumInfo(it.album.title, artistName)
+                            val wikiDescription = null as String?
                             if (wikiDescription != null) {
                                 description.value = wikiDescription
                                 val currentAlbum = database.album(albumId).first()
@@ -104,7 +102,7 @@ constructor(
                                     }
                                 }
                             } else {
-                                val appleDescription = AppleMusicAboutAlbum.fetchAlbumDescription(it.album.title, artistName)
+                                val appleDescription = null as String?
                                 if (appleDescription != null) {
                                     description.value = appleDescription
                                     val currentAlbum = database.album(albumId).first()

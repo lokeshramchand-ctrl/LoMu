@@ -10,7 +10,7 @@ import android.content.res.Configuration
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Shape
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
@@ -36,24 +36,9 @@ fun listItemShape(index: Int, count: Int, radius: Dp = 24.dp): Shape {
     val shapes = listItemShapes.getOrPut(radius) {
         val smoothness = 60
         arrayOf(
-            AbsoluteSmoothCornerShape(
-                cornerRadiusTL = radius, smoothnessAsPercentTL = smoothness,
-                cornerRadiusTR = radius, smoothnessAsPercentTR = smoothness,
-                cornerRadiusBL = radius, smoothnessAsPercentBL = smoothness,
-                cornerRadiusBR = radius, smoothnessAsPercentBR = smoothness
-            ),
-            AbsoluteSmoothCornerShape(
-                cornerRadiusTL = radius, smoothnessAsPercentTL = smoothness,
-                cornerRadiusTR = radius, smoothnessAsPercentTR = smoothness,
-                cornerRadiusBL = 0.dp, smoothnessAsPercentBL = 0,
-                cornerRadiusBR = 0.dp, smoothnessAsPercentBR = 0
-            ),
-            AbsoluteSmoothCornerShape(
-                cornerRadiusTL = 0.dp, smoothnessAsPercentTL = 0,
-                cornerRadiusTR = 0.dp, smoothnessAsPercentTR = 0,
-                cornerRadiusBL = radius, smoothnessAsPercentBL = smoothness,
-                cornerRadiusBR = radius, smoothnessAsPercentBR = smoothness
-            ),
+            RoundedCornerShape(topStart = radius, topEnd = radius, bottomStart = radius, bottomEnd = radius),
+            RoundedCornerShape(topStart = radius, topEnd = radius, bottomStart = 0.dp, bottomEnd = 0.dp),
+            RoundedCornerShape(topStart = 0.dp, topEnd = 0.dp, bottomStart = radius, bottomEnd = radius),
         )
     }
     return when {

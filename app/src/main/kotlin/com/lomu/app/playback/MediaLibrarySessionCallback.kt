@@ -77,7 +77,6 @@ constructor(
     var toggleLike: () -> Unit = {}
     var toggleStartRadio: () -> Unit = {}
     var toggleLibrary: () -> Unit = {}
-    var androidAutoLyrics: AndroidAutoLyrics? = null
 
     // Android Auto shows only this many root items as tabs.
     private var rootChildrenLimit = Int.MAX_VALUE
@@ -87,9 +86,6 @@ constructor(
         controller: MediaSession.ControllerInfo,
     ): MediaSession.ConnectionResult {
         val connectionResult = super.onConnect(session, controller)
-        if (controller.packageName == AndroidAutoLyrics.ANDROID_AUTO_PACKAGE) {
-            androidAutoLyrics?.onCarControllerConnected(true)
-        }
         return MediaSession.ConnectionResult.accept(
             connectionResult.availableSessionCommands
                 .buildUpon()
@@ -108,9 +104,6 @@ constructor(
         session: MediaSession,
         controller: MediaSession.ControllerInfo,
     ) {
-        if (controller.packageName == AndroidAutoLyrics.ANDROID_AUTO_PACKAGE) {
-            androidAutoLyrics?.onCarControllerConnected(false)
-        }
     }
 
     override fun onCustomCommand(
@@ -677,10 +670,7 @@ constructor(
 
     /** Root tabs, plus Lyrics when it's on. Artists gives way if the car can't show them all. */
     private fun rootTabs(): List<MediaItem> {
-        if (androidAutoLyrics?.enabled != true) return rootChildren()
-        val tabs = (rootChildren() + lyricsTabMediaItem()).toMutableList()
-        if (tabs.size > rootChildrenLimit) tabs.removeAll { it.mediaId == MusicService.ARTIST }
-        return tabs.take(rootChildrenLimit)
+        return rootChildren().take(rootChildrenLimit)
     }
 
     private fun lyricsTabMediaItem() = browsableMediaItem(
@@ -695,25 +685,7 @@ constructor(
      * One row: the current line as the title and the next one as the subtitle, which
      * Android Auto draws smaller and dimmer. It's rebuilt on every line change.
      */
-    private fun lyricsChildren(): List<MediaItem> {
-        val lyrics = androidAutoLyrics ?: return emptyList()
-        val songId = lyrics.songId
-            ?: return listOf(lyricsMessageItem(context.getString(R.string.android_auto_lyrics_no_song)))
-        if (lyrics.lines.isEmpty()) {
-            return listOf(lyricsMessageItem(context.getString(R.string.android_auto_lyrics_not_synced)))
-        }
-
-        val index = lyrics.currentIndex.coerceAtLeast(0)
-        val line = lyrics.lines[index]
-        return listOf(
-            lyricLineMediaItem(
-                id = "${MusicService.LYRICS}/$songId/${line.time}",
-                title = line.text.trim().ifEmpty { "♪" },
-                iconUri = null,
-                subtitle = lyrics.lines.getOrNull(index + 1)?.text?.trim(),
-            ),
-        )
-    }
+    private fun lyricsChildren(): List<MediaItem> = emptyList()
 
     // Not playable: Android Auto offers playable items as "For you" suggestions on the
     // home screen, and a status message has no business there.

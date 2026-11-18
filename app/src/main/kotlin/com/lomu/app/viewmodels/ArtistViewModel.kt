@@ -38,7 +38,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.lomu.app.extensions.filterVideoSongs as filterVideoSongsLocal
-import com.lomu.app.artistvideo.ArtistVideoCanvasProvider
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -107,22 +106,6 @@ class ArtistViewModel @Inject constructor(
                         .filter { section -> section.items.isNotEmpty() }
 
                     artistPage = page.copy(sections = filteredSections)
-                    
-                    // Try to fetch artist video canvas from top songs
-                    val topSongsSection = page.sections.find { it.items.firstOrNull() is com.music.innertube.models.SongItem }
-                    topSongsSection?.items?.forEach { item ->
-                        if (item is com.music.innertube.models.SongItem) {
-                            val canvas = ArtistVideoCanvasProvider.getBySongArtist(
-                                song = item.title,
-                                artist = page.artist?.title ?: ""
-                            )
-                            if (canvas?.preferredAnimationUrl != null) {
-                                _artistVideoUrl.value = canvas.preferredAnimationUrl
-                                _artistVideoSong.value = item
-                                return@forEach
-                            }
-                        }
-                    }
                 }.onFailure {
                     reportException(it)
                 }

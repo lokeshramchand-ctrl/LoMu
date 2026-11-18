@@ -96,7 +96,6 @@ object DebugLogs {
         appendLine("Android: ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")
         appendLine("App: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
         appendLine("Build type: ${BuildConfig.BUILD_TYPE} (debug=${BuildConfig.DEBUG})")
-        appendLine("Flavor: ${BuildConfig.FLAVOR}")
         appendLine("Arch: ${Build.SUPPORTED_ABIS.joinToString()}")
     }
 

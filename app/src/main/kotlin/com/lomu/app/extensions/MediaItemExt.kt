@@ -13,7 +13,7 @@ import com.music.innertube.models.SongItem
 import com.lomu.app.db.entities.Song
 import com.lomu.app.models.MediaMetadata
 import com.lomu.app.models.toMediaMetadata
-import com.lomu.app.ui.utils.resize
+import com.lomu.app.utils.resize
 
 val MediaItem.metadata: MediaMetadata?
     get() = (localConfiguration?.tag as? MediaMetadata) ?: run {

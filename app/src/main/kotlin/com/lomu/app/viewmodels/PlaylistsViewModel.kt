@@ -15,7 +15,6 @@ import com.lomu.app.constants.AddToPlaylistSortTypeKey
 import com.lomu.app.constants.PlaylistSortType
 import com.lomu.app.db.MusicDatabase
 import com.lomu.app.extensions.toEnum
-import com.lomu.app.utils.SyncUtils
 import com.lomu.app.utils.dataStore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -33,7 +32,6 @@ class PlaylistsViewModel
 constructor(
     @ApplicationContext context: Context,
     database: MusicDatabase,
-    private val syncUtils: SyncUtils,
 ) : ViewModel() {
     val allPlaylists =
         context.dataStore.data
@@ -45,8 +43,4 @@ constructor(
                 database.playlists(sortType, descending)
             }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
-    // Suspend function that waits for sync to complete
-    suspend fun sync() {
-        syncUtils.syncSavedPlaylists()
-    }
 }

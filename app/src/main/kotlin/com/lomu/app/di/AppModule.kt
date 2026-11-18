@@ -15,8 +15,6 @@ import androidx.room.Room
 import com.lomu.app.constants.MaxSongCacheSizeKey
 import com.lomu.app.db.InternalDatabase
 import com.lomu.app.db.MusicDatabase
-import com.lomu.app.listentogether.ListenTogetherClient
-import com.lomu.app.listentogether.ListenTogetherManager
 import com.lomu.app.utils.dataStore
 import com.lomu.app.utils.get
 import dagger.Module
@@ -102,17 +100,4 @@ object AppModule {
             databaseProvider
         )
     }
-
-    @Singleton
-    @Provides
-    fun provideListenTogetherClient(
-        @ApplicationContext context: Context,
-    ): ListenTogetherClient = ListenTogetherClient(context)
-
-    @Singleton
-    @Provides
-    fun provideListenTogetherManager(
-        @ApplicationContext context: Context,
-        client: ListenTogetherClient,
-    ): ListenTogetherManager = ListenTogetherManager(client, context)
 }

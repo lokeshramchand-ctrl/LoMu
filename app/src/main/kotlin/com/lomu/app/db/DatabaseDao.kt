@@ -55,7 +55,7 @@ import com.lomu.app.extensions.reversed
 import com.lomu.app.extensions.toSQLiteQuery
 import com.lomu.app.models.MediaMetadata
 import com.lomu.app.models.toMediaMetadata
-import com.lomu.app.ui.utils.resize
+import com.lomu.app.utils.resize
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.Dispatchers

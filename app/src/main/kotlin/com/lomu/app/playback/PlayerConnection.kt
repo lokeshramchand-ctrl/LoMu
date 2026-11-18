@@ -152,9 +152,6 @@ class PlayerConnection(
             database.format(mediaMetadata?.id)
         }
 
-    /** BPM, key, tier and transition style, straight from the DJ engine. */
-    val djState = service.djState
-
     val queueTitle = MutableStateFlow<String?>(null)
     val queueWindows = MutableStateFlow<List<Timeline.Window>>(emptyList())
     val currentMediaItemIndex = MutableStateFlow(-1)
@@ -559,20 +556,6 @@ class PlayerConnection(
         }
     }
 
-    /** Triggers a real-time DJ transition into the target track with custom duration and effect style. */
-    fun triggerDjTransitionToTrack(
-        targetIndex: Int,
-        startPositionMs: Long = 0L,
-        durationMs: Long = 2500L,
-        style: com.lomu.app.playback.dj.TransitionStyle? = null,
-    ) {
-        service.startManualTrackTransition(
-            targetIndex = targetIndex,
-            startPositionMs = startPositionMs,
-            transitionDurationMs = durationMs,
-            forcedStyle = style,
-        )
-    }
 }
 
 class CrossfadeForwardingPlayer(

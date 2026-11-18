@@ -19,7 +19,6 @@ import com.lomu.app.db.MusicDatabase
 import com.lomu.app.extensions.filterExplicit
 import com.lomu.app.extensions.filterVideoSongs
 import com.lomu.app.extensions.toEnum
-import com.lomu.app.utils.SyncUtils
 import com.lomu.app.utils.dataStore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -43,7 +42,6 @@ constructor(
     @ApplicationContext context: Context,
     private val database: MusicDatabase,
     savedStateHandle: SavedStateHandle,
-    private val syncUtils: SyncUtils,
 ) : ViewModel() {
     val playlist = savedStateHandle.get<String>("playlist")!!
 
@@ -82,40 +80,10 @@ constructor(
             }
             .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.Lazily, emptyList())
 
-    fun syncLikedSongs() {
-        viewModelScope.launch(Dispatchers.IO) { syncUtils.syncLikedSongs() }
-    }
 
-    fun syncUploadedSongs() {
-        viewModelScope.launch(Dispatchers.IO) { syncUtils.syncUploadedSongs() }
-    }
 
-    fun refresh() {
-        viewModelScope.launch(Dispatchers.IO) {
-            _isRefreshing.value = true
-            when (playlist) {
-                "liked" -> syncUtils.syncLikedSongsSuspend()
-                "uploaded" -> syncUtils.syncUploadedSongsSuspend()
-            }
-            _isRefreshing.value = false
-        }
-    }
 
     private val _isScanning = MutableStateFlow(false)
     val isScanning = _isScanning.asStateFlow()
 
-    /** Scans device audio into the library (isLocal songs). Used by the "local" auto playlist. */
-    fun scanLocal(context: Context) {
-        if (_isScanning.value) return
-        viewModelScope.launch(Dispatchers.IO) {
-            _isScanning.value = true
-            try {
-                com.lomu.app.utils.LocalAudioScanner.scanAndInsert(context, database)
-            } catch (e: Exception) {
-                Timber.tag("AutoPlaylistViewModel").e(e, "local scan failed")
-            } finally {
-                _isScanning.value = false
-            }
-        }
-    }
 }

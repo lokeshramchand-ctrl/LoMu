@@ -6,7 +6,7 @@
 package com.lomu.app.lyrics
 
 import android.content.Context
-import com.lomu.app.betterlyrics.BetterLyrics
+import com.beatwave.music.betterlyrics.BetterLyrics
 import com.lomu.app.constants.EnableBetterLyricsKey
 import com.lomu.app.utils.dataStore
 import com.lomu.app.utils.get

@@ -13,7 +13,7 @@ _Last updated: 2026-11-18. Branch `music`. The upstream git remote has been remo
 | Repo rename to **LoMu** (folder, Gradle project, package `com.lomu.app`, app name, web name) | ✅ Done |
 | App icon (headphones avatar, unmodified, on black) — Android + web | ✅ Done |
 | Removal of bloat, gimmicks and the developer's backend | ✅ Done (source deleted) |
-| Android app compiles | ❌ **Not yet**: the core needs its references to removed features cleaned up, and `MainActivity` + the whole UI are still to be written |
+| Android app compiles | ✅ **Done** (2026-11-18): `./gradlew :app:assembleDebug` produces `app-debug.apk`. `MainActivity` is only a placeholder that shows "LoMu"; the real UI is still to be written |
 | Android new UI | ❌ Not started (design decided, see below) |
 | Web player UI | ✅ Built (all pages), 🔶 visual check pending |
 | Web catalogue APIs (home, search, album, artist, playlist, radio, lyrics) | ✅ Working against live YouTube Music |
@@ -63,22 +63,9 @@ The first compile takes about 6 minutes. **Before stripping, the original code c
 
 ### Immediate next tasks, in order
 
-**1. Make the Android core compile.** These files still reference deleted code:
+**1. ✅ Android core compiles (done 2026-11-18).** What was removed to get there: Listen Together DI, `SyncUtils` (YouTube-account sync) from the view models, canvas downloads, TIDAL / JioSaavn / 8spine intercepts in `YTPlayerUtils`, kuromoji / tinypinyin romanization (Japanese/Chinese lyrics are now left as-is), the dead lyrics providers, and from `MusicService`: Discord RPC, Last.fm, ListenBrainz, Spotify sync, DJ engine, 8D, stall watchdog, sleep timer, widgets and Android Auto lyrics. **Kept:** plain crossfade (`startCrossfade`, `startManualTrackTransition`), EQ, silence skipping, queue persistence. The Room schema folder was renamed to `app/schemas/com.lomu.app.db.InternalDatabase`, which the migrations need.
 
-| File | What to fix |
-|---|---|
-| `playback/MusicService.kt` | ~17 imports: Discord RPC, Last.fm, ListenBrainz, Spotify sync, TIDAL key, DJ engine + DJ/8D/TrackAnalyzer/LosslessStall audio processors, widgets, `MainActivity`, `SyncUtils`. Remove those features from the service, then `createRenderersFactory(...)` (it takes the deleted processors) |
-| `playback/DownloadUtil.kt` | `ui.utils.resize` → `com.lomu.app.utils.resize`; drop `normalizeCanvas*` (canvas downloads) |
-| `db/DatabaseDao.kt`, `extensions/MediaItemExt.kt`, `models/MediaMetadata.kt` | `com.lomu.app.ui.utils.resize` → `com.lomu.app.utils.resize` (already moved to `utils/ImageUrl.kt`) |
-| `utils/YTPlayerUtils.kt` | Remove the **TIDAL, JioSaavn and 8spine intercepts** inside `playerResponseForPlayback` (they fall through to YouTube anyway). **Do not touch** the client fallback chain, cipher, PoToken or n-transform code |
-| `di/AppModule.kt` | Remove the Listen Together providers |
-| `lyrics/LyricsUtils.kt` | Remove kuromoji / tinypinyin romanization (libraries dropped) |
-| `lyrics/LyricsHelper.kt`, `LyricsProviderRegistry.kt` | Drop the deleted providers (KuGou, Musixmatch, Paxsenix, SimpMusic, YouLyPlus) and the translation helper |
-| `viewmodels/LibraryViewModels.kt`, `PlaylistsViewModel.kt`, `LocalPlaylistViewModel.kt`, `AutoPlaylistViewModel.kt` | They inject the deleted `SyncUtils` (YouTube-account sync). Remove it. LoMu's own sync replaces it later |
-| `viewmodels/BackupRestoreViewModel.kt` | References `MainActivity` (restart after restore). Point it at the new `MainActivity` once written |
-| `MediaLibrarySessionCallback.kt` | Android Auto browse tree. Can be trimmed to the media-session basics (notification like/shuffle/repeat buttons) |
-
-Room entities for removed features (for example `RecognitionHistory`) were **left in place on purpose**: removing entities changes the DB schema and needs a migration. The app has a fresh package name, so nothing on the phone is affected, but if you remove them, bump the DB version.
+Left over and harmless: unused `isTidalStream` / `isSpineStream` fields on `PlaybackData`, unused preference keys in `constants/PreferenceKeys.kt`, `CastConnectionHandler.kt` (compiles; Cast is not wired to any UI), `LyricsMetadataPlayer.kt`, and the unused `isRefreshing` flows in two view models. Clean these up when convenient.
 
 **2. Write `MainActivity` + the Compose UI.**
 - **Bind to the service:** copy the binding pattern from the deleted `MainActivity`: `bindService(Intent(this, MusicService::class.java), conn, BIND_AUTO_CREATE)`, then `PlayerConnection(this, binder, database, lifecycleScope)`, and provide it through a `CompositionLocal`.
@@ -213,7 +200,7 @@ Next.js 16 (App Router, Turbopack) · React 19 · TypeScript · TanStack Query �
    - **Where the pieces are:** `web/scripts/po-minter.mjs` speaks JSON lines over stdio (`init` with `{program, globalName, interpreterUrl}` from `Innertube.getAttestationChallenge('ENGAGEMENT_TYPE_UNBOUND')` and requestKey `O43z0dpjhgX20SCx4KAo`, then `mint` with a `binding`). It is **not yet wired into `server/stream.ts`**.
    - **Already in `server/stream.ts`:** 1 MiB chunking, range math, the per-client "flagged" cooldown and same-itag client switching. These stay useful whichever fix is chosen.
 2. **Heavy probing during this session got this IP bot-flagged** for some clients ("Sign in to confirm you're not a bot"). It is usually temporary. The server now uses a YouTube-issued visitor id, which cleared it for ANDROID_VR in testing.
-3. **Android app does not build yet** (see Android → Next steps).
+3. ~~Android app does not build yet~~ Fixed. Not yet tested on the phone.
 4. Screenshot tour (`web/tests/shots.mjs`) needs a final run after the style-registry fix; Chromium's capture is occasionally flaky, and the script retries.
 
 ---

@@ -18,7 +18,6 @@ import com.lomu.app.db.MusicDatabase
 import com.lomu.app.db.entities.PlaylistSong
 import com.lomu.app.extensions.reversed
 import com.lomu.app.extensions.toEnum
-import com.lomu.app.utils.SyncUtils
 import com.lomu.app.utils.dataStore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -40,7 +39,6 @@ class LocalPlaylistViewModel
 constructor(
     @ApplicationContext context: Context,
     database: MusicDatabase,
-    private val syncUtils: SyncUtils,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     val playlistId = savedStateHandle.get<String>("playlistId")!!
@@ -93,8 +91,6 @@ constructor(
         }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     init {
-        refresh()
-
         viewModelScope.launch {
             val sortedSongs =
                 playlistSongs.first().sortedWith(compareBy({ it.map.position }, { it.map.id }))
@@ -112,11 +108,4 @@ constructor(
      * Re-syncs this playlist against YouTube. Bound to the pull-to-refresh gesture.
      * No-op for a purely local playlist, which has no browseId to sync against.
      */
-    fun refresh() {
-        viewModelScope.launch {
-            playlist.first { it != null }?.playlist?.browseId?.let { browseId ->
-                syncUtils.syncPlaylist(browseId, playlistId)
-            }
-        }
-    }
 }

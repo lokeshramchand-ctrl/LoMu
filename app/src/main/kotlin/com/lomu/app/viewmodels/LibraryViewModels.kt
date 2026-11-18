@@ -49,8 +49,6 @@ import com.lomu.app.extensions.filterVideoSongs
 import com.lomu.app.extensions.filterYoutubeShorts
 import com.lomu.app.extensions.toEnum
 import com.lomu.app.playback.DownloadUtil
-import com.lomu.app.utils.LocalAudioScanner
-import com.lomu.app.utils.SyncUtils
 import com.lomu.app.utils.dataStore
 import com.lomu.app.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -77,14 +75,7 @@ constructor(
     @ApplicationContext private val context: Context,
     private val database: MusicDatabase,
     downloadUtil: DownloadUtil,
-    private val syncUtils: SyncUtils,
 ) : ViewModel() {
-    private val _isScanning = MutableStateFlow(false)
-    val isScanning = _isScanning.asStateFlow()
-
-    private val _scanResult = MutableStateFlow<LocalAudioScanner.ScanResult?>(null)
-    val scanResult = _scanResult.asStateFlow()
-
     val allSongs =
         context.dataStore.data
             .map {
@@ -113,36 +104,6 @@ constructor(
                 }
             }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
-    fun scanLocalFiles() {
-        viewModelScope.launch(Dispatchers.IO) {
-            _isScanning.value = true
-            _scanResult.value = null
-            try {
-                val result = LocalAudioScanner.scanAndInsert(context, database)
-                _scanResult.value = result
-            } catch (e: Exception) {
-                _scanResult.value = LocalAudioScanner.ScanResult(0, 0, 0)
-            } finally {
-                _isScanning.value = false
-            }
-        }
-    }
-
-    fun clearScanResult() {
-        _scanResult.value = null
-    }
-
-    fun syncLikedSongs() {
-        viewModelScope.launch(Dispatchers.IO) { syncUtils.syncLikedSongs() }
-    }
-
-    fun syncLibrarySongs() {
-        viewModelScope.launch(Dispatchers.IO) { syncUtils.syncLibrarySongs() }
-    }
-
-    fun syncUploadedSongs() {
-        viewModelScope.launch(Dispatchers.IO) { syncUtils.syncUploadedSongs() }
-    }
 }
 
 @HiltViewModel
@@ -151,7 +112,6 @@ class LibraryArtistsViewModel
 constructor(
     @ApplicationContext context: Context,
     database: MusicDatabase,
-    private val syncUtils: SyncUtils,
 ) : ViewModel() {
     val allArtists =
         context.dataStore.data
@@ -171,9 +131,6 @@ constructor(
                 }
             }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
-    fun sync() {
-        viewModelScope.launch(Dispatchers.IO) { syncUtils.syncArtistsSubscriptions() }
-    }
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
@@ -207,7 +164,6 @@ class LibraryAlbumsViewModel
 constructor(
     @ApplicationContext context: Context,
     database: MusicDatabase,
-    private val syncUtils: SyncUtils,
 ) : ViewModel() {
     val allAlbums =
         context.dataStore.data
@@ -232,9 +188,6 @@ constructor(
                 }
             }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
-    fun sync() {
-        viewModelScope.launch(Dispatchers.IO) { syncUtils.syncLikedAlbums() }
-    }
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
@@ -269,7 +222,6 @@ class LibraryPlaylistsViewModel
 constructor(
     @ApplicationContext context: Context,
     database: MusicDatabase,
-    private val syncUtils: SyncUtils,
 ) : ViewModel() {
     val allPlaylists =
         context.dataStore.data
@@ -294,9 +246,6 @@ constructor(
                 }
             }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
-    fun sync() {
-        viewModelScope.launch(Dispatchers.IO) { syncUtils.syncSavedPlaylists() }
-    }
 
     val topValue =
         context.dataStore.data
@@ -340,18 +289,10 @@ class LibraryMixViewModel
 constructor(
     @ApplicationContext context: Context,
     database: MusicDatabase,
-    private val syncUtils: SyncUtils,
 ) : ViewModel() {
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing = _isRefreshing.asStateFlow()
 
-    fun refresh() {
-        viewModelScope.launch(Dispatchers.IO) {
-            _isRefreshing.value = true
-            syncUtils.performFullSyncSuspend()
-            _isRefreshing.value = false
-        }
-    }
 
     val topValue =
         context.dataStore.data

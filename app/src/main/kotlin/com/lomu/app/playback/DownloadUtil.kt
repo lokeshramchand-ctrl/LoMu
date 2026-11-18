@@ -42,7 +42,7 @@ import com.lomu.app.db.entities.FormatEntity
 import com.lomu.app.db.entities.SongEntity
 import com.lomu.app.di.DownloadCache
 import com.lomu.app.di.PlayerCache
-import com.lomu.app.ui.utils.resize
+import com.lomu.app.utils.resize
 import com.lomu.app.constants.AutoDownloadOnLikeKey
 import com.lomu.app.utils.YTPlayerUtils
 import com.lomu.app.utils.enumPreference
@@ -58,16 +58,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
-import com.lomu.app.applecanvas.AppleMusicCanvasProvider
-import com.lomu.app.canvas.AppleMusicArtistBackgroundProvider
-import com.lomu.app.constants.CanvasSource
-import com.lomu.app.constants.CanvasSourceKey
-import com.lomu.app.ui.player.normalizeCanvasArtistName
-import com.lomu.app.ui.player.normalizeCanvasSongTitle
 import com.lomu.app.utils.dataStore
-import com.lomu.app.vivimusiccanvas.EchoMusicCanvasProvider
-import com.lomu.app.vivimusiccanvas.ViviMusicCanvasProvider
-import com.lomu.app.canvas.TidalCanvasProvider
 import java.util.Locale
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -256,58 +247,6 @@ constructor(
                         .diskCachePolicy(CachePolicy.ENABLED)
                         .build()
                     SingletonImageLoader.get(context).enqueue(request)
-                }
-
-                // --- CANVAS CACHING ---
-                scope.launch {
-                    val canvasSource = context.dataStore.data.map { it[CanvasSourceKey] ?: CanvasSource.AUTO.name }.first().let { name -> CanvasSource.entries.find { it.name == name } ?: CanvasSource.AUTO }
-
-                    val storefront = Locale.getDefault().country.lowercase(Locale.ROOT).takeIf { it.length == 2 } ?: "us"
-                    val requestedTitle = playbackData.videoDetails?.title.orEmpty()
-                    val requestedArtist = playbackData.videoDetails?.author.orEmpty()
-                    
-                    val s = normalizeCanvasSongTitle(requestedTitle)
-                    val a = normalizeCanvasArtistName(requestedArtist)
-
-                    val canvas = when (canvasSource) {
-                        CanvasSource.AUTO -> {
-                            EchoMusicCanvasProvider.getBySongArtist(s, a)?.preferredAnimationUrl
-                                ?: AppleMusicCanvasProvider.getBySongArtist(s, a, "", storefront)?.preferredAnimationUrl
-                                ?: ViviMusicCanvasProvider.getBySongArtist(s, a)?.preferredAnimationUrl
-                                ?: TidalCanvasProvider.getBySongArtist(s, a, "")?.preferredAnimationUrl
-                        }
-                        CanvasSource.ECHO_MUSIC -> EchoMusicCanvasProvider.getBySongArtist(s, a)?.preferredAnimationUrl
-                        CanvasSource.APPLE_MUSIC -> AppleMusicCanvasProvider.getBySongArtist(s, a, "", storefront)?.preferredAnimationUrl
-                        CanvasSource.VIVIMUSIC -> ViviMusicCanvasProvider.getBySongArtist(s, a)?.preferredAnimationUrl
-                        CanvasSource.TIDAL -> TidalCanvasProvider.getBySongArtist(s, a, "")?.preferredAnimationUrl
-                    }
-
-                    canvas?.let { url ->
-                        val dataSpec = DataSpec.Builder()
-                            .setUri(url.toUri())
-                            .setKey("$mediaId#canvas")
-                            .setFlags(DataSpec.FLAG_ALLOW_CACHE_FRAGMENTATION)
-                            .build()
-                            
-                        val dataSource = CacheDataSource.Factory()
-                            .setCache(downloadCache)
-                            .setUpstreamDataSourceFactory(DefaultDataSource.Factory(context))
-                            .setCacheWriteDataSinkFactory(null)
-                            .createDataSource()
-                        
-                        kotlin.runCatching {
-                            val writer = CacheWriter(
-                                dataSource,
-                                dataSpec,
-                                null,
-                                null
-                            )
-                            writer.cache()
-                            Timber.tag("CanvasDownload").d("Successfully cached canvas for $mediaId")
-                        }.onFailure { e ->
-                            Timber.tag("CanvasDownload").e(e, "Failed to cache canvas for $mediaId")
-                        }
-                    }
                 }
             }
 

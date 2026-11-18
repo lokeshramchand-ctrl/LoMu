@@ -85,50 +85,27 @@ import com.google.common.util.concurrent.MoreExecutors
 import com.music.innertube.YouTube
 import com.music.innertube.models.SongItem
 import com.music.innertube.models.WatchEndpoint
-import com.music.lastfm.LastFM
 import com.lomu.app.MainActivity
 import com.lomu.app.R
-import com.lomu.app.constants.SpotifySessionKey
-import com.lomu.app.constants.SpotifySyncKey
 import com.lomu.app.constants.YtmSyncKey
-import com.music.spotify.Spotify
 import com.lomu.app.constants.AudioNormalizationKey
 import com.lomu.app.constants.AudioOffload
 import com.lomu.app.constants.AudioQualityKey
-import com.lomu.app.constants.EnableTidalStreamingKey
-import com.lomu.app.constants.EnabledModulesKey
 import com.lomu.app.constants.AutoLoadMoreKey
 import com.lomu.app.constants.AutoSkipNextOnErrorKey
 import com.lomu.app.constants.CrossfadeDurationKey
 import com.lomu.app.constants.CrossfadeEnabledKey
 import com.lomu.app.constants.ManualCrossfadeEnabledKey
 import com.lomu.app.constants.ManualCrossfadeDurationKey
-import com.lomu.app.constants.AutoDjMixingEnabledKey
-import com.lomu.app.constants.CreativeTransitionsEnabledKey
 import com.lomu.app.constants.CrossfadeGaplessKey
 import com.lomu.app.constants.DisableLoadMoreWhenRepeatAllKey
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
-import com.lomu.app.constants.DiscordActivityNameKey
-import com.lomu.app.constants.DiscordActivityTypeKey
-import com.lomu.app.constants.DiscordAdvancedModeKey
-import com.lomu.app.constants.DiscordButton1TextKey
-import com.lomu.app.constants.DiscordButton1VisibleKey
-import com.lomu.app.constants.DiscordButton2TextKey
-import com.lomu.app.constants.DiscordButton2VisibleKey
-import com.lomu.app.constants.DiscordStatusKey
-import com.lomu.app.constants.DiscordTokenKey
-import com.lomu.app.constants.DiscordUseDetailsKey
-import com.lomu.app.constants.EnableDiscordRPCKey
-import com.lomu.app.constants.EnableLastFMScrobblingKey
 import com.lomu.app.constants.HideExplicitKey
 import com.lomu.app.constants.HideVideoSongsKey
 import com.lomu.app.constants.DataSaverEnabledKey
-import com.lomu.app.constants.ListenBrainzEnabledKey
-import com.lomu.app.constants.ListenBrainzTokenKey
 import com.lomu.app.constants.HistoryDuration
-import com.lomu.app.constants.LastFMUseNowPlaying
 import com.lomu.app.constants.MediaSessionConstants.CommandToggleCarLyrics
 import com.lomu.app.constants.MediaSessionConstants.CommandToggleLike
 import com.lomu.app.constants.MediaSessionConstants.CommandToggleRepeatMode
@@ -142,18 +119,12 @@ import com.lomu.app.constants.PlayerVolumeKey
 import com.lomu.app.constants.RememberShuffleAndRepeatKey
 import com.lomu.app.constants.RepeatModeKey
 import com.lomu.app.constants.ResumeOnBluetoothConnectKey
-import com.lomu.app.constants.ScrobbleDelayPercentKey
-import com.lomu.app.constants.ScrobbleDelaySecondsKey
-import com.lomu.app.constants.ScrobbleMinSongDurationKey
 import com.lomu.app.constants.ShowLyricsKey
 import com.lomu.app.constants.ShuffleModeKey
 import com.lomu.app.constants.ShufflePlaylistFirstKey
 import com.lomu.app.constants.PreventDuplicateTracksInQueueKey
 import com.lomu.app.constants.SimilarContent
 import com.lomu.app.constants.SkipSilenceInstantKey
-import com.lomu.app.constants.EightDDepthKey
-import com.lomu.app.constants.EightDEnabledKey
-import com.lomu.app.constants.EightDRotationHzKey
 import com.lomu.app.constants.SkipSilenceKey
 import com.lomu.app.constants.IpVersionKey
 import com.music.innertube.models.IpVersion
@@ -193,32 +164,18 @@ import com.lomu.app.models.PersistPlayerState
 import com.lomu.app.models.PersistQueue
 import com.lomu.app.models.toMediaMetadata
 import com.lomu.app.playback.audio.DelayAudioProcessor
-import com.lomu.app.playback.audio.DjFilterAudioProcessor
-import com.lomu.app.playback.audio.DjMixPlan
-import com.lomu.app.playback.audio.DjMixTier
-import com.lomu.app.playback.audio.DjTailAudioProcessor
-import com.lomu.app.playback.audio.EightDAudioProcessor
-import com.lomu.app.playback.audio.LosslessStallWatchdogAudioProcessor
 import com.lomu.app.playback.audio.SilenceDetectorAudioProcessor
-import com.lomu.app.playback.audio.TrackAnalyzerAudioProcessor
-import com.lomu.app.playback.dj.DjEngine
 import com.lomu.app.playback.queues.EmptyQueue
 import com.lomu.app.playback.queues.Queue
 import com.lomu.app.playback.queues.YouTubeQueue
 import com.lomu.app.playback.queues.filterExplicit
 import com.lomu.app.playback.queues.filterVideoSongs
 import com.lomu.app.utils.CoilBitmapLoader
-import com.lomu.app.utils.DiscordRPC
 import com.lomu.app.utils.NetworkConnectivityObserver
-import com.lomu.app.utils.ScrobbleManager
-import com.lomu.app.utils.SyncUtils
 import com.lomu.app.utils.YTPlayerUtils
 import com.lomu.app.utils.dataStore
 import com.lomu.app.utils.get
 import com.lomu.app.utils.reportException
-import com.lomu.app.widget.MusicWidgetReceiver
-import com.lomu.app.widget.NowPlayingWidgetReceiver
-import com.lomu.app.widget.vivimusicWidgetManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlin.math.PI
 import kotlin.math.cos
@@ -235,6 +192,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
@@ -277,9 +235,6 @@ class MusicService :
     lateinit var lyricsHelper: LyricsHelper
 
     @Inject
-    lateinit var syncUtils: SyncUtils
-
-    @Inject
     lateinit var mediaLibrarySessionCallback: MediaLibrarySessionCallback
 
     @Inject
@@ -287,12 +242,6 @@ class MusicService :
 
     @Inject
     lateinit var eqProfileRepository: EQProfileRepository
-
-    @Inject
-    lateinit var widgetManager: vivimusicWidgetManager
-
-    @Inject
-    lateinit var listenTogetherManager: com.lomu.app.listentogether.ListenTogetherManager
 
     private lateinit var audioManager: AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
@@ -404,7 +353,6 @@ class MusicService :
     }
 //
 
-    lateinit var sleepTimer: SleepTimer
 
     @Inject
     @PlayerCache
@@ -427,11 +375,7 @@ class MusicService :
     private var duckVolumeRestoreJob: Job? = null
 
     private lateinit var mediaSession: MediaLibrarySession
-    private lateinit var androidAutoLyrics: AndroidAutoLyrics
-    private lateinit var sessionPlayer: LyricsMetadataPlayer
-    private var lastCarButtonState: Pair<Boolean, Boolean>? = null
-    private var lyricsTabRefreshJob: Job? = null
-    private var lastLyricsTabRefresh = 0L
+    private lateinit var sessionPlayer: Player
 
     // Tracks if player has been properly initilized
     private val playerInitialized = MutableStateFlow(false)
@@ -443,20 +387,6 @@ class MusicService :
 
     private val playerSilenceProcessors = HashMap<Player, SilenceDetectorAudioProcessor>()
 
-    /** One per player instance, so the crossfade player gets the effect too. */
-    private val playerEightDProcessors = HashMap<Player, EightDAudioProcessor>()
-
-    /** Mirrors of the 8D prefs, kept fresh by collectors in onCreate so building
-     *  a player (which happens on the crossfade path) never blocks on DataStore. */
-    @Volatile
-    private var cachedEightDEnabled = false
-
-    @Volatile
-    private var cachedEightDRotationHz = 0.125f
-
-    @Volatile
-    private var cachedEightDDepth = EightDAudioProcessor.DEFAULT_DEPTH
-    private val playerStallWatchdogs = HashMap<Player, LosslessStallWatchdogAudioProcessor>()
 
 
 
@@ -464,17 +394,7 @@ class MusicService :
 
     private var isAudioEffectSessionOpened = false
     private var loudnessEnhancer: LoudnessEnhancer? = null
-
-    private var discordRpc: DiscordRPC? = null
     private var lastPlaybackSpeed = 1.0f
-    private var discordUpdateJob: kotlinx.coroutines.Job? = null
-
-    private var scrobbleManager: ScrobbleManager? = null
-
-    private var listenBrainzEnabled = false
-    private var listenBrainzToken = ""
-    private var listenBrainzCurrentMediaId: String? = null
-    private var listenBrainzCurrentStartTs: Long = 0L
 
     val automixItems = MutableStateFlow<List<MediaItem>>(emptyList())
 
@@ -513,15 +433,6 @@ class MusicService :
     private val MAX_LOSSLESS_STALLS_BEFORE_FALLBACK = 2
 
 
-    // All DJ analysis, pre-analysis and transition decisions live here; this
-    // service only carries out what it decides. Owns its own coroutine scope,
-    // so it survives `scope` being replaced on service restart.
-    val djEngine: DjEngine by lazy {
-        DjEngine(database) { createExoPlayer(publishAsActive = false) }
-    }
-
-    /** BPM / key / tier readout for the UI, owned by the engine. */
-    val djState get() = djEngine.state
 
     // Track failed songs to prevent infinite retry loops
     private val recentlyFailedSongs = mutableSetOf<String>()
@@ -534,22 +445,7 @@ class MusicService :
     private val screenStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
-                Intent.ACTION_SCREEN_OFF -> {
-                    if (!player.isPlaying) {
-                        scope.launch(Dispatchers.IO) {
-                            discordRpc?.closeRPC()
-                        }
-                    }
-                }
-                Intent.ACTION_SCREEN_ON -> {
-                    if (player.isPlaying) {
-                        scope.launch {
-                            currentSong.value?.let { song ->
-                                updateDiscordRPC(song)
-                            }
-                        }
-                    }
-                }
+                Intent.ACTION_SCREEN_OFF, Intent.ACTION_SCREEN_ON -> Unit
             }
         }
     }
@@ -645,8 +541,6 @@ class MusicService :
         )
         player = createExoPlayer()
         player.addListener(this@MusicService)
-        sleepTimer = SleepTimer(scope, player)
-        player.addListener(sleepTimer)
 
         // Mark player as initialized after successful creation
         playerInitialized.value = true
@@ -660,14 +554,6 @@ class MusicService :
             toggleStartRadio = ::toggleStartRadio
             toggleLibrary = ::toggleLibrary
         }
-        androidAutoLyrics = AndroidAutoLyrics(
-            context = this,
-            scope = scope,
-            database = database,
-            positionMs = { player.currentPosition },
-            isPlaying = { player.isPlaying },
-        )
-        mediaLibrarySessionCallback.androidAutoLyrics = androidAutoLyrics
         sessionPlayer = lyricsSessionPlayer(player)
         mediaSession =
             MediaLibrarySession
@@ -681,21 +567,6 @@ class MusicService :
                     ),
                 ).setBitmapLoader(CoilBitmapLoader(this, scope))
                 .build()
-        androidAutoLyrics.onChanged = {
-            sessionPlayer.invalidateLyricLine()
-            refreshLyricsTab()
-            // The last car button depends on these, so redraw the buttons when they flip.
-            val carButtonState = androidAutoLyrics.isInCar to androidAutoLyrics.enabled
-            if (carButtonState != lastCarButtonState) {
-                // The Lyrics tab comes and goes with the setting, so the car needs a fresh tab list.
-                if (carButtonState.second != lastCarButtonState?.second) {
-                    mediaSession.notifyChildrenChanged(ROOT, Int.MAX_VALUE, null)
-                }
-                lastCarButtonState = carButtonState
-                updateNotification()
-            }
-        }
-        androidAutoLyrics.start(currentMediaMetadata.map { it?.id })
         player.repeatMode = dataStore.get(RepeatModeKey, REPEAT_MODE_OFF)
 
         // Restore shuffle mode if remember option is enabled
@@ -751,15 +622,6 @@ class MusicService :
                 isNetworkConnected.value = isConnected
                 if (isConnected && waitingForNetworkConnection.value) {
                     triggerRetry()
-                }
-                // Update Discord RPC when network becomes available
-                if (isConnected && discordRpc != null && player.isPlaying) {
-                    val mediaId = player.currentMetadata?.id
-                    if (mediaId != null) {
-                        database.song(mediaId).first()?.let { song ->
-                            updateDiscordRPC(song)
-                        }
-                    }
                 }
             }
         }
@@ -873,7 +735,6 @@ class MusicService :
 
         currentSong.debounce(1000).collect(scope) { song ->
             updateNotification()
-            updateWidgetUI(player.isPlaying)
         }
 
         combine(
@@ -923,29 +784,6 @@ class MusicService :
                 }
             }
 
-        // 8D: pushed to every live processor rather than read when a player is
-        // built, so toggling it applies to whatever is already playing. The
-        // processor ramps internally, so this never clicks mid-track.
-        dataStore.data
-            .map {
-                Triple(
-                    it[EightDEnabledKey] ?: false,
-                    it[EightDRotationHzKey] ?: 0.125f,
-                    it[EightDDepthKey] ?: EightDAudioProcessor.DEFAULT_DEPTH,
-                )
-            }
-            .distinctUntilChanged()
-            .collectLatest(scope) { (eightDEnabled, rotationHz, depth) ->
-                cachedEightDEnabled = eightDEnabled
-                cachedEightDRotationHz = rotationHz
-                cachedEightDDepth = depth
-
-                playerEightDProcessors.values.forEach { processor ->
-                    processor.enabled = eightDEnabled
-                    processor.rotationHz = rotationHz
-                    processor.depth = depth
-                }
-            }
 
         combine(
             currentFormat,
@@ -969,109 +807,7 @@ class MusicService :
              secondaryPlayer?.setOffloadEnabled(useOffload)
         }
 
-        dataStore.data
-            .map { it[DiscordTokenKey] to (it[EnableDiscordRPCKey] ?: true) }
-            .debounce(300)
-            .distinctUntilChanged()
-            .collect(scope) { (key, enabled) ->
-                if (discordRpc?.isRpcRunning() == true) {
-                    discordRpc?.closeRPC()
-                }
-                discordRpc = null
-                if (key != null && enabled) {
-                    discordRpc = DiscordRPC(this, key)
-                    if (player.playbackState == Player.STATE_READY && player.playWhenReady) {
-                        currentSong.value?.let {
-                            updateDiscordRPC(it, true)
-                        }
-                    }
-                }
-            }
 
-        // Watch all Discord customization preferences
-        dataStore.data
-            .map {
-                listOf(
-                    it[DiscordUseDetailsKey],
-                    it[DiscordAdvancedModeKey],
-                    it[DiscordStatusKey],
-                    it[DiscordButton1TextKey],
-                    it[DiscordButton1VisibleKey],
-                    it[DiscordButton2TextKey],
-                    it[DiscordButton2VisibleKey],
-                    it[DiscordActivityTypeKey],
-                    it[DiscordActivityNameKey]
-                )
-            }
-            .debounce(300)
-            .distinctUntilChanged()
-            .collect(scope) {
-                if (player.playbackState == Player.STATE_READY) {
-                    currentSong.value?.let { song ->
-                        updateDiscordRPC(song, true)
-                    }
-                }
-            }
-
-        dataStore.data
-            .map { it[EnableLastFMScrobblingKey] ?: false }
-            .debounce(300)
-            .distinctUntilChanged()
-            .collect(scope) { enabled ->
-                if (enabled && scrobbleManager == null) {
-                    val delayPercent = dataStore.get(ScrobbleDelayPercentKey, LastFM.DEFAULT_SCROBBLE_DELAY_PERCENT)
-                    val minSongDuration = dataStore.get(ScrobbleMinSongDurationKey, LastFM.DEFAULT_SCROBBLE_MIN_SONG_DURATION)
-                    val delaySeconds = dataStore.get(ScrobbleDelaySecondsKey, LastFM.DEFAULT_SCROBBLE_DELAY_SECONDS)
-                    scrobbleManager = ScrobbleManager(
-                        scope,
-                        minSongDuration = minSongDuration,
-                        scrobbleDelayPercent = delayPercent,
-                        scrobbleDelaySeconds = delaySeconds
-                    )
-                    scrobbleManager?.useNowPlaying = dataStore.get(LastFMUseNowPlaying, false)
-                } else if (!enabled && scrobbleManager != null) {
-                    scrobbleManager?.destroy()
-                    scrobbleManager = null
-                }
-            }
-
-        dataStore.data
-            .map { it[LastFMUseNowPlaying] ?: false }
-            .distinctUntilChanged()
-            .collectLatest(scope) {
-                scrobbleManager?.useNowPlaying = it
-            }
-
-        dataStore.data
-            .map {
-                val listenBrainz = it[ListenBrainzEnabledKey] ?: false
-                val dataSaver = it[DataSaverEnabledKey] ?: false
-                if (dataSaver) false else listenBrainz
-            }
-            .distinctUntilChanged()
-            .collect(scope) { listenBrainzEnabled = it }
-
-        dataStore.data
-            .map { it[ListenBrainzTokenKey] ?: "" }
-            .distinctUntilChanged()
-            .collect(scope) { listenBrainzToken = it }
-
-        dataStore.data
-            .map { prefs ->
-                Triple(
-                    prefs[ScrobbleDelayPercentKey] ?: LastFM.DEFAULT_SCROBBLE_DELAY_PERCENT,
-                    prefs[ScrobbleMinSongDurationKey] ?: LastFM.DEFAULT_SCROBBLE_MIN_SONG_DURATION,
-                    prefs[ScrobbleDelaySecondsKey] ?: LastFM.DEFAULT_SCROBBLE_DELAY_SECONDS
-                )
-            }
-            .distinctUntilChanged()
-            .collect(scope) { (delayPercent, minSongDuration, delaySeconds) ->
-                scrobbleManager?.let {
-                    it.scrobbleDelayPercent = delayPercent
-                    it.minSongDuration = minSongDuration
-                    it.scrobbleDelaySeconds = delaySeconds
-                }
-            }
 
         combine(
             dataStore.data.map { prefs ->
@@ -1081,10 +817,9 @@ class MusicService :
                     prefs[CrossfadeGaplessKey] ?: true
                 )
             },
-            listenTogetherManager.roomState
-        ) { (enabled, duration, gapless), roomState ->
-            // Disable crossfade if user is in a listen together room
-            Triple(enabled && roomState == null, duration, gapless)
+            flowOf(Unit)
+        ) { (enabled, duration, gapless), _ ->
+            Triple(enabled, duration, gapless)
         }
             .distinctUntilChanged()
             .collect(scope) { (enabled, duration, gapless) ->
@@ -1103,9 +838,9 @@ class MusicService :
                     prefs[ManualCrossfadeDurationKey] ?: 3f
                 )
             },
-            listenTogetherManager.roomState
-        ) { (enabled, duration), roomState ->
-            Pair(enabled && roomState == null, duration)
+            flowOf(Unit)
+        ) { (enabled, duration), _ ->
+            Pair(enabled, duration)
         }
             .distinctUntilChanged()
             .collect(scope) { (enabled, duration) ->
@@ -1113,20 +848,6 @@ class MusicService :
                 manualCrossfadeDuration = duration * 1000f // Convert to ms
             }
 
-        dataStore.data
-            .map { it[AutoDjMixingEnabledKey] ?: false }
-            .distinctUntilChanged()
-            .collect(scope) {
-                djEngine.enabled = it
-                // The readout hides itself when DJ mixing is off, so the flow
-                // has to be republished on the toggle, not only on a transition.
-                djEngine.refreshState(player.currentMediaItem?.mediaId)
-            }
-
-        dataStore.data
-            .map { it[CreativeTransitionsEnabledKey] ?: false }
-            .distinctUntilChanged()
-            .collect(scope) { djEngine.creativeEnabled = it }
 
         if (dataStore.get(PersistentQueueKey, true)) {
             val queueFile = filesDir.resolve(PERSISTENT_QUEUE_FILE)
@@ -1249,25 +970,6 @@ class MusicService :
             onLongSilence = { handleLongSilenceDetected() }
         )
 
-        val stallWatchdog = LosslessStallWatchdogAudioProcessor(
-            onStallDetected = { handleLosslessStallDetected() }
-        )
-
-        lateinit var bpmAnalyzerRef: TrackAnalyzerAudioProcessor
-        val bpmAnalyzer = TrackAnalyzerAudioProcessor(
-            onAnalysisReady = { djEngine.onAnalysisReady(bpmAnalyzerRef) },
-            analysisEnabled = { djEngine.enabled },
-        )
-        bpmAnalyzerRef = bpmAnalyzer
-
-        val djFilter = DjFilterAudioProcessor()
-        val djTail = DjTailAudioProcessor()
-        val djDelay = DelayAudioProcessor()
-        val eightD = EightDAudioProcessor().apply {
-            enabled = cachedEightDEnabled
-            rotationHz = cachedEightDRotationHz
-            depth = cachedEightDDepth
-        }
 
         // Set initial state from the cached mirrors (kept fresh by the
         // dataStore.data collectors in onCreate) rather than blocking here â€”
@@ -1278,9 +980,7 @@ class MusicService :
         val player = ExoPlayer.Builder(this)
             .setMediaSourceFactory(createMediaSourceFactory())
             .setRenderersFactory(
-                createRenderersFactory(
-                    eqProcessor, silenceProcessor, stallWatchdog, bpmAnalyzer, djFilter, djTail, djDelay, eightD,
-                )
+                createRenderersFactory(eqProcessor, silenceProcessor)
             )
             .setLoadControl(
                 androidx.media3.exoplayer.DefaultLoadControl.Builder()
@@ -1307,9 +1007,6 @@ class MusicService :
             .build()
 
         playerSilenceProcessors[player] = silenceProcessor
-        playerStallWatchdogs[player] = stallWatchdog
-        playerEightDProcessors[player] = eightD
-        djEngine.registerPlayer(player, bpmAnalyzer, djFilter, djTail, djDelay)
 
         player.apply {
                 setOffloadEnabled(cachedOffloadEnabled)
@@ -1532,37 +1229,15 @@ class MusicService :
         // Media3 re-foregrounds automatically the next time audio starts.
         stopSelf()
         currentMediaMetadata.value = null
-        updateWidgetUI(false)
     }
 
-    private fun lyricsSessionPlayer(player: Player) =
-        LyricsMetadataPlayer(player) { mediaId -> androidAutoLyrics.metadataLine(mediaId) }
-
-    // Android Auto throttles browse refreshes, so fast lines are coalesced into one
-    // refresh at most every LYRICS_TAB_REFRESH_MS; the list is built when it's fetched.
-    private fun refreshLyricsTab() {
-        if (lyricsTabRefreshJob?.isActive == true) return
-        val wait = LYRICS_TAB_REFRESH_MS - (SystemClock.elapsedRealtime() - lastLyricsTabRefresh)
-        lyricsTabRefreshJob = scope.launch {
-            if (wait > 0) delay(wait)
-            lastLyricsTabRefresh = SystemClock.elapsedRealtime()
-            mediaSession.notifyChildrenChanged(LYRICS, Int.MAX_VALUE, null)
-        }
-    }
+    private fun lyricsSessionPlayer(player: Player): Player = player
 
     /**
      * In the car the radio button gives way to a lyrics on/off switch, since the car
      * has no other way to reach that setting. The phone keeps the radio button.
      */
     private fun lastButton(): CommandButton {
-        if (::androidAutoLyrics.isInitialized && androidAutoLyrics.isInCar) {
-            val on = androidAutoLyrics.enabled
-            return CommandButton.Builder()
-                .setDisplayName(getString(if (on) R.string.android_auto_lyrics_hide else R.string.android_auto_lyrics_show))
-                .setIconResId(if (on) R.drawable.lyrics_active else R.drawable.lyrics)
-                .setSessionCommand(CommandToggleCarLyrics)
-                .build()
-        }
         return CommandButton.Builder()
             .setDisplayName(getString(R.string.start_radio))
             .setIconResId(R.drawable.radio)
@@ -1708,12 +1383,7 @@ class MusicService :
                 val mediaId = item.mediaId
                 if (mediaId.isBlank()) continue
 
-                val losslessOn = dataStore.get(EnableTidalStreamingKey, false)
-                val spineEnabled = dataStore.get(EnabledModulesKey, "[]") != "[]"
-                val effKey = when {
-                    losslessOn || spineEnabled -> "$mediaId#flac"
-                    else -> mediaId
-                }
+                val effKey = mediaId
 
                 // Check if already in cache or downloaded
                 val cached = songUrlCache[effKey]?.takeIf { it.second > System.currentTimeMillis() }
@@ -1732,11 +1402,6 @@ class MusicService :
 
                     if (playbackData != null) {
                         val streamUrl = playbackData.streamUrl
-                        if (playbackData.isTidalStream || playbackData.isSpineStream) {
-                            losslessStreamMediaIds.add(mediaId)
-                        } else {
-                            losslessStreamMediaIds.remove(mediaId)
-                        }
                         songUrlCache[effKey] =
                             streamUrl to System.currentTimeMillis() + (playbackData.streamExpiresInSeconds * 1000L)
 
@@ -2185,7 +1850,6 @@ class MusicService :
                 val song = it.song.toggleLike()
                 database.query {
                     update(song)
-                    syncUtils.likeSong(song)
                     // Auto-download on like is handled by DownloadUtil, which watches
                     // the `liked` column — this hook only ever fired for the player's
                     // own like button, never for the song/queue/selection menus.
@@ -2337,30 +2001,10 @@ class MusicService :
         }
         previousMediaItemIndex = player.currentMediaItemIndex
 
-        playerStallWatchdogs[player]?.let { watchdog ->
-            watchdog.armed = mediaItem?.mediaId?.let { losslessStreamMediaIds.contains(it) } == true
-            watchdog.resetForNewTrack()
-        }
-        djEngine.onTrackChanged(player, mediaItem?.mediaId)
 
         lastPlaybackSpeed = -1.0f // force update song
 
         setupLoudnessEnhancer()
-
-        discordUpdateJob?.cancel()
-
-        scrobbleManager?.onSongStop()
-        checkAndSubmitListenBrainzFinished()
-        if (player.playWhenReady && player.playbackState == Player.STATE_READY) {
-            scrobbleManager?.onSongStart(player.currentMetadata, duration = player.duration)
-            player.currentMediaItem?.mediaId?.let { mediaId ->
-                if (listenBrainzCurrentMediaId != mediaId) {
-                    listenBrainzCurrentMediaId = mediaId
-                    listenBrainzCurrentStartTs = System.currentTimeMillis()
-                }
-                checkAndSubmitListenBrainzPlayingNow(mediaId)
-            }
-        }
 
         // Sync Cast when media changes and Cast is connected
         // Skip if this change was triggered by Cast sync (to prevent loops)
@@ -2421,7 +2065,6 @@ class MusicService :
         // resolver has definitely run for the current item.
         if (playbackState == Player.STATE_READY) {
             player.currentMediaItem?.mediaId?.let { mediaId ->
-                playerStallWatchdogs[player]?.armed = losslessStreamMediaIds.contains(mediaId)
             }
         }
 
@@ -2458,8 +2101,6 @@ class MusicService :
         }
 
         if (playbackState == Player.STATE_IDLE || playbackState == Player.STATE_ENDED) {
-            scrobbleManager?.onSongStop()
-            checkAndSubmitListenBrainzFinished()
         }
     }
 
@@ -2515,47 +2156,8 @@ class MusicService :
 
         // Widget and Discord RPC updates
         if (events.containsAny(Player.EVENT_IS_PLAYING_CHANGED)) {
-            updateWidgetUI(player.isPlaying)
-            if (player.isPlaying) {
-                startWidgetUpdates()
-            } else {
-                stopWidgetUpdates()
-            }
-            if (!player.isPlaying && !events.containsAny(Player.EVENT_POSITION_DISCONTINUITY, Player.EVENT_MEDIA_ITEM_TRANSITION)) {
-                scope.launch {
-                    discordRpc?.close()
-                }
-            }
         }
 
-        // Update Discord RPC when media item changes or playback starts
-        if (events.containsAny(Player.EVENT_MEDIA_ITEM_TRANSITION, Player.EVENT_IS_PLAYING_CHANGED) && player.isPlaying) {
-            val mediaId = player.currentMetadata?.id
-            if (mediaId != null) {
-                scope.launch {
-                    // Fetch song from database to get full info
-                    database.song(mediaId).first()?.let { song ->
-                        updateDiscordRPC(song)
-                    }
-                }
-            }
-        }
-
-        // Scrobbling
-        if (events.containsAny(Player.EVENT_IS_PLAYING_CHANGED)) {
-            scrobbleManager?.onPlayerStateChanged(player.isPlaying, player.currentMetadata, duration = player.duration)
-
-            if (player.isPlaying) {
-                player.currentMediaItem?.mediaId?.let { mediaId ->
-                    if (listenBrainzCurrentMediaId != mediaId) {
-                        checkAndSubmitListenBrainzFinished()
-                        listenBrainzCurrentMediaId = mediaId
-                        listenBrainzCurrentStartTs = System.currentTimeMillis()
-                    }
-                    checkAndSubmitListenBrainzPlayingNow(mediaId)
-                }
-            }
-        }
 
     }
 
@@ -2661,17 +2263,7 @@ class MusicService :
             // the OLD speed — re-derive it. Skipped mid-transition, where the DJ
             // engine is driving the parameters itself.
             if (!isCrossfading) scheduleCrossfade()
-            discordUpdateJob?.cancel()
 
-            // update scheduling thingy
-            discordUpdateJob = scope.launch {
-                delay(1000)
-                if (player.playWhenReady && player.playbackState == Player.STATE_READY) {
-                    currentSong.value?.let { song ->
-                        updateDiscordRPC(song)
-                    }
-                }
-            }
         }
     }
 
@@ -3413,7 +3005,6 @@ class MusicService :
         performAggressiveCacheClear(mediaId)
         losslessStreamMediaIds.remove(mediaId)
         losslessStallCount.remove(mediaId)
-        playerStallWatchdogs[player]?.armed = false
 
         val idx = player.currentMediaItemIndex
         val pos = player.currentPosition
@@ -3425,43 +3016,6 @@ class MusicService :
             getString(R.string.lossless_fallback_to_standard_audio),
             Toast.LENGTH_SHORT
         ).show()
-    }
-
-    private fun updateDiscordRPC(song: Song, showFeedback: Boolean = false) {
-        val useDetails = dataStore.get(DiscordUseDetailsKey, false)
-        val advancedMode = dataStore.get(DiscordAdvancedModeKey, false)
-
-        val status = if (advancedMode) dataStore.get(DiscordStatusKey, "online") else "online"
-        val b1Text = if (advancedMode) dataStore.get(DiscordButton1TextKey, "") else ""
-        val b1Visible = if (advancedMode) dataStore.get(DiscordButton1VisibleKey, true) else true
-        val b2Text = if (advancedMode) dataStore.get(DiscordButton2TextKey, "") else ""
-        val b2Visible = if (advancedMode) dataStore.get(DiscordButton2VisibleKey, true) else true
-        val activityType = if (advancedMode) dataStore.get(DiscordActivityTypeKey, "listening") else "listening"
-        val activityName = if (advancedMode) dataStore.get(DiscordActivityNameKey, "") else ""
-
-        discordUpdateJob?.cancel()
-        discordUpdateJob = scope.launch {
-            discordRpc?.updateSong(
-                song,
-                player.currentPosition,
-                player.playbackParameters.speed,
-                useDetails,
-                status,
-                b1Text,
-                b1Visible,
-                b2Text,
-                b2Visible,
-                activityType,
-                activityName
-            )?.onFailure {
-                // Rate limited or error
-                if (showFeedback) {
-                    Handler(Looper.getMainLooper()).post {
-                        Toast.makeText(this@MusicService, "Discord RPC update failed: ${it.message}", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            }
-        }
     }
 
     private fun createDataSourceFactory(): DataSource.Factory {
@@ -3477,17 +3031,7 @@ class MusicService :
                 return@Factory dataSpec
             }
 
-            // Lossless namespaces the whole cache chain so FLAC and Opus/AAC bytes
-            // for the same video never collide across a toggle. Streaming only:
-            // offline downloads live in the plain (Opus) namespace.
-            // Spine streams also use lossless namepacing to avoid cache collisions.
-            val losslessOn = dataStore.get(EnableTidalStreamingKey, false)
-            val spineEnabled = dataStore.get(EnabledModulesKey, "[]") != "[]"
-            val effKey = when {
-                losslessOn || spineEnabled -> "$mediaId#flac"
-                else -> mediaId
-            }
-            Timber.tag("SpineDebug").d("DataSourceResolver: mediaId=$mediaId spineEnabled=$spineEnabled losslessOn=$losslessOn effKey=$effKey")
+            val effKey = mediaId
             val spec = if (effKey == mediaId) dataSpec else dataSpec.buildUpon().setKey(effKey).build()
 
             // Check if we need to bypass cache for quality change
@@ -3614,26 +3158,10 @@ class MusicService :
                 }
 
                 val streamUrl = nonNullPlayback.streamUrl
-                Timber.tag("SpineDebug").d("DataSourceResolver: resolved mediaId=$mediaId isSpineStream=${nonNullPlayback.isSpineStream} isTidalStream=${nonNullPlayback.isTidalStream} streamUrl=${streamUrl?.take(120)}")
-
-                if (nonNullPlayback.isTidalStream || nonNullPlayback.isSpineStream) {
-                    losslessStreamMediaIds.add(mediaId)
-                } else {
-                    losslessStreamMediaIds.remove(mediaId)
-                }
 
                 songUrlCache[effKey] =
                     streamUrl to System.currentTimeMillis() + (nonNullPlayback.streamExpiresInSeconds * 1000L)
 
-                // Tidal/Spine hand back one direct static file URL, not a segmented
-                // YouTube-style itag CDN, and their proxies can't be trusted to return
-                // correct Content-Range headers on every ranged request. Slicing them
-                // into CHUNK_LENGTH windows risks ExoPlayer reading a short response as
-                // real end-of-file mid-song (auto-advances to the next track with no
-                // error). Fetch the whole remaining file in one open-ended request instead.
-                if (nonNullPlayback.isTidalStream || nonNullPlayback.isSpineStream) {
-                    return@Factory spec.withUri(streamUrl.toUri())
-                }
                 return@Factory spec.withUri(streamUrl.toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
             }
         }
@@ -3650,12 +3178,6 @@ class MusicService :
     private fun createRenderersFactory(
         eqProcessor: CustomEqualizerAudioProcessor,
         silenceProcessor: SilenceDetectorAudioProcessor,
-        stallWatchdog: LosslessStallWatchdogAudioProcessor,
-        bpmAnalyzer: TrackAnalyzerAudioProcessor,
-        djFilter: DjFilterAudioProcessor,
-        djTail: DjTailAudioProcessor,
-        djDelay: DelayAudioProcessor,
-        eightD: EightDAudioProcessor,
     ) =
         object : DefaultRenderersFactory(this) {
             override fun buildAudioSink(
@@ -3672,15 +3194,6 @@ class MusicService :
                         arrayOf(
                             eqProcessor,
                             silenceProcessor,
-                            stallWatchdog,
-                            bpmAnalyzer,
-                            djFilter,
-                            djTail,
-                            djDelay,
-                            // Last in the chain: it positions the finished mix,
-                            // so EQ and the DJ effects land before the image is
-                            // placed rather than being panned along with it.
-                            eightD,
                         ),
                         SilenceSkippingAudioProcessor(2_000_000, 20_000, 256),
                         SonicAudioProcessor(),
@@ -3740,17 +3253,6 @@ class MusicService :
                     }
                 }
 
-                // 2. Spotify Wrapped & Recently Played Sync
-                if (dataStore.get(SpotifySyncKey, true) && !title.isNullOrBlank()) {
-                    val rawSpotifySession = dataStore.get(SpotifySessionKey, "")
-                    if (rawSpotifySession.isNotBlank()) {
-                        try {
-                            Spotify.syncPlayback(title, artist.orEmpty(), playTime)
-                        } catch (e: Exception) {
-                            Timber.tag(TAG).d("Spotify playback sync skipped: ${e.message}")
-                        }
-                    }
-                }
             }
         }
     }
@@ -3883,24 +3385,16 @@ class MusicService :
         if (dataStore.get(PersistentQueueKey, true)) {
             saveQueueToDisk()
         }
-        if (discordRpc?.isRpcRunning() == true) {
-            discordRpc?.closeRPC()
-        }
-        discordRpc = null
         connectivityObserver.unregister()
         abandonAudioFocus()
         releaseLoudnessEnhancer()
-        djEngine.release()
         mediaSession.release()
         player.removeListener(this)
-        player.removeListener(sleepTimer)
         playerSilenceProcessors.remove(player)
-        playerEightDProcessors.remove(player)
         // Note: equalizerService audio processors are cleared in equalizerService.release() if needed,
         // or we can't easily reference the specific processor created in createExoPlayer here without storing it.
         // But since we are destroying the service, it's fine.
         player.release()
-        discordUpdateJob?.cancel()
         super.onDestroy()
     }
 
@@ -3963,27 +3457,6 @@ class MusicService :
     // platform call path. See CrashHandler.kt for the actual recovery.
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
-            MusicWidgetReceiver.ACTION_PLAY_PAUSE -> {
-                if (player.isPlaying) player.pause() else player.play()
-                updateWidgetUI(player.isPlaying)
-            }
-            MusicWidgetReceiver.ACTION_LIKE -> {
-                toggleLike()
-            }
-            MusicWidgetReceiver.ACTION_NEXT -> {
-                player.seekToNext()
-                updateWidgetUI(player.isPlaying)
-            }
-            MusicWidgetReceiver.ACTION_PREVIOUS -> {
-                player.seekToPrevious()
-                updateWidgetUI(player.isPlaying)
-            }
-            MusicWidgetReceiver.ACTION_UPDATE_WIDGET -> {
-                updateWidgetUI(player.isPlaying)
-            }
-        }
-
         return super.onStartCommand(intent, flags, startId)
     }
 
@@ -3997,72 +3470,8 @@ class MusicService :
      * Now Playing widget is placed (nothing to repaint). Without those gates this
      * is a permanent once-a-second wakeup for no visible benefit.
      */
-    private var widgetProgressJob: Job? = null
-
-    private fun restartWidgetProgressTicker() {
-        widgetProgressJob?.cancel()
-        if (!player.isPlaying) return
-
-        val appWidgetManager = AppWidgetManager.getInstance(this)
-        val hasProgressWidget = appWidgetManager
-            .getAppWidgetIds(ComponentName(this, NowPlayingWidgetReceiver::class.java))
-            .isNotEmpty()
-        if (!hasProgressWidget) return
-
-        widgetProgressJob = scope.launch {
-            val powerManager = getSystemService(PowerManager::class.java)
-            while (isActive) {
-                delay(WIDGET_PROGRESS_INTERVAL_MS)
-                if (powerManager?.isInteractive != false) {
-                    updateWidgetUI(player.isPlaying)
-                }
-            }
-        }
-    }
-
-    private fun updateWidgetUI(isPlaying: Boolean) {
-        scope.launch {
-            try {
-                val songData = currentSong.value
-                val song = songData?.song
-                val songTitle = song?.title ?: getString(R.string.no_song_playing)
-                val artistName = songData?.artists?.joinToString(", ") { it.name } ?: getString(R.string.tap_to_open)
-                val isLiked = songData?.song?.liked == true
-
-                widgetManager.updateWidgets(
-                    title = songTitle,
-                    artist = artistName,
-                    artworkUri = song?.thumbnailUrl,
-                    isPlaying = isPlaying,
-                    isLiked = isLiked,
-                    duration = if (player.duration != C.TIME_UNSET) player.duration else 0,
-                    currentPosition = player.currentPosition,
-                    mediaId = song?.id,
-                )
-            } catch (e: Exception) {
-                // Widget not added to home screen or other error
-            }
-        }
-    }
 
     private var widgetUpdateJob: Job? = null
-
-    private fun startWidgetUpdates() {
-        widgetUpdateJob?.cancel()
-        widgetUpdateJob = scope.launch {
-            while (isActive) {
-                if (player.isPlaying) {
-                    updateWidgetUI(true)
-                }
-                delay(200)
-            }
-        }
-    }
-
-    private fun stopWidgetUpdates() {
-        widgetUpdateJob?.cancel()
-        widgetUpdateJob = null
-    }
 
     private fun shareSong() {
         val songData = currentSong.value
@@ -4134,20 +3543,12 @@ class MusicService :
     private fun scheduleCrossfade() {
         crossfadeTriggerJob?.cancel()
         crossfadeTriggerJob = null
-        djEngine.releaseProbe()
         if (!crossfadeEnabled || player.duration == C.TIME_UNSET || player.duration <= crossfadeDuration) return
         if (crossfadeGapless && isNextItemGapless()) return
         if (!player.hasNextMediaItem() && player.repeatMode != REPEAT_MODE_ONE) return
 
         val targetMediaId = player.currentMediaItem?.mediaId
-        // With DJ mixing on this is snapped to a phrase boundary, and pulled to
-        // an outro drop where the energy profile shows one. Otherwise it is the
-        // plain `duration - crossfadeDuration` it has always been.
-        val triggerTime = djEngine.transitionPointMs(
-            targetMediaId,
-            player.duration,
-            crossfadeDuration.toLong(),
-        )
+        val triggerTime = player.duration - crossfadeDuration.toLong()
         val mediaDelayMs = triggerTime - player.currentPosition
         if (mediaDelayMs <= 0) return
         // delay() counts wall-clock, triggerTime is media time: at 0.5x tempo the
@@ -4157,27 +3558,9 @@ class MusicService :
         val speed = player.playbackParameters.speed.takeIf { it > 0f } ?: 1f
         val delayMs = (mediaDelayMs / speed).toLong()
 
-        if (djEngine.enabled) {
-            val targetIndex = if (player.repeatMode == REPEAT_MODE_ONE) {
-                player.currentMediaItemIndex
-            } else {
-                player.nextMediaItemIndex
-            }
-            if (targetIndex != C.INDEX_UNSET) {
-                djEngine.hydrate(upcomingMediaIds(targetIndex))
-                val incomingItem = player.getMediaItemAt(targetIndex)
-                djEngine.schedulePreAnalysis(
-                    item = incomingItem,
-                    afterMs = delayMs - DjEngine.PROBE_LEAD_MS,
-                    guardMediaId = targetMediaId,
-                    currentMediaId = { player.currentMediaItem?.mediaId },
-                )
-            }
-        }
-
         crossfadeTriggerJob = scope.launch {
             delay(delayMs)
-            if (isActive && player.isPlaying && player.currentMediaItem?.mediaId == targetMediaId && !sleepTimer.pauseWhenSongEnd) {
+            if (isActive && player.isPlaying && player.currentMediaItem?.mediaId == targetMediaId) {
                 // Sanity re-check before actually firing: player.duration read
                 // right after a seek/media-item transition (where this job is
                 // scheduled from) isn't always settled yet, so delayMs can end
@@ -4186,11 +3569,7 @@ class MusicService :
                 // previous track on a short/looping queue) mid-song instead of
                 // near its end. Re-derive from live state; if we're genuinely
                 // not close to the end yet, reschedule fresh instead of firing.
-                val liveTriggerTime = djEngine.transitionPointMs(
-                    targetMediaId,
-                    player.duration,
-                    crossfadeDuration.toLong(),
-                )
+                val liveTriggerTime = player.duration - crossfadeDuration.toLong()
                 val prematureToleranceMs = 1500L
                 if (player.duration != C.TIME_UNSET &&
                     player.currentPosition < liveTriggerTime - prematureToleranceMs
@@ -4203,18 +3582,6 @@ class MusicService :
         }
     }
 
-    /** Media ids of the next few queue entries, for analysis hydration. */
-    private fun upcomingMediaIds(fromIndex: Int): List<String> {
-        val ids = mutableListOf<String>()
-        player.currentMediaItem?.mediaId?.let(ids::add)
-        var index = fromIndex
-        while (index != C.INDEX_UNSET && ids.size <= DJ_HYDRATE_LOOKAHEAD) {
-            ids.add(player.getMediaItemAt(index).mediaId)
-            index = if (index + 1 < player.mediaItemCount) index + 1 else C.INDEX_UNSET
-        }
-        return ids
-    }
-
     private fun isNextItemGapless(): Boolean {
         val current = player.currentMediaItem?.mediaMetadata ?: return false
         val nextIndex = player.nextMediaItemIndex
@@ -4225,13 +3592,9 @@ class MusicService :
 
     private fun startCrossfade() {
         if (isCrossfading) return
-        djEngine.releaseProbe()
 
         // Preserve player state before creating the secondary player. The live
-        // ExoPlayer instance is always the authoritative, already-in-memory
-        // source of truth for these â€” reading DataStore here would just be a
-        // blocking round-trip to re-derive what `player` already holds, right
-        // as the next track needs to start.
+        // ExoPlayer instance is the authoritative source for these.
         val savedRepeatMode = player.repeatMode
         val savedShuffleEnabled = player.shuffleModeEnabled
 
@@ -4243,84 +3606,13 @@ class MusicService :
         }
         if (targetIndex == C.INDEX_UNSET) return
 
-        val outgoingMediaId = player.currentMediaItem?.mediaId
-        val incomingMediaId = player.getMediaItemAt(targetIndex).mediaId
-        // Flush the outgoing track's now-complete energy profile before the
-        // player is handed over â€” this is the only moment its outro exists.
-        outgoingMediaId?.let { djEngine.captureEnergyProfile(player, it) }
-        val djMixPlan = djEngine.planTransition(
-            outgoingMediaId,
-            incomingMediaId,
-            outgoingDurationMs = player.duration.takeIf { it != C.TIME_UNSET } ?: 0L,
-        )
-
-        secondaryPlayer = createExoPlayer()
-        val secPlayer = secondaryPlayer!!
-        secPlayer.addListener(secondaryPlayerListener)
-
-        djMixPlan?.let { plan ->
-            if (plan.tier != DjMixTier.PLAIN_CROSSFADE) {
-                // Pitch rides alongside speed: Sonic shifts them independently,
-                // so a semitone of key correction does not disturb the tempo lock.
-                secPlayer.playbackParameters =
-                    PlaybackParameters(plan.incomingSpeedAdjustment, plan.incomingPitchAdjustment)
-                Timber.tag(TAG).d(
-                    "DJ mix: ${plan.tier} tempo=${plan.incomingSpeedAdjustment} " +
-                        "pitch=${plan.incomingPitchShiftSemitones} semitones"
-                )
-            }
-        }
-
-        val itemCount = player.mediaItemCount
-        val items = mutableListOf<MediaItem>()
-        // Copy entire queue history + future
-        for (i in 0 until itemCount) {
-            items.add(player.getMediaItemAt(i))
-        }
-
-        secPlayer.setMediaItems(items)
-        // Seek to target track (next track, or current track for repeat-one).
-        // With DJ mixing on, start at the incoming track's first phrase
-        // boundary instead of 0 so the two overlap groove-on-groove rather
-        // than groove-on-silence.
-        val incomingStartMs = if (djMixPlan != null && djMixPlan.tier != DjMixTier.PLAIN_CROSSFADE) {
-            djEngine.incomingStartMs(incomingMediaId)
-        } else {
-            0L
-        }
-        Timber.tag("DjEngine").d(
-            "CROSSFADE start | outgoing=${outgoingMediaId} at ${player.currentPosition}ms/" +
-                "${player.duration}ms | incoming=${incomingMediaId} seek=${incomingStartMs}ms | " +
-                "fade=${crossfadeDuration.toLong()}ms"
-        )
-        secPlayer.seekTo(targetIndex, incomingStartMs)
-        secPlayer.volume = 0f
-
-        // Copy repeat and shuffle state to the new player
-        secPlayer.repeatMode = savedRepeatMode
-        secPlayer.shuffleModeEnabled = savedShuffleEnabled
-
-        secPlayer.prepare()
-        djEngine.armIncomingFilter(secPlayer)
-        // Creative effects act on the track that is leaving; the incoming one
-        // arrives clean.
-        djEngine.startTailEffect(player, crossfadeDuration.toLong())
-        startIncomingOnBeat(secPlayer, djMixPlan, outgoingMediaId)
-
-        performCrossfadeSwap()
-
-        // Rebuild shuffle order on the new primary player if shuffle was active
-        if (savedShuffleEnabled) {
-            val shufflePlaylistFirst = dataStore.get(ShufflePlaylistFirstKey, false)
-            applyShuffleOrder(player.currentMediaItemIndex, player.mediaItemCount, shufflePlaylistFirst)
-        }
+        beginCrossfadeTo(targetIndex, 0L, crossfadeDuration.toLong(), savedRepeatMode, savedShuffleEnabled)
     }
 
     fun startManualTrackTransition(
         targetIndex: Int,
         startPositionMs: Long = 0L,
         transitionDurationMs: Long = manualCrossfadeDuration.toLong(),
-        forcedStyle: com.lomu.app.playback.dj.TransitionStyle? = null,
     ) {
         if (isCrossfading) {
             player.seekTo(targetIndex, startPositionMs)
@@ -4328,23 +3620,22 @@ class MusicService :
         }
         if (targetIndex < 0 || targetIndex >= player.mediaItemCount) return
 
-        if (forcedStyle != null) {
-            djEngine.overrideStyle = forcedStyle
-        }
+        beginCrossfadeTo(targetIndex, startPositionMs, transitionDurationMs, player.repeatMode, player.shuffleModeEnabled)
+    }
 
-        val savedRepeatMode = player.repeatMode
-        val savedShuffleEnabled = player.shuffleModeEnabled
-
+    private fun beginCrossfadeTo(
+        targetIndex: Int,
+        startPositionMs: Long,
+        durationMs: Long,
+        savedRepeatMode: Int,
+        savedShuffleEnabled: Boolean,
+    ) {
         secondaryPlayer = createExoPlayer()
         val secPlayer = secondaryPlayer!!
         secPlayer.addListener(secondaryPlayerListener)
 
-        val itemCount = player.mediaItemCount
-        val items = mutableListOf<MediaItem>()
-        for (i in 0 until itemCount) {
-            items.add(player.getMediaItemAt(i))
-        }
-
+        // Copy the entire queue (history + future) so the new primary is complete.
+        val items = (0 until player.mediaItemCount).map { player.getMediaItemAt(it) }
         secPlayer.setMediaItems(items)
         secPlayer.seekTo(targetIndex, startPositionMs)
         secPlayer.volume = 0f
@@ -4352,122 +3643,15 @@ class MusicService :
         secPlayer.repeatMode = savedRepeatMode
         secPlayer.shuffleModeEnabled = savedShuffleEnabled
 
-        val outgoingMediaId = player.currentMediaItem?.mediaId
-        val incomingMediaId = player.getMediaItemAt(targetIndex).mediaId
-        val djMixPlan = if (djEngine.enabled || forcedStyle != null) {
-            outgoingMediaId?.let { djEngine.captureEnergyProfile(player, it) }
-            djEngine.planTransition(
-                outgoingMediaId,
-                incomingMediaId,
-                outgoingDurationMs = player.duration.takeIf { it != C.TIME_UNSET } ?: 0L,
-            )
-        } else null
-
-        djMixPlan?.let { plan ->
-            if (plan.tier != DjMixTier.PLAIN_CROSSFADE) {
-                secPlayer.playbackParameters =
-                    androidx.media3.common.PlaybackParameters(plan.incomingSpeedAdjustment, plan.incomingPitchAdjustment)
-            }
-        }
-
         secPlayer.prepare()
-        if (djMixPlan != null && (djMixPlan.tier != DjMixTier.PLAIN_CROSSFADE || forcedStyle != null)) {
-            djEngine.armIncomingFilter(secPlayer)
-            djEngine.startTailEffect(player, transitionDurationMs)
-            startIncomingOnBeat(secPlayer, djMixPlan, outgoingMediaId)
-        } else {
-            secPlayer.playWhenReady = true
-        }
+        secPlayer.playWhenReady = true
 
-        performCrossfadeSwap(transitionDurationMs)
+        performCrossfadeSwap(durationMs)
 
+        // Rebuild shuffle order on the new primary player if shuffle was active
         if (savedShuffleEnabled) {
             val shufflePlaylistFirst = dataStore.get(ShufflePlaylistFirstKey, false)
             applyShuffleOrder(player.currentMediaItemIndex, player.mediaItemCount, shufflePlaylistFirst)
-        }
-    }
-
-    /**
-     * Releases the incoming player exactly on one of the outgoing track's
-     * beats, which is the difference between two tracks playing at the same
-     * tempo and two tracks actually beatmatched.
-     *
-     * The wait is at most one beat. The volume ramp in performCrossfadeSwap()
-     * already parks on `while (!player.isPlaying)`, so the fade-in does not
-     * start running against silence while we wait.
-     */
-    private fun startIncomingOnBeat(secPlayer: ExoPlayer, plan: DjMixPlan?, outgoingMediaId: String?) {
-        if (plan == null || plan.tier == DjMixTier.PLAIN_CROSSFADE) {
-            secPlayer.playWhenReady = true
-            return
-        }
-
-        val grid = djEngine.analysisFor(outgoingMediaId)?.grid
-        val position = player.currentPosition
-        val waitMs = grid?.takeIf { it.bpm > 0f }
-            ?.let { (it.beatAtOrAfter(position) - position).toLong() }
-            ?: 0L
-
-        // ponytail: ExoPlayer has no sample-accurate start, so alignment lands
-        // within roughly a buffer (~20 ms) of the beat, and tempo lock alone
-        // carries the rest of the transition. If it audibly drifts, micro-adjust
-        // speed mid-fade from the measured position error instead.
-        if (waitMs !in 1..MAX_BEAT_ALIGN_WAIT_MS) {
-            Timber.tag("DjEngine").d("START incoming immediately (no usable beat align, waitMs=$waitMs)")
-            secPlayer.playWhenReady = true
-            return
-        }
-
-        Timber.tag("DjEngine").d("START incoming in ${waitMs}ms, on the next outgoing beat")
-        scope.launch {
-            delay(waitMs)
-            runCatching { secPlayer.playWhenReady = true }
-        }
-    }
-
-    /**
-     * Unwinds the transition's tempo lock gradually instead of snapping.
-     *
-     * This used to be a single `PlaybackParameters(1f, 1f)` at the end of the
-     * fade, so a 6 % tempo match dropped 6 % instantly the moment the crossfade
-     * finished â€” clearly audible, and the exact opposite of what the tempo
-     * match was for. A DJ eases the pitch fader back; so does this.
-     */
-    private fun glideSpeedBackToNormal() {
-        val target = player
-        val parameters = runCatching { target.playbackParameters }.getOrNull() ?: return
-        val startSpeed = parameters.speed
-        val startPitch = parameters.pitch
-        if (startSpeed in 0.999f..1.001f && startPitch in 0.999f..1.001f) return
-
-        // Below a couple of percent the correction is inaudible, so gliding it
-        // buys nothing and costs a burst of playbackParameters writes right at
-        // the end of the transition â€” each one reaching the playback thread and
-        // re-firing listeners, which is audible as a hitch exactly where the mix
-        // should be settling. Snap instead.
-        if (startSpeed in 0.98f..1.02f && startPitch in 0.999f..1.001f) {
-            runCatching { target.playbackParameters = PlaybackParameters(1f, 1f) }
-            return
-        }
-
-        scope.launch {
-            val steps = TEMPO_GLIDE_STEPS
-            for (i in 1..steps) {
-                val progress = i / steps.toFloat()
-                // Pitch unwinds with the tempo. The key correction existed for
-                // the overlap; leaving a track permanently a semitone off for
-                // the rest of its runtime is a bigger alteration than the clash
-                // it was fixing, and gliding it back is itself a pitch bend a
-                // DJ would recognise.
-                runCatching {
-                    target.playbackParameters = PlaybackParameters(
-                        startSpeed + (1f - startSpeed) * progress,
-                        startPitch + (1f - startPitch) * progress,
-                    )
-                }
-                delay(TEMPO_GLIDE_MS / steps)
-            }
-            runCatching { target.playbackParameters = PlaybackParameters(1f, 1f) }
         }
     }
 
@@ -4484,14 +3668,6 @@ class MusicService :
         secondaryPlayer = null
 
         fadingPlayer?.removeListener(this)
-        fadingPlayer?.removeListener(sleepTimer)
-
-        // Widget progress ticking follows play/pause, so it never runs while paused.
-        player.addListener(object : Player.Listener {
-            override fun onIsPlayingChanged(isPlaying: Boolean) {
-                restartWidgetProgressTicker()
-            }
-        })
 
         // Add listener to sync play/pause state
         player.addListener(object : Player.Listener {
@@ -4510,9 +3686,6 @@ class MusicService :
 
         nextPlayer.removeListener(secondaryPlayerListener)
         nextPlayer.addListener(this)
-        nextPlayer.addListener(sleepTimer)
-
-        sleepTimer.player = player
 
         try {
             sessionPlayer = lyricsSessionPlayer(player)
@@ -4549,8 +3722,6 @@ class MusicService :
                     try {
                         player.volume = startVolume * fadeIn
                         fadingPlayer?.volume = startVolume * fadeOut
-                        // Bass swap runs on the same clock as the volume fade.
-                        djEngine.driveFilterSweep(fadingPlayer, player, progress)
                     } catch (e: Exception) { break }
 
                     delay(stepTime)
@@ -4571,95 +3742,13 @@ class MusicService :
     }
 
     private fun cleanupCrossfade() {
-        // Stop the effects before reopening the filters, not after: a running
-        // loop-filter ramp would otherwise re-close the high-pass on a player
-        // that is now the primary one.
-        djEngine.stopTailEffects(fadingPlayer, player)
-        djEngine.openFilters(player, fadingPlayer)
-        fadingPlayer?.let { djEngine.unregisterPlayer(it) }
         fadingPlayer?.stop()
         fadingPlayer?.clearMediaItems()
         fadingPlayer?.release()
         fadingPlayer = null
         isCrossfading = false
         _isCrossfadingFlow.value = false
-        sleepTimer.notifySongTransition()
 
-        // Tempo correction (if any) was only meant for the transition itself â€”
-        // the now-primary player (former secPlayer) returns to normal speed
-        // rather than staying tempo-shifted for the rest of the track.
-        if (djEngine.activePlanNeedsSpeedReset) {
-            glideSpeedBackToNormal()
-        }
-        djEngine.clearActivePlan()
-    }
-
-    private fun updateListenBrainz(title: String, artistNames: String, releaseName: String, durationMs: Long, isFinished: Boolean, startMs: Long = 0, endMs: Long = 0, positionMs: Long = 0) {
-        val cleanToken = listenBrainzToken.trim()
-        if (!listenBrainzEnabled || cleanToken.isBlank()) return
-        scope.launch {
-            if (isFinished) {
-                com.lomu.app.ui.screens.settings.ListenBrainzManager.submitFinished(
-                    context = this@MusicService,
-                    token = cleanToken,
-                    title = title,
-                    artistNames = artistNames,
-                    releaseName = releaseName,
-                    durationMs = durationMs,
-                    startMs = startMs,
-                    endMs = endMs
-                )
-            } else {
-                com.lomu.app.ui.screens.settings.ListenBrainzManager.submitPlayingNow(
-                    context = this@MusicService,
-                    token = cleanToken,
-                    title = title,
-                    artistNames = artistNames,
-                    releaseName = releaseName,
-                    durationMs = durationMs,
-                    positionMs = positionMs
-                )
-            }
-        }
-    }
-
-    private fun checkAndSubmitListenBrainzFinished() {
-        listenBrainzCurrentMediaId?.let { mediaId ->
-            val startTs = listenBrainzCurrentStartTs
-            if (startTs > 0) {
-                scope.launch {
-                    val mediaMetadata = player.mediaItems.find { it.mediaId == mediaId }?.metadata
-                    val dbSong = if (mediaMetadata == null) database.song(mediaId).first() else null
-
-                    val title = mediaMetadata?.title ?: dbSong?.song?.title ?: return@launch
-                    val artistNames = mediaMetadata?.artists?.joinToString(" & ") { it.name }
-                        ?: dbSong?.artists?.joinToString(" & ") { it.name } ?: ""
-                    val releaseName = mediaMetadata?.album?.title ?: dbSong?.album?.title ?: ""
-                    val durationMs = mediaMetadata?.duration?.takeIf { it != -1 }?.times(1000L)
-                        ?: dbSong?.song?.duration?.takeIf { it != -1 }?.times(1000L) ?: 0L
-
-                    updateListenBrainz(title, artistNames, releaseName, durationMs, isFinished = true, startMs = startTs, endMs = System.currentTimeMillis())
-                }
-            }
-        }
-        listenBrainzCurrentStartTs = 0L
-        listenBrainzCurrentMediaId = null
-    }
-
-    private fun checkAndSubmitListenBrainzPlayingNow(mediaId: String) {
-        scope.launch {
-            val mediaMetadata = player.mediaItems.find { it.mediaId == mediaId }?.metadata
-            val dbSong = if (mediaMetadata == null) database.song(mediaId).first() else null
-
-            val title = mediaMetadata?.title ?: dbSong?.song?.title ?: return@launch
-            val artistNames = mediaMetadata?.artists?.joinToString(" & ") { it.name }
-                ?: dbSong?.artists?.joinToString(" & ") { it.name } ?: ""
-            val releaseName = mediaMetadata?.album?.title ?: dbSong?.album?.title ?: ""
-            val durationMs = mediaMetadata?.duration?.takeIf { it != -1 }?.times(1000L)
-                ?: dbSong?.song?.duration?.takeIf { it != -1 }?.times(1000L) ?: 0L
-
-            updateListenBrainz(title, artistNames, releaseName, durationMs, isFinished = false)
-        }
     }
 
     companion object {
@@ -4673,7 +3762,6 @@ class MusicService :
         const val YOUTUBE_PLAYLIST = "youtube_playlist"
         const val SEARCH = "search"
         const val LYRICS = "lyrics"
-        private const val LYRICS_TAB_REFRESH_MS = 500L
         const val SHUFFLE_ACTION = "__shuffle__"
 
         const val CHANNEL_ID = "music_channel_01"
@@ -4692,15 +3780,11 @@ class MusicService :
         private const val TAG = "MusicService"
 
         /** Queue entries ahead of the current one to hydrate analysis for. */
-        private const val DJ_HYDRATE_LOOKAHEAD = 3
 
         /** Longest we will hold the incoming track back to land on a beat â€”
          *  one beat at 60 BPM. Anything longer means the grid is wrong. */
-        private const val MAX_BEAT_ALIGN_WAIT_MS = 1_000L
 
         /** Roughly 8-16 beats of tempo glide after a DJ transition. */
-        private const val TEMPO_GLIDE_MS = 6_000L
-        private const val TEMPO_GLIDE_STEPS = 12
 
         /** Ceiling on how long an audio duck is allowed to hold the volume at
          *  20% before it is force-restored (some devices never send the gain). */

@@ -10,7 +10,7 @@ import com.music.innertube.models.SongItem
 import com.music.innertube.models.WatchEndpoint.WatchEndpointMusicSupportedConfigs.WatchEndpointMusicConfig.Companion.MUSIC_VIDEO_TYPE_ATV
 import com.lomu.app.db.entities.Song
 import com.lomu.app.db.entities.SongEntity
-import com.lomu.app.ui.utils.resize
+import com.lomu.app.utils.resize
 import java.io.Serializable
 import java.time.LocalDateTime
 
