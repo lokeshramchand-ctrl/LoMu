@@ -21,6 +21,8 @@ export function Collection({
   actions,
   playlistId,
   cover,
+  empty,
+  heading,
 }: {
   kind: string;
   title: string;
@@ -34,6 +36,8 @@ export function Collection({
   actions?: React.ReactNode;
   playlistId?: string;
   cover?: React.ReactNode;
+  empty?: React.ReactNode;
+  heading?: React.ReactNode;
 }) {
   const [more, setMore] = useState(false);
   return (
@@ -43,7 +47,7 @@ export function Collection({
         <div className="art">{cover ?? <Cover src={thumb} size="100%" radius={14} />}</div>
         <div className="info">
           <div className="eyebrow">{kind}</div>
-          <h1 className="h1 ttl clamp2">{title}</h1>
+          {heading ?? <h1 className="h1 ttl clamp2">{title}</h1>}
           {artists && artists.length > 0 && (
             <div className="by">
               {artists.map((a, i) => (
@@ -76,6 +80,7 @@ export function Collection({
           </div>
         </div>
       </header>
+      {!tracks.length && empty}
       <div className="tl">
         {tracks.map((t, i) => (
           <TrackRow key={`${t.id}-${i}`} track={t} index={i} list={tracks} showIndex={numbered} showArt={!numbered} playlistId={playlistId} />

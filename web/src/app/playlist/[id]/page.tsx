@@ -1,5 +1,6 @@
 'use client';
 import { use } from 'react';
+import { useRouter } from 'next/navigation';
 import { usePlaylist } from '@/lib/api';
 import { Collection, PageError, PageSkeleton } from '@/components/Collection';
 import { Icon } from '@/components/Icon';
@@ -9,6 +10,7 @@ import { toast } from '@/components/Toast';
 export default function PlaylistPage({ params }: { params: Promise<{ id: string }> }) {
   const id = decodeURIComponent(use(params).id);
   const { data, isLoading, error, refetch } = usePlaylist(id);
+  const router = useRouter();
   const saved = useLibrary((s) => !!s.savedPlaylists[id]);
   if (isLoading) return <PageSkeleton />;
   if (error || !data) return <PageError error={error} retry={() => refetch()} />;
@@ -32,8 +34,9 @@ export default function PlaylistPage({ params }: { params: Promise<{ id: string 
           <button
             className="btn"
             onClick={() => {
-              useLibrary.getState().createPlaylist(data.title, data.tracks);
+              const newId = useLibrary.getState().createPlaylist(data.title, data.tracks);
               toast(`Imported ${data.tracks.length} songs into your library`);
+              router.push(`/library/playlist/${newId}`);
             }}
           >
             <Icon name="download" size={16} /> Import

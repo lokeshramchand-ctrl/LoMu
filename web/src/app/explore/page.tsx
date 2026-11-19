@@ -11,6 +11,13 @@ import { usePlayer } from '@/player/store';
 
 type Tab = 'trending' | 'new' | 'moods';
 
+/** Stable hue per mood name, so each tile keeps its colour. */
+function hue(s: string) {
+  let h = 0;
+  for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360;
+  return h;
+}
+
 export default function ExploreGate() {
   const enabled = useSettings((s) => s.dev.explore);
   if (!enabled)
@@ -44,22 +51,34 @@ function Explore() {
         sub="Charts, fresh releases and moods from YouTube Music."
         actions={
           tab === 'trending' && trending.length > 0 ? (
-            <button className="btn primary" onClick={() => usePlayer.getState().play(trending, 0, { source: 'explore:trending' })}>
-              <Icon name="play" size={14} /> Play trending
-            </button>
+            <div className="row">
+              <button className="btn primary" onClick={() => usePlayer.getState().play(trending, 0, { source: 'explore:trending' })}>
+                <Icon name="play" size={14} /> Play trending
+              </button>
+              <button className="btn" onClick={() => usePlayer.getState().play(trending, 0, { source: 'explore:trending', shuffle: true })}>
+                <Icon name="shuffle" size={16} /> Shuffle
+              </button>
+            </div>
           ) : undefined
         }
       />
 
       <div className="chips" role="tablist" style={{ alignSelf: 'flex-start' }}>
-        {([['trending', 'Trending'], ['new', 'New releases'], ['moods', 'Moods']] as [Tab, string][]).map(([id, label]) => (
+        {([['trending', 'Trending', trending.length], ['new', 'New releases', releases.length], ['moods', 'Moods', data?.moods?.length ?? 0]] as [Tab, string, number][]).map(([id, label, n]) => (
           <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)}>
             {label}
+            {n > 0 && <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 600, opacity: 0.6 }}>{n}</span>}
           </button>
         ))}
       </div>
 
-      {isLoading && <ShelfSkeleton />}
+      {isLoading && (tab === 'trending' ? (
+        <div className="cols">
+          {Array.from({ length: 10 }, (_, i) => (
+            <div key={i} className="skeleton" style={{ height: 56, borderRadius: 10 }} />
+          ))}
+        </div>
+      ) : <ShelfSkeleton />)}
       {error && (
         <div className="callout err">
           <Icon name="warn" size={18} /> Couldn&apos;t load Explore. {(error as Error).message}
@@ -67,7 +86,7 @@ function Explore() {
       )}
 
       {tab === 'trending' && (
-        <section className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+        <section className="fade-in cols">
           {trending.map((t, i) => (
             <TrackRow key={t.id} track={t} index={i} list={trending} showIndex />
           ))}
@@ -85,12 +104,21 @@ function Explore() {
 
       {tab === 'moods' && (
         <section className="fade-in">
-          <div className="mood-row">
-            {(data?.moods ?? []).map((m) => (
-              <button key={m.params} className={`btn${mood?.params === m.params ? ' primary' : ''}`} onClick={() => setMood(mood?.params === m.params ? null : m)} aria-pressed={mood?.params === m.params}>
-                {m.title}
-              </button>
-            ))}
+          <div className="mood-grid">
+            {(data?.moods ?? []).map((m) => {
+              const on = mood?.params === m.params;
+              return (
+                <button
+                  key={m.params}
+                  className={`mood${on ? ' on' : ''}`}
+                  style={{ ['--h' as string]: hue(m.title) }}
+                  onClick={() => setMood(on ? null : m)}
+                  aria-pressed={on}
+                >
+                  {m.title}
+                </button>
+              );
+            })}
           </div>
           {mood && (
             <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -98,13 +126,19 @@ function Explore() {
               {moodData.data?.map((s) => <ShelfRow key={s.title} shelf={s} />)}
             </div>
           )}
-          {!mood && <p className="muted" style={{ marginTop: 16 }}>Pick a mood to see playlists for it.</p>}
+          {!mood && (data?.moods?.length ?? 0) > 0 && <p className="muted" style={{ marginTop: 16 }}>Pick a mood to see playlists for it.</p>}
+          {!isLoading && !(data?.moods?.length) && <EmptyState icon="sparkles" title="No moods available right now" />}
         </section>
       )}
 
       <style jsx>{`
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(164px, 1fr)); gap: 24px 20px; }
-        .mood-row { display: flex; flex-wrap: wrap; gap: 8px; }
+        .cols { columns: 2 420px; column-gap: 24px; }
+        .cols > :global(*) { break-inside: avoid; margin-bottom: 1px; }
+        .mood-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+        .mood { position: relative; height: 64px; padding: 0 16px; border-radius: 14px; text-align: left; font-weight: 600; font-size: 14px; letter-spacing: -.02em; border: 1px solid var(--border); background: linear-gradient(135deg, hsl(var(--h) 80% 60% / .16), hsl(var(--h) 80% 60% / .04)); transition: transform .3s var(--spring), box-shadow .25s var(--ease), border-color .2s; }
+        .mood:hover { transform: translateY(-2px); box-shadow: var(--lift-hi); }
+        .mood.on { border-color: var(--signal); box-shadow: 0 0 0 3px var(--signal-soft); }
       `}</style>
     </>
   );

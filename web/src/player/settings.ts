@@ -37,7 +37,7 @@ export const useSettings = create<Settings>()(
       theme: 'system',
       sideMini: false,
       home: defaultHome,
-      dev: { explore: false, streamInfo: false, artistEnrichment: true },
+      dev: { explore: true, streamInfo: false, artistEnrichment: true },
       setTheme: (theme) => {
         set({ theme });
         applyTheme(theme);
