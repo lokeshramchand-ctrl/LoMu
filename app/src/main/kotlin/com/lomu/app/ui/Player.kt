@@ -1,18 +1,14 @@
 package com.lomu.app.ui
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -20,7 +16,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -41,30 +38,33 @@ fun MiniPlayer(onOpen: () -> Unit, modifier: Modifier = Modifier) {
     val meta by pc.mediaMetadata.collectAsState()
     val playing by pc.isPlaying.collectAsState()
     val m = meta ?: return
-    Row(
-        modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)
-            .clip(CircleShape).background(lo.ink).clickable(onClick = onOpen).padding(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Cover(m.thumbnailUrl, 44.dp, round = true)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(m.title, style = LoType.body, color = lo.bg, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(m.artistLine(), style = LoType.small, color = lo.grey, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    var frac by remember { mutableStateOf(0f) }
+    LaunchedEffect(pc, m.id) {
+        while (true) {
+            val d = pc.player.duration
+            frac = if (d > 0) (pc.player.currentPosition.toFloat() / d).coerceIn(0f, 1f) else 0f
+            delay(500)
         }
-        RoundButton(if (playing) "⏸" else "▶", 44, filled = false) { pc.togglePlayPause() }
-        RoundButton("⏭", 44, filled = false) { pc.seekToNext() }
     }
-}
-
-@Composable
-fun RoundButton(glyph: String, size: Int = 56, filled: Boolean = false, tint: androidx.compose.ui.graphics.Color? = null, onClick: () -> Unit) {
-    val lo = LocalLo.current
-    Box(
-        Modifier.size(size.dp).clip(CircleShape).then(if (filled) Modifier.background(lo.ink) else Modifier).clickable(onClick = onClick),
-        Alignment.Center,
+    val shape = RoundedCornerShape(18.dp)
+    Column(
+        modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp)
+            .background(lo.card, shape).border(1.dp, lo.line, shape).clip(shape)
+            .pressable(shape, onClick = onOpen),
     ) {
-        Text(glyph, fontSize = (size * 0.4f).sp, color = tint ?: if (filled) lo.bg else if (lo.dark) lo.ink else lo.bg.let { lo.ink })
+        Row(Modifier.padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Cover(m.thumbnailUrl, 46.dp, radius = 11.dp)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(m.title, style = LoType.body.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(m.artistLine(), style = LoType.small, color = lo.grey, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            IconBtn(if (playing) Ph.Pause else Ph.Play, { pc.togglePlayPause() }, size = 42.dp, iconSize = 18.dp, filled = true)
+            IconBtn(Ph.Next, { pc.seekToNext() }, size = 42.dp, iconSize = 20.dp)
+        }
+        Box(Modifier.fillMaxWidth().height(2.dp).background(lo.line)) {
+            Box(Modifier.fillMaxWidth(frac).fillMaxHeight().background(lo.signal))
+        }
     }
 }
 
@@ -79,59 +79,70 @@ fun FullPlayer(onClose: () -> Unit) {
     val song by pc.currentSong.collectAsState(null)
     val m = meta
     var tab by remember { mutableStateOf(0) } // 0 art, 1 lyrics, 2 queue
+    val liked = song?.song?.liked == true
 
-    Column(Modifier.fillMaxSize().background(lo.bg).statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp)) {
-        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("⌄", style = LoType.title, color = lo.ink, modifier = Modifier.clip(CircleShape).clickable(onClick = onClose).padding(horizontal = 14.dp))
-            Spacer(Modifier.weight(1f))
-            listOf("Art", "Lyrics", "Queue").forEachIndexed { i, t ->
-                Text(
-                    t, style = LoType.body, color = if (tab == i) lo.ink else lo.grey,
-                    modifier = Modifier.clip(CircleShape).clickable { tab = i }.padding(horizontal = 10.dp, vertical = 6.dp),
-                )
+    Box(Modifier.fillMaxSize().background(lo.bg)) {
+        Ambient(m?.thumbnailUrl, height = 560.dp)
+        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp)) {
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconBtn(Ph.Down, onClose, bordered = true)
+                Spacer(Modifier.weight(1f))
+                Eyebrow("Now playing")
+                Spacer(Modifier.weight(1f))
+                Spacer(Modifier.size(40.dp))
             }
-        }
-        Box(Modifier.weight(1f).fillMaxWidth(), Alignment.Center) {
-            when (tab) {
-                0 -> Vinyl(m?.thumbnailUrl, playing)
-                1 -> LyricsPanel(pc, m)
-                else -> QueuePanel(pc)
+            Spacer(Modifier.height(12.dp))
+            Box(Modifier.fillMaxWidth(), Alignment.Center) {
+                Chips(listOf("Artwork", "Lyrics", "Up next"), tab, { tab = it }, center = true)
             }
-        }
-        Text(m?.title ?: "Nothing playing", style = LoType.title, color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(m?.artistLine().orEmpty(), style = LoType.body, color = lo.grey, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Spacer(Modifier.height(8.dp))
-        SeekBar(pc)
-        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            RoundButton("⇄", 48, tint = if (shuffle) lo.ink else lo.grey) { pc.player.shuffleModeEnabled = !pc.player.shuffleModeEnabled }
-            RoundButton("⏮", 56) { pc.seekToPrevious() }
-            RoundButton(if (playing) "⏸" else "▶", 72, filled = true) { pc.togglePlayPause() }
-            RoundButton("⏭", 56) { pc.seekToNext() }
-            RoundButton(if (repeat == Player.REPEAT_MODE_ONE) "🔂" else "⟳", 48, tint = if (repeat != Player.REPEAT_MODE_OFF) lo.ink else lo.grey) {
-                pc.player.repeatMode = when (pc.player.repeatMode) {
-                    Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
-                    Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
-                    else -> Player.REPEAT_MODE_OFF
+            Box(Modifier.weight(1f).fillMaxWidth().padding(vertical = 14.dp), Alignment.Center) {
+                when (tab) {
+                    0 -> Artwork(m?.thumbnailUrl, playing)
+                    1 -> LyricsPanel(pc, m)
+                    else -> QueuePanel(pc)
                 }
             }
-        }
-        Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), horizontalArrangement = Arrangement.Center) {
-            val liked = song?.song?.liked == true
-            Pill(if (liked) "♥ Liked" else "♡ Like", { pc.toggleLike() }, filled = liked)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(m?.title ?: "Nothing playing", style = LoType.title.copy(fontSize = 24.sp), color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(m?.artistLine().orEmpty(), style = LoType.body, color = lo.grey, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                IconBtn(if (liked) Ph.HeartFill else Ph.Heart, { pc.toggleLike() }, size = 48.dp, iconSize = 26.dp, tint = if (liked) lo.signal else lo.ink)
+            }
+            Spacer(Modifier.height(4.dp))
+            SeekBar(pc)
+            Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                IconBtn(Ph.Shuffle, { pc.player.shuffleModeEnabled = !pc.player.shuffleModeEnabled }, size = 48.dp, iconSize = 22.dp, tint = if (shuffle) lo.signal else lo.grey)
+                IconBtn(Ph.Prev, { pc.seekToPrevious() }, size = 56.dp, iconSize = 28.dp)
+                IconBtn(if (playing) Ph.Pause else Ph.Play, { pc.togglePlayPause() }, size = 76.dp, iconSize = 34.dp, filled = true)
+                IconBtn(Ph.Next, { pc.seekToNext() }, size = 56.dp, iconSize = 28.dp)
+                IconBtn(
+                    if (repeat == Player.REPEAT_MODE_ONE) Ph.RepeatOne else Ph.Repeat,
+                    {
+                        pc.player.repeatMode = when (pc.player.repeatMode) {
+                            Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+                            Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+                            else -> Player.REPEAT_MODE_OFF
+                        }
+                    },
+                    size = 48.dp, iconSize = 22.dp, tint = if (repeat != Player.REPEAT_MODE_OFF) lo.signal else lo.grey,
+                )
+            }
         }
     }
 }
 
+/** Big square artwork that gently shrinks while paused. */
 @Composable
-private fun Vinyl(url: String?, playing: Boolean) {
+private fun Artwork(url: String?, playing: Boolean) {
     val lo = LocalLo.current
-    var angle by remember { mutableStateOf(0f) }
-    LaunchedEffect(playing) {
-        while (playing) { delay(16); angle = (angle + 0.6f) % 360f }
-    }
-    Box(Modifier.size(300.dp).rotate(angle).clip(CircleShape).background(lo.ink), Alignment.Center) {
-        Cover(url, 210.dp, round = true)
-        Box(Modifier.size(26.dp).clip(CircleShape).background(lo.bg))
+    val scale by animateFloatAsState(if (playing) 1f else 0.88f, spring(dampingRatio = 0.7f, stiffness = 300f), label = "art")
+    BoxWithConstraints(Modifier.fillMaxSize(), Alignment.Center) {
+        val side = minOf(maxWidth, maxHeight)
+        Box(
+            Modifier.size(side).graphicsLayer { scaleX = scale; scaleY = scale }
+                .shadow(if (lo.dark) 24.dp else 18.dp, RoundedCornerShape(28.dp), ambientColor = lo.ink, spotColor = lo.ink),
+        ) { Cover(url, side, radius = 28.dp) }
     }
 }
 
@@ -158,7 +169,7 @@ private fun SeekBar(pc: PlayerConnection) {
             onValueChangeFinished = { pc.seekTo((drag * dur).toLong()); dragging = false },
             colors = SliderDefaults.colors(thumbColor = lo.ink, activeTrackColor = lo.ink, inactiveTrackColor = lo.line),
         )
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(formatTime(if (dragging) (drag * dur).toLong() else pos), style = LoType.small, color = lo.grey)
             Text(formatTime(dur), style = LoType.small, color = lo.grey)
         }
@@ -177,10 +188,10 @@ private fun LyricsPanel(pc: PlayerConnection, m: MediaMetadata?) {
     LaunchedEffect(pc) { while (true) { pos = pc.player.currentPosition; delay(200) } }
     when (val st = state) {
         is Load.Loading -> Loading()
-        is Load.Err -> ErrorBox("No lyrics found")
+        is Load.Err -> EmptyState(Ph.Lyrics, "No lyrics found")
         is Load.Ok -> {
             val lines = st.value
-            if (lines.isEmpty()) ErrorBox("No lyrics found")
+            if (lines.isEmpty()) EmptyState(Ph.Lyrics, "No lyrics found", "Lyrics appear here when a synced version exists.")
             else {
                 val current = lines.indexOfLast { it.time <= pos }.coerceAtLeast(0)
                 val listState = rememberLazyListState()
@@ -189,10 +200,10 @@ private fun LyricsPanel(pc: PlayerConnection, m: MediaMetadata?) {
                     itemsIndexed(lines) { i, l ->
                         Text(
                             l.text.ifBlank { "♪" },
-                            fontSize = 22.sp, style = LoType.title,
-                            color = if (i == current) lo.ink else lo.grey,
+                            style = LoType.title.copy(fontSize = 26.sp, lineHeight = 32.sp),
+                            color = if (i == current) lo.ink else lo.grey.copy(alpha = 0.7f),
                             textAlign = TextAlign.Start,
-                            modifier = Modifier.fillMaxWidth().clickable { pc.seekTo(l.time) }.padding(vertical = 8.dp),
+                            modifier = Modifier.fillMaxWidth().pressable(RoundedCornerShape(10.dp)) { pc.seekTo(l.time) }.padding(vertical = 8.dp),
                         )
                     }
                 }
@@ -203,20 +214,15 @@ private fun LyricsPanel(pc: PlayerConnection, m: MediaMetadata?) {
 
 @Composable
 private fun QueuePanel(pc: PlayerConnection) {
-    val lo = LocalLo.current
     val windows by pc.queueWindows.collectAsState()
     val index by pc.currentMediaItemIndex.collectAsState()
-    LazyColumn(Modifier.fillMaxSize()) {
+    if (windows.isEmpty()) { EmptyState(Ph.Queue, "Queue is empty"); return }
+    val listState = rememberLazyListState()
+    LaunchedEffect(index) { listState.scrollToItem((index - 1).coerceAtLeast(0)) }
+    LazyColumn(Modifier.fillMaxSize(), state = listState) {
         itemsIndexed(windows) { i, w ->
             val md = w.mediaItem.mediaMetadata
-            Row(Modifier.fillMaxWidth().clickable { pc.player.seekToDefaultPosition(i) }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Cover(md.artworkUri?.toString(), 44.dp)
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text(md.title?.toString().orEmpty(), style = LoType.body, color = if (i == index) lo.ink else lo.grey, maxLines = 1)
-                    Text(md.artist?.toString().orEmpty(), style = LoType.small, color = lo.grey, maxLines = 1)
-                }
-            }
+            MediaRow(md.title?.toString().orEmpty(), md.artist?.toString().orEmpty(), md.artworkUri?.toString(), active = i == index) { pc.player.seekToDefaultPosition(i) }
         }
     }
 }

@@ -1,28 +1,32 @@
 package com.lomu.app.ui
 
+import android.content.Context
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import kotlinx.coroutines.launch
-import com.music.innertube.models.WatchEndpoint
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.lomu.app.constants.PlaylistSortType
 import com.lomu.app.constants.SongSortType
 import com.lomu.app.db.entities.Song
 import com.lomu.app.extensions.toMediaItem
@@ -30,9 +34,14 @@ import com.lomu.app.playback.queues.YouTubeQueue
 import com.music.innertube.YouTube
 import com.music.innertube.models.ArtistItem
 import com.music.innertube.models.SongItem
+import com.music.innertube.models.WatchEndpoint
 import com.music.innertube.models.YTItem
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 private fun greeting(): String {
     val h = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
@@ -47,12 +56,15 @@ private fun likedSongs(): List<Song> {
     return songs
 }
 
+// ======================================================================================= Home
+
 @Composable
 fun HomeScreen() {
     val lo = LocalLo.current
     val state by load("home") { YouTube.home() }
     val player = LocalPlayer.current
-    val recent = likedSongs().take(12)
+    val recent = likedSongs().take(8)
+    val now = playingId()
     val sync = LocalSync.current
     val fallback = remember { kotlinx.coroutines.flow.MutableStateFlow(com.lomu.app.sync.SyncState()) }
     val syncState by (sync?.state ?: fallback).collectAsState()
@@ -61,21 +73,30 @@ fun HomeScreen() {
     }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
         item {
-            Column(Modifier.statusBarsPadding().padding(start = 20.dp, end = 20.dp, top = 28.dp)) {
-                Text(greeting(), style = LoType.hero, color = lo.ink)
-                Text("What are we playing?", style = LoType.hero, color = lo.grey)
+            Column(Modifier.statusBarsPadding().padding(start = 20.dp, end = 20.dp, top = 20.dp)) {
+                Eyebrow(SimpleDateFormat("EEEE, MMMM d", Locale.getDefault()).format(Date()))
+                Text(
+                    buildAnnotatedString {
+                        append(greeting())
+                        syncState.user?.let { withStyle(SpanStyle(color = lo.grey)) { append(", $it") } }
+                    },
+                    style = LoType.hero, color = lo.ink, modifier = Modifier.padding(top = 2.dp),
+                )
+                Text("Your music, picked from what you play and like.", style = LoType.body, color = lo.grey, modifier = Modifier.padding(top = 4.dp))
             }
         }
         if (recent.isNotEmpty()) item {
             Column {
-                SectionTitle("Jump back in")
-                LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    itemsIndexed(recent) { i, s ->
-                        Column(Modifier.width(140.dp).clickable { player?.playMediaItems("Liked", recent.map { it.toMediaItem() }, i) }) {
-                            Cover(s.song.thumbnailUrl, 140.dp)
-                            Spacer(Modifier.height(8.dp))
-                            Text(s.song.title, style = LoType.body, color = lo.ink, maxLines = 1)
-                            Text(s.artists.joinToString { it.name }, style = LoType.small, color = lo.grey, maxLines = 1)
+                SectionTitle("Quick picks", action = "Play all") { player?.playMediaItems("Liked", recent.map { it.toMediaItem() }) }
+                Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    recent.withIndex().chunked(2).forEach { pair ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            pair.forEach { (i, s) ->
+                                QuickTile(s.song.title, s.song.thumbnailUrl, now == s.song.id, Modifier.weight(1f)) {
+                                    player?.playMediaItems("Liked", recent.map { it.toMediaItem() }, i)
+                                }
+                            }
+                            if (pair.size == 1) Spacer(Modifier.weight(1f))
                         }
                     }
                 }
@@ -86,13 +107,8 @@ fun HomeScreen() {
                 SectionTitle(shelf.title)
                 LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     items(shelf.tracks) { m ->
-                        Column(Modifier.width(140.dp).clickable {
+                        MediaCard(m.thumbnailUrl, m.title, m.artists.joinToString { it.name }, now == m.id) {
                             player?.playQueue(YouTubeQueue(WatchEndpoint(videoId = m.id), m))
-                        }) {
-                            Cover(m.thumbnailUrl, 140.dp)
-                            Spacer(Modifier.height(8.dp))
-                            Text(m.title, style = LoType.body, color = lo.ink, maxLines = 1)
-                            Text(m.artists.joinToString { it.name }, style = LoType.small, color = lo.grey, maxLines = 1)
                         }
                     }
                 }
@@ -106,50 +122,83 @@ fun HomeScreen() {
     }
 }
 
+// ===================================================================================== Search
+
+private val TRY_SEARCHES = listOf("Top hits India", "Lo-fi beats", "Workout", "Arijit Singh", "Anirudh", "Chill vibes", "Punjabi", "90s Bollywood")
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SearchScreen() {
     val lo = LocalLo.current
+    val ctx = LocalContext.current
+    val prefs = remember { ctx.getSharedPreferences("lomu", Context.MODE_PRIVATE) }
+    var recent by remember { mutableStateOf(prefs.getString("recent", "").orEmpty().split('\u0001').filter { it.isNotBlank() }) }
     var text by remember { mutableStateOf("") }
     var submitted by remember { mutableStateOf("") }
+    var filter by remember { mutableStateOf(0) }
     var suggestions by remember { mutableStateOf<List<String>>(emptyList()) }
+    fun submit(q: String) {
+        val v = q.trim()
+        if (v.isBlank()) return
+        text = v; submitted = v; filter = 0; suggestions = emptyList()
+        recent = (listOf(v) + recent.filter { !it.equals(v, true) }).take(8)
+        prefs.edit().putString("recent", recent.joinToString("\u0001")).apply()
+    }
     LaunchedEffect(text) {
         if (text.isBlank()) { suggestions = emptyList(); return@LaunchedEffect }
         delay(250)
-        suggestions = YouTube.searchSuggestions(text).getOrNull()?.queries.orEmpty().take(6)
+        if (text != submitted) suggestions = YouTube.searchSuggestions(text).getOrNull()?.queries.orEmpty().take(6)
     }
     val result by load(submitted) {
         if (submitted.isBlank()) Result.success(null) else YouTube.searchSummary(submitted).map { it }
     }
     val open = rememberOpen()
-    Column(Modifier.fillMaxSize().statusBarsPadding()) {
-        Text("Search", style = LoType.hero, color = lo.ink, modifier = Modifier.padding(start = 20.dp, top = 28.dp, bottom = 12.dp))
-        Row(Modifier.padding(horizontal = 20.dp).fillMaxWidth().clip(CircleShape).background(lo.card).padding(horizontal = 20.dp, vertical = 14.dp)) {
-            BasicTextField(
-                value = text, onValueChange = { text = it }, singleLine = true,
-                textStyle = LoType.body.copy(color = lo.ink), cursorBrush = SolidColor(lo.ink),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { submitted = text; suggestions = emptyList() }),
-                modifier = Modifier.fillMaxWidth(),
-                decorationBox = { inner ->
-                    if (text.isEmpty()) Text("Songs, artists, albums", style = LoType.body, color = lo.grey)
-                    inner()
-                },
-            )
+    Column(Modifier.fillMaxSize()) {
+        PageTitle("Discover", "Search")
+        SearchField(text, { text = it; if (it.isBlank()) submitted = "" }, "Songs, artists, albums", { submit(text) }, Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
+        val summaries = when (val r0 = result) { is Load.Ok -> r0.value?.summaries.orEmpty(); else -> emptyList() }
+        if (submitted.isNotBlank() && suggestions.isEmpty() && summaries.isNotEmpty()) {
+            Spacer(Modifier.height(4.dp))
+            Chips(listOf("All") + summaries.map { it.title }, filter, { filter = it })
         }
         LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
-            items(suggestions) { q ->
-                Text(
-                    q, style = LoType.body, color = lo.ink,
-                    modifier = Modifier.fillMaxWidth().clickable { text = q; submitted = q; suggestions = emptyList() }.padding(horizontal = 20.dp, vertical = 12.dp),
-                )
-            }
-            if (suggestions.isEmpty()) when (val r = result) {
-                is Load.Loading -> if (submitted.isNotBlank()) item { Loading() }
+            if (suggestions.isNotEmpty()) {
+                items(suggestions) { q ->
+                    Row(Modifier.fillMaxWidth().pressable(RoundedCornerShape(0.dp)) { submit(q) }.padding(horizontal = 24.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Ic(Ph.Search, 18.dp, lo.grey)
+                        Spacer(Modifier.width(14.dp))
+                        Text(q, style = LoType.body, color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            } else if (submitted.isBlank()) {
+                item {
+                    Column {
+                        if (recent.isNotEmpty()) {
+                            SectionTitle("Recent searches", action = "Clear") {
+                                recent = emptyList(); prefs.edit().remove("recent").apply()
+                            }
+                            FlowRow(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                recent.forEach { r -> SuggestChip(r, Ph.History) { submit(r) } }
+                            }
+                        }
+                        SectionTitle("Try searching for")
+                        FlowRow(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TRY_SEARCHES.forEach { r -> SuggestChip(r, Ph.Search) { submit(r) } }
+                        }
+                    }
+                }
+            } else when (val r = result) {
+                is Load.Loading -> item { Loading() }
                 is Load.Err -> item { ErrorBox(r.message) }
-                is Load.Ok -> r.value?.summaries?.forEach { sum ->
-                    item { SectionTitle(sum.title) }
-                    items(sum.items.take(6)) { it ->
-                        if (it is SongItem) TrackRow(it) { open(it) } else ResultRow(it) { open(it) }
+                is Load.Ok -> {
+                    val sums = r.value?.summaries.orEmpty()
+                    if (sums.isEmpty()) item { EmptyState(Ph.Search, "Nothing found for “$submitted”", "Try a different spelling, or search for the artist.") }
+                    val shown = if (filter == 0) sums.map { it to 5 } else listOfNotNull(sums.getOrNull(filter - 1)?.let { it to 50 })
+                    shown.forEach { (sum, limit) ->
+                        item { SectionTitle(sum.title, action = if (filter == 0 && sum.items.size > limit) "See all" else null) { filter = sums.indexOf(sum) + 1 } }
+                        items(sum.items.take(limit)) { it ->
+                            if (it is SongItem) TrackRow(it) { open(it) } else ResultRow(it) { open(it) }
+                        }
                     }
                 }
             }
@@ -158,17 +207,36 @@ fun SearchScreen() {
 }
 
 @Composable
-fun ResultRow(item: YTItem, onClick: () -> Unit) {
+private fun SuggestChip(text: String, icon: Ph, onClick: () -> Unit) {
     val lo = LocalLo.current
-    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Cover(item.thumbnail, 52.dp, round = item is ArtistItem)
-        Spacer(Modifier.width(14.dp))
-        Column {
-            Text(item.title, style = LoType.body, color = lo.ink, maxLines = 1)
-            Text(subtitle(item), style = LoType.small, color = lo.grey, maxLines = 1)
-        }
+    Row(
+        Modifier.background(lo.card, androidx.compose.foundation.shape.CircleShape).border(1.dp, lo.border2, androidx.compose.foundation.shape.CircleShape)
+            .pressable(androidx.compose.foundation.shape.CircleShape, onClick = onClick).padding(horizontal = 14.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Ic(icon, 14.dp, lo.grey); Spacer(Modifier.width(8.dp))
+        Text(text, style = LoType.small.copy(fontSize = 13.5.sp), color = lo.ink)
     }
 }
+
+@Composable
+fun ResultRow(item: YTItem, onClick: () -> Unit) {
+    val lo = LocalLo.current
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 8.dp).pressable(RoundedCornerShape(14.dp), onClick = onClick).padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Cover(item.thumbnail, 50.dp, round = item is ArtistItem, radius = 10.dp)
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(item.title, style = LoType.body, color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(subtitle(item), style = LoType.small, color = lo.grey, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Ic(Ph.Right, 16.dp, lo.grey)
+    }
+}
+
+// ==================================================================================== Library
 
 @Composable
 fun LibraryScreen() {
@@ -176,85 +244,106 @@ fun LibraryScreen() {
     val player = LocalPlayer.current
     val songs = likedSongs()
     val nav = LocalNav.current
-    val plFlow = remember(player) { player?.database?.playlists(com.lomu.app.constants.PlaylistSortType.CREATE_DATE, true) ?: flowOf(emptyList()) }
+    val now = playingId()
+    var tab by remember { mutableStateOf(0) }
+    val plFlow = remember(player) { player?.database?.playlists(PlaylistSortType.CREATE_DATE, true) ?: flowOf(emptyList()) }
     val playlists by plFlow.collectAsState(emptyList())
-    LazyColumn(Modifier.fillMaxSize().statusBarsPadding(), contentPadding = PaddingValues(bottom = 24.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
         item {
-            Text("Library", style = LoType.hero, color = lo.ink, modifier = Modifier.padding(start = 20.dp, top = 28.dp))
-            Text("${songs.size} liked songs", style = LoType.hero, color = lo.grey, modifier = Modifier.padding(start = 20.dp, bottom = 12.dp))
-            if (songs.isNotEmpty()) Row(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Pill("Play", { player?.playMediaItems("Liked", songs.map { it.toMediaItem() }) })
-                Pill("Shuffle", { player?.playMediaItems("Liked", songs.shuffled().map { it.toMediaItem() }) }, filled = false)
-            }
+            PageTitle("Library", "Your library", "${songs.size} liked songs · ${playlists.size} playlists")
+            Spacer(Modifier.height(10.dp))
+            Chips(listOf("Liked ${songs.size}", "Playlists ${playlists.size}"), tab, { tab = it })
         }
-        if (playlists.isNotEmpty()) item {
-            Column {
-                SectionTitle("Playlists")
-                LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    items(playlists) { p ->
-                        Column(Modifier.width(140.dp).clickable { nav.push(Screen.LocalPlaylist(p.playlist.id)) }) {
-                            Cover(p.playlist.thumbnailUrl ?: p.thumbnails.firstOrNull(), 140.dp)
-                            Spacer(Modifier.height(8.dp))
-                            Text(p.playlist.name, style = LoType.body, color = lo.ink, maxLines = 1)
-                            Text("${p.songCount} songs", style = LoType.small, color = lo.grey)
+        if (tab == 0) {
+            if (songs.isNotEmpty()) item {
+                Row(Modifier.padding(horizontal = 20.dp, vertical = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Pill("Play", { player?.playMediaItems("Liked", songs.map { it.toMediaItem() }) }, icon = Ph.Play)
+                    Pill("Shuffle", { player?.playMediaItems("Liked", songs.shuffled().map { it.toMediaItem() }) }, filled = false, icon = Ph.Shuffle)
+                }
+            }
+            if (songs.isEmpty()) item {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    EmptyState(Ph.Heart, "No liked songs yet", "Tap the heart in the player, or bring your library over from YouTube Music.")
+                    Pill("Import from YouTube Music", { nav.push(Screen.Import) }, filled = false, icon = Ph.Download)
+                }
+            }
+            itemsIndexed(songs) { i, s ->
+                MediaRow(s.song.title, s.artists.joinToString { it.name }, s.song.thumbnailUrl, active = now == s.song.id) {
+                    player?.playMediaItems("Liked", songs.map { it.toMediaItem() }, i)
+                }
+            }
+        } else {
+            if (playlists.isEmpty()) item { EmptyState(Ph.Playlist, "No playlists yet", "Playlists you import or create show up here.") }
+            item {
+                Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    playlists.chunked(2).forEach { pair ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                            pair.forEach { p ->
+                                Column(Modifier.weight(1f).pressable(RoundedCornerShape(14.dp)) { nav.push(Screen.LocalPlaylist(p.playlist.id)) }) {
+                                    BoxWithConstraints { Cover(p.playlist.thumbnailUrl ?: p.thumbnails.firstOrNull(), maxWidth, radius = 14.dp) }
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(p.playlist.name, style = LoType.body, color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text("${p.songCount} songs", style = LoType.small, color = lo.grey)
+                                }
+                            }
+                            if (pair.size == 1) Spacer(Modifier.weight(1f))
                         }
                     }
-                }
-                SectionTitle("Liked songs")
-            }
-        }
-        if (songs.isEmpty()) item { ErrorBox("Songs you like show up here. Tap the heart in the player, or import from YouTube Music in Settings.") }
-        itemsIndexed(songs) { i, s ->
-            Row(
-                Modifier.fillMaxWidth().clickable { player?.playMediaItems("Liked", songs.map { it.toMediaItem() }, i) }.padding(horizontal = 20.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Cover(s.song.thumbnailUrl, 52.dp)
-                Spacer(Modifier.width(14.dp))
-                Column {
-                    Text(s.song.title, style = LoType.body, color = lo.ink, maxLines = 1)
-                    Text(s.artists.joinToString { it.name }, style = LoType.small, color = lo.grey, maxLines = 1)
                 }
             }
         }
     }
 }
 
+// ================================================================================ Detail pages
+
+/** Shared detail layout: ambient art, big cover, title, actions, then [body] rows. A floating back button sits on top. */
 @Composable
-private fun DetailHeader(cover: String?, title: String, line: String, round: Boolean = false) {
+private fun Detail(
+    eyebrow: String, cover: String?, title: String, line: String,
+    round: Boolean = false,
+    actions: @Composable RowScope.() -> Unit,
+    body: LazyListScope.() -> Unit,
+) {
     val lo = LocalLo.current
-    Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Cover(cover, 220.dp, round = round)
-        Spacer(Modifier.height(16.dp))
-        Text(title, style = LoType.title, color = lo.ink)
-        if (line.isNotBlank()) Text(line, style = LoType.small, color = lo.grey)
+    val nav = LocalNav.current
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+            item {
+                Box(Modifier.fillMaxWidth()) {
+                    Ambient(cover, height = 440.dp)
+                    Column(Modifier.fillMaxWidth().statusBarsPadding().padding(top = 64.dp, start = 24.dp, end = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Cover(cover, 220.dp, round = round, radius = 24.dp)
+                        Spacer(Modifier.height(20.dp))
+                        Eyebrow(eyebrow)
+                        Text(title, style = LoType.hero.copy(fontSize = 28.sp, lineHeight = 32.sp), color = lo.ink, textAlign = TextAlign.Center, maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp))
+                        if (line.isNotBlank()) Text(line, style = LoType.body, color = lo.grey, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 4.dp))
+                        Spacer(Modifier.height(18.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), content = actions)
+                        Spacer(Modifier.height(12.dp))
+                    }
+                }
+            }
+            body()
+        }
+        TopBar("", nav::pop)
     }
 }
 
 @Composable
 fun AlbumScreen(id: String) {
-    val nav = LocalNav.current
     val player = LocalPlayer.current
     val state by load(id) { YouTube.album(id) }
-    Column(Modifier.fillMaxSize()) {
-        TopBar("", nav::pop)
-        when (val st = state) {
-            is Load.Loading -> Loading()
-            is Load.Err -> ErrorBox(st.message)
-            is Load.Ok -> {
-                val page = st.value
-                LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
-                    item {
-                        DetailHeader(page.album.thumbnail, page.album.title, subtitle(page.album))
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                            Pill("Play", { player?.playList(page.album.title, page.songs) })
-                            Spacer(Modifier.width(10.dp))
-                            Pill("Shuffle", { player?.playList(page.album.title, page.songs.shuffled()) }, filled = false)
-                        }
-                        Spacer(Modifier.height(12.dp))
-                    }
-                    itemsIndexed(page.songs) { i, s -> TrackRow(s, index = i) { player?.playList(page.album.title, page.songs, i) } }
-                }
+    when (val st = state) {
+        is Load.Loading -> Box(Modifier.fillMaxSize()) { Loading(); TopBar("", LocalNav.current::pop) }
+        is Load.Err -> Box(Modifier.fillMaxSize()) { ErrorBox(st.message); TopBar("", LocalNav.current::pop) }
+        is Load.Ok -> {
+            val page = st.value
+            Detail("Album", page.album.thumbnail, page.album.title, subtitle(page.album), actions = {
+                Pill("Play", { player?.playList(page.album.title, page.songs) }, icon = Ph.Play)
+                Pill("Shuffle", { player?.playList(page.album.title, page.songs.shuffled()) }, filled = false, icon = Ph.Shuffle)
+            }) {
+                itemsIndexed(page.songs) { i, s -> TrackRow(s, index = i) { player?.playList(page.album.title, page.songs, i) } }
             }
         }
     }
@@ -262,28 +351,18 @@ fun AlbumScreen(id: String) {
 
 @Composable
 fun PlaylistScreen(id: String) {
-    val nav = LocalNav.current
     val player = LocalPlayer.current
     val state by load(id) { YouTube.playlist(id) }
-    Column(Modifier.fillMaxSize()) {
-        TopBar("", nav::pop)
-        when (val st = state) {
-            is Load.Loading -> Loading()
-            is Load.Err -> ErrorBox(st.message)
-            is Load.Ok -> {
-                val page = st.value
-                LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
-                    item {
-                        DetailHeader(page.playlist.thumbnail, page.playlist.title, subtitle(page.playlist))
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                            Pill("Play", { player?.playPlaylist(id, page.playlist.title, page.songs, page.songsContinuation) })
-                            Spacer(Modifier.width(10.dp))
-                            Pill("Shuffle", { player?.playList(page.playlist.title, page.songs.shuffled()) }, filled = false)
-                        }
-                        Spacer(Modifier.height(12.dp))
-                    }
-                    itemsIndexed(page.songs) { i, s -> TrackRow(s) { player?.playPlaylist(id, page.playlist.title, page.songs, page.songsContinuation, i) } }
-                }
+    when (val st = state) {
+        is Load.Loading -> Box(Modifier.fillMaxSize()) { Loading(); TopBar("", LocalNav.current::pop) }
+        is Load.Err -> Box(Modifier.fillMaxSize()) { ErrorBox(st.message); TopBar("", LocalNav.current::pop) }
+        is Load.Ok -> {
+            val page = st.value
+            Detail("Playlist", page.playlist.thumbnail, page.playlist.title, subtitle(page.playlist), actions = {
+                Pill("Play", { player?.playPlaylist(id, page.playlist.title, page.songs, page.songsContinuation) }, icon = Ph.Play)
+                Pill("Shuffle", { player?.playList(page.playlist.title, page.songs.shuffled()) }, filled = false, icon = Ph.Shuffle)
+            }) {
+                itemsIndexed(page.songs) { i, s -> TrackRow(s) { player?.playPlaylist(id, page.playlist.title, page.songs, page.songsContinuation, i) } }
             }
         }
     }
@@ -291,39 +370,36 @@ fun PlaylistScreen(id: String) {
 
 @Composable
 fun ArtistScreen(id: String) {
-    val nav = LocalNav.current
     val player = LocalPlayer.current
+    val lo = LocalLo.current
     val state by load(id) { YouTube.artist(id) }
-    Column(Modifier.fillMaxSize()) {
-        TopBar("", nav::pop)
-        when (val st = state) {
-            is Load.Loading -> Loading()
-            is Load.Err -> ErrorBox(st.message)
-            is Load.Ok -> {
-                val page = st.value
-                LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
-                    item {
-                        DetailHeader(page.artist.thumbnail, page.artist.title, page.subscriberCountText.orEmpty(), round = true)
-                        page.artist.radioEndpoint?.let { ep ->
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                                Pill("Radio", { player?.playQueue(YouTubeQueue(ep)) })
-                            }
+    var bioOpen by remember { mutableStateOf(false) }
+    when (val st = state) {
+        is Load.Loading -> Box(Modifier.fillMaxSize()) { Loading(); TopBar("", LocalNav.current::pop) }
+        is Load.Err -> Box(Modifier.fillMaxSize()) { ErrorBox(st.message); TopBar("", LocalNav.current::pop) }
+        is Load.Ok -> {
+            val page = st.value
+            val firstSongs = page.sections.map { it.items.filterIsInstance<SongItem>() }.firstOrNull { it.isNotEmpty() }.orEmpty()
+            Detail("Artist", page.artist.thumbnail, page.artist.title, page.subscriberCountText.orEmpty(), round = true, actions = {
+                if (firstSongs.isNotEmpty()) Pill("Play", { player?.playList(page.artist.title, firstSongs) }, icon = Ph.Play)
+                page.artist.radioEndpoint?.let { ep -> Pill("Radio", { player?.playQueue(YouTubeQueue(ep)) }, filled = false, icon = Ph.Radio) }
+            }) {
+                items(page.sections) { sec ->
+                    val songs = sec.items.filterIsInstance<SongItem>()
+                    if (songs.isNotEmpty() && songs.size == sec.items.size) {
+                        Column {
+                            SectionTitle(sec.title)
+                            songs.take(5).forEachIndexed { i, s -> TrackRow(s, index = i) { player?.playList(sec.title, songs, i) } }
                         }
-                    }
-                    items(page.sections) { sec ->
-                        val songs = sec.items.filterIsInstance<SongItem>()
-                        if (songs.isNotEmpty() && songs.size == sec.items.size) {
-                            Column {
-                                SectionTitle(sec.title)
-                                songs.take(5).forEachIndexed { i, s -> TrackRow(s) { player?.playList(sec.title, songs, i) } }
-                            }
-                        } else Shelf(sec.title, sec.items)
-                    }
-                    page.description?.takeIf { it.isNotBlank() }?.let { d ->
-                        item {
-                            Column {
-                                SectionTitle("About")
-                                Text(d, style = LoType.body, color = LocalLo.current.grey, modifier = Modifier.padding(horizontal = 20.dp))
+                    } else Shelf(sec.title, sec.items)
+                }
+                page.description?.takeIf { it.isNotBlank() }?.let { d ->
+                    item {
+                        Column {
+                            SectionTitle("About")
+                            Column(Modifier.padding(horizontal = 20.dp).fillMaxWidth().background(lo.card, RoundedCornerShape(16.dp)).border(1.dp, lo.line, RoundedCornerShape(16.dp)).padding(16.dp)) {
+                                Text(d, style = LoType.body, color = lo.ink, maxLines = if (bioOpen) Int.MAX_VALUE else 4, overflow = TextOverflow.Ellipsis)
+                                Text(if (bioOpen) "Show less" else "Read more", style = LoType.small, color = lo.signal, modifier = Modifier.padding(top = 8.dp).pressable { bioOpen = !bioOpen })
                             }
                         }
                     }
@@ -334,12 +410,43 @@ fun ArtistScreen(id: String) {
 }
 
 @Composable
+fun LocalPlaylistScreen(id: String) {
+    val player = LocalPlayer.current
+    val plFlow = remember(player) { player?.database?.playlists(PlaylistSortType.CREATE_DATE, true) ?: flowOf(emptyList()) }
+    val playlists by plFlow.collectAsState(emptyList())
+    val meta = playlists.firstOrNull { it.playlist.id == id }
+    val flow = remember(player, id) { player?.database?.playlistSongs(id) ?: flowOf(emptyList()) }
+    val rows by flow.collectAsState(emptyList())
+    val songs = rows.sortedBy { it.map.position }
+    val items = songs.map { it.song.toMediaItem() }
+    val now = playingId()
+    Detail(
+        "Your playlist", meta?.playlist?.thumbnailUrl ?: songs.firstOrNull()?.song?.song?.thumbnailUrl, meta?.playlist?.name ?: "Playlist",
+        "${songs.size} songs",
+        actions = {
+            Pill("Play", { player?.playMediaItems("Playlist", items) }, icon = Ph.Play)
+            Pill("Shuffle", { player?.playMediaItems("Playlist", items.shuffled()) }, filled = false, icon = Ph.Shuffle)
+        },
+    ) {
+        if (songs.isEmpty()) item { EmptyState(Ph.Playlist, "This playlist is empty") }
+        itemsIndexed(songs) { i, s ->
+            MediaRow(s.song.song.title, s.song.artists.joinToString { it.name }, s.song.song.thumbnailUrl, active = now == s.song.song.id) {
+                player?.playMediaItems("Playlist", items, i)
+            }
+        }
+    }
+}
+
+// =================================================================================== Settings
+
+@Composable
 private fun Field(value: String, onChange: (String) -> Unit, hint: String, password: Boolean = false) {
     val lo = LocalLo.current
-    Box(Modifier.fillMaxWidth().clip(CircleShape).background(lo.card).padding(horizontal = 20.dp, vertical = 14.dp)) {
+    val shape = RoundedCornerShape(14.dp)
+    Box(Modifier.fillMaxWidth().background(lo.surface2, shape).border(1.dp, lo.line, shape).padding(horizontal = 16.dp, vertical = 14.dp)) {
         BasicTextField(
             value = value, onValueChange = onChange, singleLine = true,
-            textStyle = LoType.body.copy(color = lo.ink), cursorBrush = SolidColor(lo.ink),
+            textStyle = LoType.body.copy(color = lo.ink), cursorBrush = SolidColor(lo.signal),
             visualTransformation = if (password) androidx.compose.ui.text.input.PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
             modifier = Modifier.fillMaxWidth(),
             decorationBox = { inner ->
@@ -347,6 +454,30 @@ private fun Field(value: String, onChange: (String) -> Unit, hint: String, passw
                 inner()
             },
         )
+    }
+}
+
+@Composable
+private fun Group(title: String, sub: String? = null, content: @Composable ColumnScope.() -> Unit) {
+    val lo = LocalLo.current
+    val shape = RoundedCornerShape(18.dp)
+    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+        Text(title, style = LoType.section, color = lo.ink, modifier = Modifier.padding(top = 22.dp))
+        if (sub != null) Text(sub, style = LoType.small, color = lo.grey, modifier = Modifier.padding(top = 2.dp))
+        Column(Modifier.padding(top = 10.dp).fillMaxWidth().background(lo.card, shape).border(1.dp, lo.line, shape).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
+    }
+}
+
+@Composable
+private fun InfoRow(icon: Ph, label: String, hint: String? = null, modifier: Modifier = Modifier) {
+    val lo = LocalLo.current
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(36.dp).background(lo.surface2, RoundedCornerShape(11.dp)).border(1.dp, lo.line, RoundedCornerShape(11.dp)), Alignment.Center) { Ic(icon, 18.dp) }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(label, style = LoType.body.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), color = lo.ink)
+            if (hint != null) Text(hint, style = LoType.small, color = lo.grey)
+        }
     }
 }
 
@@ -361,72 +492,33 @@ fun SettingsScreen() {
     var url by remember(st.serverUrl) { mutableStateOf(st.serverUrl) }
     var user by remember { mutableStateOf("") }
     var pass by remember { mutableStateOf("") }
-    val red = androidx.compose.ui.graphics.Color(0xFFD33333)
-    Column(
-        Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text("Settings", style = LoType.hero, color = lo.ink, modifier = Modifier.padding(top = 8.dp))
-        Text("Account & sync", style = LoType.section, color = lo.ink, modifier = Modifier.padding(top = 12.dp))
-        if (st.user != null) {
-            Text("Signed in as ${st.user}", style = LoType.body, color = lo.ink)
-            Text(st.status, style = LoType.small, color = lo.grey)
-            st.error?.let { Text(it, style = LoType.small, color = red) }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Pill("Sync now", { scope.launch { sync?.sync() } })
-                Pill("Sign out", { sync?.signOut() }, filled = false)
-            }
-        } else {
-            Text("Your server is the LoMu web app on your homelab.", style = LoType.small, color = lo.grey)
-            Field(url, { url = it }, "Server address, e.g. https://lomu.example.com")
-            Field(user, { user = it }, "Username")
-            Field(pass, { pass = it }, "Password", password = true)
-            st.error?.let { Text(it, style = LoType.small, color = red) }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Pill(if (st.busy) "Working…" else "Sign in", { scope.launch { sync?.signIn(url, user, pass, false); sync?.sync() } })
-                Pill("Create account", { scope.launch { sync?.signIn(url, user, pass, true); sync?.sync() } }, filled = false)
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 32.dp)) {
+        PageTitle("Settings", "Settings", "Account, sync and import.")
+        Group("Account & sync", "One owner account on your own LoMu server.") {
+            if (st.user != null) {
+                InfoRow(Ph.User, "Signed in as ${st.user}", st.status)
+                st.error?.let { Text(it, style = LoType.small, color = lo.red) }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Pill("Sync now", { scope.launch { sync?.sync() } }, icon = Ph.Cloud)
+                    Pill("Sign out", { sync?.signOut() }, filled = false, icon = Ph.Logout)
+                }
+            } else {
+                Field(url, { url = it }, "Server, e.g. https://lomu.example.com")
+                Field(user, { user = it }, "Username")
+                Field(pass, { pass = it }, "Password", password = true)
+                st.error?.let { Text(it, style = LoType.small, color = lo.red) }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Pill(if (st.busy) "Working…" else "Sign in", { scope.launch { sync?.signIn(url, user, pass, false); sync?.sync() } })
+                    Pill("Create account", { scope.launch { sync?.signIn(url, user, pass, true); sync?.sync() } }, filled = false)
+                }
             }
         }
-        Text("Import", style = LoType.section, color = lo.ink, modifier = Modifier.padding(top = 20.dp))
-        Text("Copy your liked songs and playlists from YouTube Music, once.", style = LoType.small, color = lo.grey)
-        Pill("Import from YouTube Music", { nav.push(Screen.Import) }, filled = false)
-        Text("About", style = LoType.section, color = lo.ink, modifier = Modifier.padding(top = 20.dp))
-        Text("LoMu plays anonymously from YouTube Music. No ads, no Google account.", style = LoType.body, color = lo.grey)
-    }
-}
-
-@Composable
-fun LocalPlaylistScreen(id: String) {
-    val lo = LocalLo.current
-    val nav = LocalNav.current
-    val player = LocalPlayer.current
-    val flow = remember(player, id) { player?.database?.playlistSongs(id) ?: flowOf(emptyList()) }
-    val rows by flow.collectAsState(emptyList())
-    val songs = rows.sortedBy { it.map.position }
-    val items = songs.map { it.song.toMediaItem() }
-    Column(Modifier.fillMaxSize()) {
-        TopBar("", nav::pop)
-        LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
-            item {
-                Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.Center) {
-                    Pill("Play", { player?.playMediaItems("Playlist", items) })
-                    Spacer(Modifier.width(10.dp))
-                    Pill("Shuffle", { player?.playMediaItems("Playlist", items.shuffled()) }, filled = false)
-                }
-            }
-            itemsIndexed(songs) { i, s ->
-                Row(
-                    Modifier.fillMaxWidth().clickable { player?.playMediaItems("Playlist", items, i) }.padding(horizontal = 20.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Cover(s.song.song.thumbnailUrl, 52.dp)
-                    Spacer(Modifier.width(14.dp))
-                    Column {
-                        Text(s.song.song.title, style = LoType.body, color = lo.ink, maxLines = 1)
-                        Text(s.song.artists.joinToString { it.name }, style = LoType.small, color = lo.grey, maxLines = 1)
-                    }
-                }
-            }
+        Group("Import") {
+            InfoRow(Ph.Download, "From YouTube Music", "Copy your liked songs and playlists once. The Google session is discarded afterwards.")
+            Pill("Import from YouTube Music", { nav.push(Screen.Import) }, filled = false)
+        }
+        Group("About") {
+            InfoRow(Ph.Info, "LoMu", "Plays anonymously from YouTube Music. No ads, no Google account.")
         }
     }
 }
