@@ -12,27 +12,41 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-/** LoMu design tokens, mirrored from the web player. */
+/** LoMu design tokens. Same palette as the web player (globals.css): flat paper surfaces, hairlines, one blue signal. */
 data class Lo(
     val bg: Color,
-    val card: Color,
+    val card: Color,      // surface
+    val surface2: Color,
     val ink: Color,
-    val grey: Color,
-    val line: Color,
+    val grey: Color,      // muted text
+    val line: Color,      // hairline border
+    val border2: Color,   // stronger border (inputs, buttons)
+    val signal: Color,
+    val signalSoft: Color,
+    val red: Color,
     val dark: Boolean,
 )
 
-val LightLo = Lo(Color(0xFFE9EBF3), Color(0xFFF6F7FB), Color(0xFF0D0D11), Color(0xFF8C8E9A), Color(0x1F0D0D11), false)
-val DarkLo = Lo(Color(0xFF131419), Color(0xFF1D1E26), Color(0xFFF2F3F8), Color(0xFF8C8E9A), Color(0x22FFFFFF), true)
+val LightLo = Lo(
+    bg = Color(0xFFF7F7F6), card = Color(0xFFFFFFFF), surface2 = Color(0xFFF1F1F0),
+    ink = Color(0xFF17181A), grey = Color(0xFF6F6E68), line = Color(0xFFE7E6E2), border2 = Color(0xFFD3D2CC),
+    signal = Color(0xFF2231DD), signalSoft = Color(0x172231DD), red = Color(0xFFED272E), dark = false,
+)
+val DarkLo = Lo(
+    bg = Color(0xFF0E0F11), card = Color(0xFF17181A), surface2 = Color(0xFF1D1E21),
+    ink = Color(0xFFF4F3F1), grey = Color(0xFF9A9993), line = Color(0xFF26272A), border2 = Color(0xFF3A3B3F),
+    signal = Color(0xFF6B78FF), signalSoft = Color(0x296B78FF), red = Color(0xFFFF5158), dark = true,
+)
 
 val LocalLo = staticCompositionLocalOf { LightLo }
 
 object LoType {
-    val hero = TextStyle(fontWeight = FontWeight.Black, fontSize = 44.sp, lineHeight = 44.sp, letterSpacing = (-1.5).sp)
-    val title = TextStyle(fontWeight = FontWeight.ExtraBold, fontSize = 24.sp, letterSpacing = (-0.5).sp)
-    val section = TextStyle(fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
-    val body = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-    val small = TextStyle(fontWeight = FontWeight.Medium, fontSize = 12.sp)
+    val hero = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 34.sp, lineHeight = 38.sp, letterSpacing = (-1.2).sp)
+    val title = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 22.sp, lineHeight = 26.sp, letterSpacing = (-0.6).sp)
+    val section = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 17.sp, letterSpacing = (-0.3).sp)
+    val body = TextStyle(fontWeight = FontWeight.Medium, fontSize = 15.sp, letterSpacing = (-0.2).sp)
+    val small = TextStyle(fontWeight = FontWeight.Medium, fontSize = 12.5.sp, letterSpacing = (-0.1).sp)
+    val eyebrow = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 11.sp, letterSpacing = 0.9.sp)
 }
 
 @Composable
