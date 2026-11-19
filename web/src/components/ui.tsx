@@ -129,11 +129,13 @@ export function Stat({ icon, label, value, unit, sub, spark }: { icon: IconName;
         <span className="n clamp1">{value}</span>
         {unit && <span className="u">{unit}</span>}
       </div>
-      <div className="foot">
-        {sub && <span className="sub clamp2">{sub}</span>}
-        <span className="grow" />
-        {spark && <span className="sp">{spark}</span>}
-      </div>
+      {(sub || spark) && (
+        <div className="foot">
+          {sub && <span className="sub clamp2">{sub}</span>}
+          <span className="grow" />
+          {spark && <span className="sp">{spark}</span>}
+        </div>
+      )}
       <style jsx>{`
         .stat { padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
         .top { display: flex; align-items: center; gap: 10px; }

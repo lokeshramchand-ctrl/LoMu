@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useSearch, useSuggest } from '@/lib/api';
 import { artistNames, hrefFor } from '@/lib/format';
 import type { Item } from '@/lib/types';
-import { ShelfRow, ShelfSkeleton, TrackRow } from '@/components/Cards';
+import { ItemCard, ShelfRow, ShelfSkeleton, TrackRow } from '@/components/Cards';
 import { Avatar, Cover } from '@/components/Art';
 import { PageHeader } from '@/components/ui';
 import { Icon } from '@/components/Icon';
@@ -29,8 +29,12 @@ function SearchInner() {
   const [focused, setFocused] = useState(!q);
   const input = useRef<HTMLInputElement>(null);
   const recent = useLibrary((s) => s.recentSearches);
+  const [type, setType] = useState<'all' | 'songs' | 'artists' | 'albums' | 'playlists' | 'videos'>('all');
 
-  useEffect(() => setText(q), [q]);
+  useEffect(() => {
+    setText(q);
+    setType('all');
+  }, [q]);
   useEffect(() => {
     const t = setTimeout(() => setDebounced(text), 160);
     return () => clearTimeout(t);
@@ -123,22 +127,99 @@ function SearchInner() {
 
       {data && (
         <div className="results fade-in">
-          <div className="top-grid">
-            {data.top && <TopResult item={data.top} />}
-            {data.songs.length > 0 && (
-              <section className="songs">
-                <div className="section-head"><h2>Songs</h2></div>
-                {data.songs.slice(0, 5).map((t, i) => (
-                  <TrackRow key={t.id} track={t} index={i} list={data.songs} />
-                ))}
-              </section>
-            )}
+          <div className="chips" role="tablist" aria-label="Result type">
+            {([
+              ['all', 'All', 0],
+              ['songs', 'Songs', data.songs.length],
+              ['artists', 'Artists', data.artists.length],
+              ['albums', 'Albums', data.albums.length],
+              ['playlists', 'Playlists', data.playlists.length],
+              ['videos', 'Videos', data.videos.length],
+            ] as const)
+              .filter(([id, , n]) => id === 'all' || n > 0)
+              .map(([id, label]) => (
+                <button key={id} role="tab" aria-selected={type === id} className={type === id ? 'on' : ''} onClick={() => setType(id)}>
+                  {label}
+                </button>
+              ))}
           </div>
-          {data.artists.length > 0 && <ShelfRow shelf={{ title: 'Artists', items: data.artists }} />}
-          {data.albums.length > 0 && <ShelfRow shelf={{ title: 'Albums & singles', items: data.albums }} />}
-          {data.playlists.length > 0 && <ShelfRow shelf={{ title: 'Playlists', items: data.playlists }} />}
-          {data.videos.length > 0 && <ShelfRow shelf={{ title: 'Videos', items: data.videos }} />}
+
+          {type === 'all' && (
+            <>
+              <div className="top-grid">
+                {data.top && <TopResult item={data.top} />}
+                {data.songs.length > 0 && (
+                  <section className="songs">
+                    <div className="section-head">
+                      <h2>Songs</h2>
+                      {data.songs.length > 5 && (
+                        <button className="btn ghost sm" onClick={() => setType('songs')}>
+                          Show all {data.songs.length}
+                        </button>
+                      )}
+                    </div>
+                    {data.songs.slice(0, 5).map((t, i) => (
+                      <TrackRow key={t.id} track={t} index={i} list={data.songs} />
+                    ))}
+                  </section>
+                )}
+              </div>
+              {data.artists.length > 0 && <ShelfRow shelf={{ title: 'Artists', items: data.artists }} />}
+              {data.albums.length > 0 && <ShelfRow shelf={{ title: 'Albums & singles', items: data.albums }} />}
+              {data.playlists.length > 0 && <ShelfRow shelf={{ title: 'Playlists', items: data.playlists }} />}
+              {data.videos.length > 0 && <ShelfRow shelf={{ title: 'Videos', items: data.videos }} />}
+            </>
+          )}
+
+          {type === 'songs' && (
+            <section>
+              <div className="section-head">
+                <h2>Songs</h2>
+                <button className="btn primary sm" onClick={() => usePlayer.getState().play(data.songs, 0, { source: `search:${q}` })}>
+                  <Icon name="play" size={13} /> Play all
+                </button>
+              </div>
+              {data.songs.map((t, i) => (
+                <TrackRow key={t.id} track={t} index={i} list={data.songs} />
+              ))}
+            </section>
+          )}
+          {type === 'artists' && <ItemGrid items={data.artists} />}
+          {type === 'albums' && <ItemGrid items={data.albums} />}
+          {type === 'playlists' && <ItemGrid items={data.playlists} />}
+          {type === 'videos' && <ItemGrid items={data.videos} />}
+
           {!data.songs.length && !data.albums.length && !data.artists.length && <div className="empty"><b>Nothing found for “{q}”</b><span>Try a different spelling, or search for the artist.</span></div>}
+        </div>
+      )}
+
+      {!q && (
+        <div className="start fade-in">
+          {recent.length > 0 && (
+            <section>
+              <div className="section-head">
+                <h2>Recent searches</h2>
+                <button className="btn ghost sm" onClick={() => useLibrary.getState().clearSearches()}>Clear</button>
+              </div>
+              <div className="pills">
+                {recent.map((r) => (
+                  <button key={r} className="pill" onClick={() => submit(r)}>
+                    <Icon name="history" size={14} /> {r}
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+          <section>
+            <div className="section-head"><h2>Try searching for</h2></div>
+            <div className="pills">
+              {['Top hits India', 'Lo-fi beats', 'Workout', 'Arijit Singh', 'Anirudh', 'Chill vibes'].map((r) => (
+                <button key={r} className="pill" onClick={() => submit(r)}>
+                  <Icon name="search" size={14} /> {r}
+                </button>
+              ))}
+            </div>
+          </section>
         </div>
       )}
 
@@ -151,6 +232,13 @@ function SearchInner() {
         :global(.srow) { display: flex; align-items: center; gap: 12px; width: 100%; padding: 9px 10px; border-radius: 10px; text-align: left; font-weight: 500; font-size: 13.5px; color: var(--text); }
         :global(.srow:hover) { background: var(--surface-2); }
         .results { margin-top: 4px; display: flex; flex-direction: column; gap: 20px; }
+        .start { margin-top: 18px; display: flex; flex-direction: column; gap: 22px; }
+        .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+        .pill { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border-2); background: var(--surface); font-size: 13.5px; font-weight: 500; transition: background .2s, transform .3s var(--spring); }
+        .pill:hover { background: var(--surface-2); }
+        .pill:active { transform: scale(.97); }
+        .results :global(.chips) { align-self: flex-start; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(164px, 1fr)); gap: 24px 20px; }
         .top-grid { display: grid; grid-template-columns: minmax(260px, 360px) 1fr; gap: 24px; align-items: start; }
         @media (max-width: 900px) { .top-grid { grid-template-columns: 1fr; } }
       `}</style>
@@ -203,5 +291,15 @@ function TopResult({ item }: { item: Item }) {
     <Link className={cls} style={style} href={href!}>
       {body}
     </Link>
+  );
+}
+
+function ItemGrid({ items }: { items: Item[] }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '24px 18px' }}>
+      {items.map((it) => (
+        <ItemCard key={it.kind + it.id} item={it} />
+      ))}
+    </div>
   );
 }
