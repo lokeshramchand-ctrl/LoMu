@@ -123,14 +123,14 @@ export function Stat({ icon, label, value, unit, sub, spark }: { icon: IconName;
         <span className="chip-ic">
           <Icon name={icon} size={16} />
         </span>
-        <span className="lab">{label}</span>
+        <span className="lab clamp2">{label}</span>
       </div>
       <div className="val">
         <span className="n clamp1">{value}</span>
         {unit && <span className="u">{unit}</span>}
       </div>
       <div className="foot">
-        {sub && <span className="sub clamp1">{sub}</span>}
+        {sub && <span className="sub clamp2">{sub}</span>}
         <span className="grow" />
         {spark && <span className="sp">{spark}</span>}
       </div>
@@ -141,9 +141,9 @@ export function Stat({ icon, label, value, unit, sub, spark }: { icon: IconName;
         .val { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
         .n { font-size: clamp(1.5rem, 2.1vw, 2rem); font-weight: 600; letter-spacing: -.04em; line-height: 1.1; }
         .u { font-size: 13px; font-weight: 500; color: var(--muted); }
-        .foot { display: flex; align-items: flex-end; gap: 10px; min-height: 28px; }
+        .foot { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; min-height: 28px; }
         .sub { font-size: 12.5px; color: var(--muted); align-self: center; }
-        .sp { width: 96px; flex: none; }
+        .sp { width: 96px; flex: none; margin-left: auto; }
       `}</style>
     </div>
   );

@@ -90,8 +90,12 @@ export default function Home() {
             />
           ))}
           {!recs.isLoading && !mixes.length && (
-            <div className="card pad">
-              <EmptyState icon="sparkles" title="Your mixes will appear here" hint="LoMu builds Your Mix, On Repeat and Discover from the songs you finish, skip and like. Play a few and come back." />
+            <div className="callout">
+              <span className="chip-ic lg"><Icon name="sparkles" size={18} /></span>
+              <div className="grow">
+                <b style={{ color: 'var(--text)' }}>Your mixes will appear here</b>
+                <div className="small">LoMu builds Your Mix, On Repeat and Discover from what you finish, skip and like. Play a few songs and come back.</div>
+              </div>
             </div>
           )}
         </>

@@ -37,6 +37,7 @@ export function FullPlayer() {
   if (!track) return null;
   return (
     <div className={`fp${expanded ? ' open' : ''}`} aria-hidden={!expanded} role="dialog" aria-label="Now playing">
+      <div className="ambient" aria-hidden style={track.thumb ? { backgroundImage: `url(${track.thumb})` } : undefined} />
       <header className="top">
         <button className="icon-btn bordered" aria-label="Close player" onClick={() => P.setExpanded(false)}>
           <Icon name="down" />
@@ -107,8 +108,10 @@ export function FullPlayer() {
       </div>
 
       <style jsx>{`
-        .fp { position: fixed; inset: 0; z-index: 70; display: flex; flex-direction: column; background: var(--bg); transform: translateY(102%); transition: transform .5s var(--ease-out); visibility: hidden; }
+        .fp { overflow: hidden; position: fixed; inset: 0; z-index: 70; display: flex; flex-direction: column; background: var(--bg); transform: translateY(102%); transition: transform .5s var(--ease-out); visibility: hidden; }
         .fp.open { transform: none; visibility: visible; }
+        .ambient { position: absolute; inset: -10%; z-index: 0; background-size: cover; background-position: center; filter: blur(70px) saturate(1.4); opacity: .2; transform: scale(1.1); pointer-events: none; transition: background-image .6s; }
+        .top, .body { position: relative; z-index: 1; }
         .top { display: flex; align-items: center; justify-content: space-between; padding: 14px var(--gutter); height: var(--top-h); border-bottom: 1px solid var(--border); }
         .body { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr; gap: 28px; padding: 28px var(--gutter) 32px; overflow-y: auto; }
         .body.with-panel { grid-template-columns: minmax(0, 1.2fr) minmax(320px, .9fr); }
