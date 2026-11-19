@@ -52,7 +52,7 @@ class SyncClient @Inject constructor(
 
     private val _state = MutableStateFlow(
         SyncState(
-            serverUrl = prefs.getString("url", "") ?: "",
+            serverUrl = prefs.getString("url", null) ?: com.lomu.app.BuildConfig.DEFAULT_SERVER_URL,
             user = prefs.getString("user", null),
             status = if (prefs.getString("refresh", null) != null) "Signed in" else "Not signed in",
         ),
@@ -61,7 +61,7 @@ class SyncClient @Inject constructor(
 
     val signedIn get() = prefs.getString("refresh", null) != null
 
-    private fun base() = (prefs.getString("url", "") ?: "").trimEnd('/')
+    private fun base() = (prefs.getString("url", null) ?: com.lomu.app.BuildConfig.DEFAULT_SERVER_URL).trimEnd('/')
 
     private fun post(path: String, body: JSONObject, auth: Boolean): Pair<Int, JSONObject> {
         val b = Request.Builder().url(base() + path).header("x-lomu-device", "android")
@@ -93,6 +93,23 @@ class SyncClient @Inject constructor(
         var r = block()
         if (r.first == 401 && refresh()) r = block()
         return r
+    }
+
+    /** Quick reachability check for the sign-in screen: asks the server who it is. */
+    suspend fun ping(url: String): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+        val u = url.trim().trimEnd('/')
+        if (!u.startsWith("https://") && !u.startsWith("http://")) return@withContext false to "Start the address with https://"
+        try {
+            val quick = http.newBuilder().callTimeout(10, TimeUnit.SECONDS).build()
+            quick.newCall(Request.Builder().url("$u/api/auth/status").build()).execute().use { r ->
+                val body = r.body?.string().orEmpty()
+                if (r.code != 200) return@withContext false to "The server answered ${r.code}. Is this the LoMu address?"
+                val o = JSONObject(body.ifBlank { "{}" })
+                true to if (o.optBoolean("setup")) "Server is up. Sign in with your account." else "Server is up. Create your account (you need the setup code)."
+            }
+        } catch (e: Exception) {
+            false to "Can't reach the server (${e.javaClass.simpleName}). Check the address and that you have internet."
+        }
     }
 
     suspend fun signIn(url: String, user: String, password: String, create: Boolean) = withContext(Dispatchers.IO) {

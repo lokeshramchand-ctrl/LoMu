@@ -492,6 +492,15 @@ fun SettingsScreen() {
     var url by remember(st.serverUrl) { mutableStateOf(st.serverUrl) }
     var user by remember { mutableStateOf("") }
     var pass by remember { mutableStateOf("") }
+    var probe by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
+    var probing by remember { mutableStateOf(false) }
+    LaunchedEffect(url, st.user) {
+        if (st.user != null || url.isBlank()) { probe = null; return@LaunchedEffect }
+        delay(600)
+        probing = true
+        probe = sync?.ping(url)
+        probing = false
+    }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 32.dp)) {
         PageTitle("Settings", "Settings", "Account, sync and import.")
         Group("Account & sync", "One owner account on your own LoMu server.") {
@@ -504,6 +513,10 @@ fun SettingsScreen() {
                 }
             } else {
                 Field(url, { url = it }, "Server, e.g. https://lomu.example.com")
+                Text(
+                    if (probing) "Checking the server…" else probe?.second ?: "",
+                    style = LoType.small, color = if (probe?.first == false) lo.red else lo.grey,
+                )
                 Field(user, { user = it }, "Username")
                 Field(pass, { pass = it }, "Password", password = true)
                 st.error?.let { Text(it, style = LoType.small, color = lo.red) }
