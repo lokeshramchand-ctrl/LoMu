@@ -34,7 +34,7 @@ android {
         vectorDrawables.useSupportLibrary = true
 
         // Default sync server; can be changed on the sign-in screen.
-        val server = localProperties.getProperty("MUSIC_SERVER_URL") ?: System.getenv("MUSIC_SERVER_URL") ?: ""
+        val server = localProperties.getProperty("MUSIC_SERVER_URL") ?: System.getenv("MUSIC_SERVER_URL") ?: "https://lomu.example.com"
         buildConfigField("String", "DEFAULT_SERVER_URL", "\"$server\"")
     }
 
