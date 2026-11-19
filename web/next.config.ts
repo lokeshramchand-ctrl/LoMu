@@ -1,6 +1,8 @@
 import type { NextConfig } from 'next';
 
 const config: NextConfig = {
+  // Self-contained server bundle for the Docker image (Coolify).
+  output: 'standalone',
   serverExternalPackages: ['youtubei.js', 'jsdom', 'bgutils-js', '@napi-rs/canvas'],
   images: { unoptimized: true },
   poweredByHeader: false,

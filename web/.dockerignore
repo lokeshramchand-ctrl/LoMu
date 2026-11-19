@@ -1,0 +1,7 @@
+node_modules
+.next
+test-results
+tests
+*.tsbuildinfo
+.env*
+Dockerfile
