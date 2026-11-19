@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import { useLibrary } from '@/player/library';
 import { usePlayer } from '@/player/store';
 import { HOME_SECTIONS, useSettings, type Theme } from '@/player/settings';
@@ -13,6 +14,17 @@ export default function SettingsPage() {
   const setDev = useSettings((s) => s.setDev);
   const autoplay = usePlayer((s) => s.autoplay);
   const { user, sync, lastSync, logout } = useAuth();
+  const [confirmClear, setConfirmClear] = useState(false);
+  const exportLibrary = () => {
+    const { liked, history, playlists, albums, artists, savedPlaylists, recentSearches } = useLibrary.getState();
+    const blob = new Blob([JSON.stringify({ app: 'lomu', exportedAt: new Date().toISOString(), liked, history, playlists, albums, artists, savedPlaylists, recentSearches }, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `lomu-library-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    toast('Library exported');
+  };
   const themes: { id: Theme; icon: IconName; label: string }[] = [
     { id: 'system', icon: 'system', label: 'System' },
     { id: 'light', icon: 'sun', label: 'Light' },
@@ -63,18 +75,33 @@ export default function SettingsPage() {
         </Group>
 
         <Group title="Library">
-          <Row icon="history" label="Clear listening history" hint="Recommendations start learning again from scratch.">
-            <button
-              className="btn"
-              onClick={() => {
-                if (confirm('Clear your whole listening history?')) {
-                  useLibrary.setState({ history: [] });
-                  toast('History cleared');
-                }
-              }}
-            >
-              Clear
+          <Row icon="download" label="Export library" hint="Download your likes, playlists, saved albums, artists and history as a JSON file.">
+            <button className="btn" onClick={exportLibrary}>
+              Export
             </button>
+          </Row>
+          <Row icon="history" label="Clear listening history" hint="Recommendations start learning again from scratch.">
+            {confirmClear ? (
+              <span className="row" style={{ gap: 8 }}>
+                <button className="btn sm" onClick={() => setConfirmClear(false)}>
+                  Cancel
+                </button>
+                <button
+                  className="btn sm primary"
+                  onClick={() => {
+                    useLibrary.setState({ history: [] });
+                    setConfirmClear(false);
+                    toast('History cleared');
+                  }}
+                >
+                  Yes, clear it
+                </button>
+              </span>
+            ) : (
+              <button className="btn" onClick={() => setConfirmClear(true)}>
+                Clear
+              </button>
+            )}
           </Row>
         </Group>
 
@@ -89,9 +116,13 @@ export default function SettingsPage() {
             <Switch on={dev.streamInfo} label="Stream info" onChange={(v) => setDev('streamInfo', v)} />
           </Row>
         </Group>
+        <Group title="About">
+          <Row icon="info" label="LoMu web player" hint={`Connected to ${typeof window !== 'undefined' ? window.location.host : 'this server'}. Press / anywhere to search and Esc to close the full player.`}>
+            <span className="badge">v1.0</span>
+          </Row>
+        </Group>
       </div>
 
-      <p className="muted small">LoMu · web player</p>
 
       <style jsx>{`
         .stack { display: flex; flex-direction: column; gap: 20px; max-width: 860px; }
