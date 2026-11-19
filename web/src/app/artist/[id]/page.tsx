@@ -15,6 +15,7 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
   const { data, isLoading, error, refetch } = useArtist(id, enrich);
   const following = useLibrary((s) => !!s.artists[id]);
   const [bioOpen, setBioOpen] = useState(false);
+  const [allSongs, setAllSongs] = useState(false);
   if (isLoading) return <PageSkeleton />;
   if (error || !data) return <PageError error={error} retry={() => refetch()} />;
 
@@ -30,6 +31,7 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
           </div>
         )}
         <div className="row hero card pad">
+          {photo && <div className="amb" aria-hidden style={{ backgroundImage: `url(${photo})` }} />}
           <Avatar src={photo} size={168} alt={data.name} />
           <div className="grow">
             <div className="eyebrow">Artist</div>
@@ -54,9 +56,16 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
 
       {data.topSongs.length > 0 && (
         <section>
-          <div className="section-head"><h2>Top songs</h2></div>
-          {data.topSongs.map((t, i) => (
-            <TrackRow key={t.id} track={t} index={i} list={data.topSongs} />
+          <div className="section-head">
+            <h2>Top songs</h2>
+            {data.topSongs.length > 5 && (
+              <button className="btn ghost sm" onClick={() => setAllSongs(!allSongs)}>
+                {allSongs ? 'Show less' : `Show all ${data.topSongs.length}`}
+              </button>
+            )}
+          </div>
+          {(allSongs ? data.topSongs : data.topSongs.slice(0, 5)).map((t, i) => (
+            <TrackRow key={t.id} track={t} index={i} list={data.topSongs} showIndex />
           ))}
         </section>
       )}
@@ -83,7 +92,9 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
         .ah { position: relative; padding-top: 12px; }
         .banner { position: absolute; left: 0; right: 0; top: 12px; height: 100%; min-height: 200px; overflow: hidden; border-radius: var(--r); opacity: .25; mask-image: linear-gradient(180deg, #000, transparent); pointer-events: none; }
         .banner img { width: 100%; height: 100%; object-fit: cover; }
-        .hero { position: relative; gap: 28px; align-items: flex-end; flex-wrap: wrap; }
+        .amb { position: absolute; inset: -25%; background-size: cover; background-position: center; filter: blur(70px) saturate(1.4); opacity: .18; pointer-events: none; }
+        .hero { position: relative; overflow: hidden; gap: 28px; align-items: flex-end; flex-wrap: wrap; }
+        .hero > :global(*:not(.amb)) { position: relative; }
         .name { font-size: clamp(1.8rem, 4vw, 3rem); font-weight: 600; margin: 4px 0 6px; }
         .facts { font-weight: 500; font-size: 13.5px; }
         .about { max-width: 860px; }

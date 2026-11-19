@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { useState } from 'react';
 import type { ArtistRef, Track } from '@/lib/types';
 import { usePlayer } from '@/player/store';
 import { Cover } from './Art';
@@ -34,9 +35,11 @@ export function Collection({
   playlistId?: string;
   cover?: React.ReactNode;
 }) {
+  const [more, setMore] = useState(false);
   return (
     <div className="fade-in">
       <header className="ch card pad">
+        {thumb && <div className="amb" aria-hidden style={{ backgroundImage: `url(${thumb})` }} />}
         <div className="art">{cover ?? <Cover src={thumb} size="100%" radius={14} />}</div>
         <div className="info">
           <div className="eyebrow">{kind}</div>
@@ -52,7 +55,16 @@ export function Collection({
             </div>
           )}
           {meta && <div className="muted small meta">{meta}</div>}
-          {description && <p className="muted desc clamp2">{description}</p>}
+          {description && (
+            <div className="descwrap">
+              <p className={`muted desc${more ? '' : ' clamp2'}`}>{description}</p>
+              {description.length > 140 && (
+                <button className="morebtn" onClick={() => setMore(!more)}>
+                  {more ? 'Show less' : 'More'}
+                </button>
+              )}
+            </div>
+          )}
           <div className="row" style={{ marginTop: 18, flexWrap: 'wrap' }}>
             <button className="btn primary" disabled={!tracks.length} onClick={() => usePlayer.getState().play(tracks, 0, { source })}>
               <Icon name="play" size={14} /> Play
@@ -70,7 +82,12 @@ export function Collection({
         ))}
       </div>
       <style jsx>{`
-        .ch { display: flex; align-items: flex-end; gap: 28px; flex-wrap: wrap; }
+        .ch { position: relative; overflow: hidden; display: flex; align-items: flex-end; gap: 28px; flex-wrap: wrap; }
+        .amb { position: absolute; inset: -20%; background-size: cover; background-position: center; filter: blur(60px) saturate(1.4); opacity: .16; pointer-events: none; }
+        .art, .info { position: relative; }
+        .descwrap { margin-top: 10px; }
+        .descwrap .desc { margin: 0; }
+        .morebtn { margin-top: 4px; color: var(--signal); font-weight: 500; font-size: 13px; }
         .art { width: 208px; height: 208px; flex: none; }
         .info { flex: 1; min-width: 240px; }
         .ttl { margin: 6px 0 6px; font-size: clamp(1.6rem, 3vw, 2.4rem); }
