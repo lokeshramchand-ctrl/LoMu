@@ -67,32 +67,52 @@ export function viaAddress(address: string, url: string, init: RequestInit = {})
   });
 }
 
+/** Splits "10.10.10.136, 192.168.1.17" into the valid private addresses (at most 4, no duplicates, order kept). */
+export function parseAddresses(v: string | null | undefined): string[] {
+  return [...new Set(String(v ?? '').split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean))].filter(isLanAddress).slice(0, 4);
+}
+
+/** Like [parseAddresses] but reports what was wrong, for a settings form. */
+export function checkAddresses(v: string): { ok: string[]; bad: string[] } {
+  const all = String(v ?? '').split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean);
+  return { ok: parseAddresses(v), bad: all.filter((x) => !isLanAddress(x)) };
+}
+
 export type Route = 'direct' | 'lan';
 
+const LAN_ATTEMPT_MS = 2500; // a home address either answers at once or is not reachable from here
+
 /**
- * Tries the routes in order and returns the first that connects (any HTTP answer counts as "connected").
- * [attemptMs] bounds only the time to get response headers on every route but the last, so a black-holed route fails
- * over quickly; the final route and long-lived streams are bounded by the caller's own signal.
+ * Tries the routes in order and returns the first that connects (any HTTP answer counts as "connected"). The routes are
+ * the public name ("direct") and each home address in turn. [attemptMs] bounds only the time to get response headers on
+ * every route but the last, so a black-holed route fails over quickly; the final route and long-lived streams are bounded
+ * by the caller's own signal. [lastGood] is the home address that worked last time: it goes first among the home addresses.
  */
 export async function reach(
   url: string,
   init: RequestInit,
-  opts: { lan?: string | null; preferLan?: boolean; attemptMs?: number },
-): Promise<{ res: Response; route: Route }> {
-  const routes: Route[] = opts.lan && isLanAddress(opts.lan) ? (opts.preferLan ? ['lan', 'direct'] : ['direct', 'lan']) : ['direct'];
+  opts: { lan?: string | null; preferLan?: boolean; attemptMs?: number; lastGood?: string | null },
+): Promise<{ res: Response; route: Route; address: string | null }> {
+  let addrs = parseAddresses(opts.lan);
+  if (opts.lastGood && addrs.includes(opts.lastGood)) addrs = [opts.lastGood, ...addrs.filter((x) => x !== opts.lastGood)];
+  type Step = { route: Route; address: string | null };
+  const direct: Step = { route: 'direct', address: null };
+  const home: Step[] = addrs.map((address) => ({ route: 'lan', address }));
+  const steps: Step[] = opts.preferLan ? [...home, direct] : [direct, ...home];
   let last: unknown;
-  for (let i = 0; i < routes.length; i++) {
-    const route = routes[i];
-    const final = i === routes.length - 1;
+  for (let i = 0; i < steps.length; i++) {
+    const { route, address } = steps[i];
+    const final = i === steps.length - 1;
     const ac = new AbortController();
     const outer = init.signal;
     const onAbort = () => ac.abort(outer?.reason);
     if (outer) outer.aborted ? ac.abort(outer.reason) : outer.addEventListener('abort', onAbort, { once: true });
-    const timer = !final && opts.attemptMs ? setTimeout(() => ac.abort(new DOMException('route timed out', 'TimeoutError')), opts.attemptMs) : null;
+    const budget = route === 'lan' ? Math.min(opts.attemptMs ?? LAN_ATTEMPT_MS, LAN_ATTEMPT_MS) : opts.attemptMs;
+    const timer = !final && budget ? setTimeout(() => ac.abort(new DOMException('route timed out', 'TimeoutError')), budget) : null;
     try {
       const attempt = { ...init, signal: ac.signal };
-      const res = route === 'lan' ? await viaAddress(opts.lan!, url, attempt) : await fetch(url, attempt);
-      return { res, route }; // the caller's abort still reaches a long-lived stream through ac
+      const res = route === 'lan' ? await viaAddress(address!, url, attempt) : await fetch(url, attempt);
+      return { res, route, address }; // the caller's abort still reaches a long-lived stream through ac
     } catch (e) {
       last = e;
       outer?.removeEventListener('abort', onAbort);

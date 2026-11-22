@@ -12,9 +12,11 @@ the container only speaks HTTP on port 4100.
    - `LOMU_SETUP_CODE` = any random string. Required once to create the owner account;
      without it anyone who finds the URL could claim the app.
    - `LOMU_REGION` = `IN` (optional).
-   - `LOMU_LAN_ADDRESS` = `192.168.1.17` (optional, recommended): the server's address on the home
-     network (the Proxmox host that runs nginx). Signed-in clients learn it and use it when the
-     public name does not work from inside the LAN (see "Same network as the server" below).
+   - `LOMU_LAN_ADDRESS` = `10.10.10.136,192.168.1.17` (recommended): the server's addresses on the
+     home network, in the order to try. `10.10.10.136` is the Coolify container itself;
+     `192.168.1.17` is the Proxmox host (nginx), which any device on the Wi-Fi can reach. Signed-in
+     clients learn the list and use it when the public name does not work from inside the LAN
+     (see "Same network as the server" below).
    - `LOMU_MAX_USERS` = `4` (default). Seats on this server: the owner plus three guests.
    - `LOMU_PROXY_HOPS` = number of reverse proxies in front of the app (default `1`; nginx then
      Traefik is `2`). Only used to tell clients apart for the sign-in rate limit.
@@ -43,18 +45,59 @@ account exists.
 `lomu.deploy-ui.lokeshrc.me` resolves to the router's public address. From a device inside the
 same network that path often fails: many routers cannot loop a connection back in (no NAT
 loopback), and with Cloudflare WARP on, the connection is tunnelled out through Cloudflare and
-has to come back in from the internet. (WARP excludes `192.168.0.0/16`, so the private address
-is always reachable directly.)
+has to come back in from the internet. WARP excludes `10.0.0.0/8` and `192.168.0.0/16`, so the
+private addresses are reachable directly, and both serve the same valid certificate for the
+domain (Traefik on `10.10.10.136:443`, nginx on `192.168.1.17:443`).
 
-The server answers on its private address with the same certificate, so the clients use that
-when the name fails. Set `LOMU_LAN_ADDRESS` (above); then:
+So at home the clients talk to a private address and still call the server by its public name
+(TLS server name and Host header unchanged), which keeps certificate checking fully on.
 
-- **Desktop app:** learns the address after sign-in (Settings → Home server also has a field
-  for it). It tries the name first and the home address second, and switches to the home address
-  first once that is the one that works ("via home network" shows in the card).
-- **Phone:** learns it at sign-in (and on a later sync for older installs). At home, on the
-  same subnet, it goes straight to the private address; away from home it uses the name.
-- **Browser:** a browser cannot be told this. At home open `https://lomu.deploy-ui.lokeshrc.me`
-  with a hosts entry or router DNS override: `192.168.1.17  lomu.deploy-ui.lokeshrc.me` (also
-  fixes it for every device on the network at once if set as a local DNS record on the router
-  or in dnsmasq on the Proxmox host).
+| Device | How it gets there |
+|---|---|
+| Desktop app | Learns `LOMU_LAN_ADDRESS` after sign-in; Settings → Home server also has a field (comma separated). Tries the name, then each home address; remembers the one that worked and starts with it next time. |
+| Phone | Learns the list at sign-in or the next sync, or type it in Settings → Home network. Probes the addresses for half a second and goes to the one that answers first; away from home the probe fails and it uses the public name. |
+| Browser | Cannot be told. Use one hosts line (below). |
+
+### Runbook (run these yourself)
+
+**1. Tell the server its home addresses** (Coolify → LoMu → Environment Variables, runtime only):
+
+```
+LOMU_LAN_ADDRESS=10.10.10.136,192.168.1.17
+```
+
+then **Redeploy**. The container health check and Uptime Kuma can now use `GET /api/health`
+(`{"ok":true,"db":"ok","version":"<commit>","accounts":N}`, 503 if the database fails).
+
+**2. Check which routes work from each device** (any device with Node; read-only):
+
+```
+node web/scripts/check-network.mjs
+```
+
+It prints the public name and each home address with timing. From the PC the three routes all
+answered with a valid certificate (2026-11-22): name 158 ms, 10.10.10.136 16 ms, 192.168.1.17 10 ms.
+
+**3. Browsers at home** (PowerShell as Administrator; WARP can stay on):
+
+```
+Add-Content C:\Windows\System32\drivers\etc\hosts "10.10.10.136 lomu.deploy-ui.lokeshrc.me"
+ipconfig /flushdns
+```
+
+Undo: delete that line from the hosts file. Use `192.168.1.17` instead on a device that has no
+route to `10.10.10.0/24` (check: `Test-NetConnection 10.10.10.136 -Port 443`). Phones normally have
+no such route, which is why the phone list also contains `192.168.1.17`.
+
+**4. Optional: make `10.10.10.0/24` reachable from every device.** In the router, add a static
+route `10.10.10.0/24` via `192.168.1.17` (the Proxmox host). On the Proxmox host confirm it forwards:
+
+```
+sysctl net.ipv4.ip_forward        # must print 1
+```
+
+Then phones and laptops can use `10.10.10.136` directly. Not required: `192.168.1.17` already works
+for them.
+
+**5. Monitoring.** Uptime Kuma: HTTP(s) check on `https://lomu.deploy-ui.lokeshrc.me/api/health`,
+expect status 200 and keyword `"ok":true`.
