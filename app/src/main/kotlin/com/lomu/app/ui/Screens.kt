@@ -101,14 +101,14 @@ private fun CaptionedTitle(title: String, caption: String?, action: String? = nu
 /** Large portrait card: full art with a tinted caption plate at the foot (Home "Top Picks for you"). */
 @Composable
 private fun FeatureCard(thumb: String?, title: String, line: String, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(18.dp)
+    val shape = RoundedCornerShape(14.dp)
     Box(Modifier.width(248.dp).height(300.dp).pressable(shape, onClick = onClick).background(LocalLo.current.surface2, shape)) {
         AsyncImage(model = thumb, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                 .background(Brush.verticalGradient(0f to Color.Transparent, 0.35f to Color(0x99000000), 1f to Color(0xEB000000)))
                 .padding(start = 14.dp, end = 14.dp, top = 84.dp, bottom = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            horizontalAlignment = Alignment.Start,
         ) {
             Text(title, style = LoType.sub.copy(fontWeight = FontWeight.SemiBold), color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(line, style = LoType.small, color = Color(0xE6FFFFFF), maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -233,9 +233,9 @@ fun NewScreen() {
 
 private val TRY_SEARCHES = listOf("Top hits India", "Lo-fi beats", "Workout", "Arijit Singh", "Anirudh", "Chill vibes", "Punjabi", "90s Bollywood")
 private val TILE_COLORS = listOf(
-    Color(0xFFFF2D55) to Color(0xFFFF6B81), Color(0xFF5856D6) to Color(0xFF8E8CF0), Color(0xFFFF9500) to Color(0xFFFFB84D),
-    Color(0xFF34C759) to Color(0xFF7BE095), Color(0xFF007AFF) to Color(0xFF5AA9FF), Color(0xFFAF52DE) to Color(0xFFCB84EE),
-    Color(0xFFFF3B30) to Color(0xFFFF7A70), Color(0xFF30B0C7) to Color(0xFF6FD0E0),
+    Color(0xFFB45309) to Color(0xFFD97706), Color(0xFF9F3A2B) to Color(0xFFC2523F), Color(0xFF5B6B2F) to Color(0xFF7A8C45),
+    Color(0xFF2F6F73) to Color(0xFF3E8C91), Color(0xFF6B3F69) to Color(0xFF8A5788), Color(0xFF3F4D63) to Color(0xFF576884),
+    Color(0xFF8A5A2B) to Color(0xFFA9763F), Color(0xFF4F6B58) to Color(0xFF688A74),
 )
 
 @Composable
