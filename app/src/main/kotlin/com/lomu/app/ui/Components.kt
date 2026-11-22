@@ -6,6 +6,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -91,7 +93,8 @@ fun IcV(icon: ImageVector, size: Dp = 22.dp, tint: Color = LocalLo.current.ink, 
 }
 
 /** Clickable with a soft spring "press" so every tap has feedback. */
-fun Modifier.pressable(shape: Shape = RoundedCornerShape(10.dp), enabled: Boolean = true, role: Role = Role.Button, onClickLabel: String? = null, onClick: () -> Unit): Modifier = composed {
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+fun Modifier.pressable(shape: Shape = RoundedCornerShape(10.dp), enabled: Boolean = true, role: Role = Role.Button, onClickLabel: String? = null, onLongClick: (() -> Unit)? = null, onClick: () -> Unit): Modifier = composed {
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) 0.97f else 1f, spring(dampingRatio = 0.65f, stiffness = 600f), label = "press")
@@ -99,7 +102,7 @@ fun Modifier.pressable(shape: Shape = RoundedCornerShape(10.dp), enabled: Boolea
     this
         .graphicsLayer { scaleX = scale; scaleY = scale; alpha = fade }
         .clip(shape)
-        .clickable(interactionSource = source, indication = null, enabled = enabled, onClickLabel = onClickLabel, role = role, onClick = onClick)
+        .combinedClickable(interactionSource = source, indication = null, enabled = enabled, onClickLabel = onClickLabel, role = role, onLongClick = onLongClick, onClick = onClick)
 }
 
 /** What a screen reader says for a control that only shows an icon (and, optionally, its current state: "On", "Selected"). */
@@ -346,14 +349,14 @@ private fun NowPlayingBars(tint: Color, modifier: Modifier = Modifier) = Ic(Ph.W
 @Composable
 fun MediaRow(
     title: String, line: String, thumb: String?, trailing: String? = null, index: Int? = null, active: Boolean = false,
-    separator: Boolean = true, pad: Dp = 20.dp, menu: MenuTarget? = null, flat: Boolean = false, modifier: Modifier = Modifier, onClick: () -> Unit,
+    separator: Boolean = true, pad: Dp = 20.dp, menu: MenuTarget? = null, flat: Boolean = false, showLine: Boolean = true, modifier: Modifier = Modifier, onClick: () -> Unit,
 ) {
     val lo = LocalLo.current
     val openMenu = LocalTrackMenu.current
     val haptic = rememberHaptic()
     val inset = pad + if (index != null) 36.dp else 66.dp
-    Column(modifier.fillMaxWidth().pressable(RoundedCornerShape(0.dp), onClick = onClick)) {
-        Row(Modifier.fillMaxWidth().padding(start = pad, end = if (pad < 12.dp) 0.dp else 12.dp, top = 7.dp, bottom = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+    Column(modifier.fillMaxWidth().pressable(RoundedCornerShape(0.dp), onLongClick = menu?.let { m -> { haptic(true); openMenu(m) } }, onClick = onClick)) {
+        Row(Modifier.fillMaxWidth().padding(start = pad, end = if (pad < 12.dp) 0.dp else 16.dp, top = 7.dp, bottom = 7.dp), verticalAlignment = Alignment.CenterVertically) {
             if (index != null) {
                 Box(Modifier.width(36.dp)) {
                     if (active) NowPlayingBars(lo.signal) else Text("${index + 1}", style = LoType.body, color = lo.grey)
@@ -367,11 +370,9 @@ fun MediaRow(
             }
             Column(Modifier.weight(1f)) {
                 Text(title, style = LoType.body, color = if (active) lo.signal else lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (line.isNotBlank()) Text(line, style = LoType.small, color = lo.grey, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (showLine && line.isNotBlank()) Text(line, style = LoType.small, color = lo.grey, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             if (trailing != null) Text(trailing, style = LoType.small, color = lo.grey, modifier = Modifier.padding(start = 10.dp))
-            if (menu != null) Box(Modifier.size(40.dp).a11y("More options").pressable(CircleShape) { haptic(true); openMenu(menu) }, Alignment.Center) { Ic(Ph.More, 22.dp, lo.grey) }
-            else Spacer(Modifier.width(6.dp))
         }
         if (separator && !flat) Hairline(inset)
     }
@@ -385,8 +386,8 @@ fun playingId(): String? {
 }
 
 @Composable
-fun TrackRow(song: SongItem, index: Int? = null, flat: Boolean = false, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    MediaRow(song.title, artistLine(song), song.thumbnail, song.duration?.let { formatTime(it * 1000L) }, index, playingId() == song.id, menu = MenuTarget(song.toMediaMetadata()), flat = flat, modifier = modifier, onClick = onClick)
+fun TrackRow(song: SongItem, index: Int? = null, flat: Boolean = false, showLine: Boolean = true, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    MediaRow(song.title, artistLine(song), song.thumbnail, song.duration?.let { formatTime(it * 1000L) }, index, playingId() == song.id, menu = MenuTarget(song.toMediaMetadata()), flat = flat, showLine = showLine, modifier = modifier, onClick = onClick)
 }
 
 /** Shelf card: square art with a soft edge, one line of title, one of grey detail. */

@@ -343,69 +343,61 @@ fun SavedArtistsScreen() {
 
 // ================================================================================ Detail pages
 
+/** What the header offers: play the list, shuffle it, and a few round extras (save, copy, radio, delete) shown in the top pill. */
+class DetailActions(val play: (() -> Unit)?, val shuffle: (() -> Unit)?, vararg val extras: Triple<ImageVector, String, () -> Unit>)
+
+/** "1:45:13" for a total running time in milliseconds (formatTime stops at minutes). */
+private fun runTime(ms: Long): String {
+    val s = ms / 1000
+    return if (s >= 3600) "%d:%02d:%02d".format(s / 3600, s % 3600 / 60, s % 60) else "%d:%02d".format(s / 60, s % 60)
+}
+
 /**
- * Album / playlist / artist page in the Apple Music (iOS 26.4) style: a wash of the artwork's colour behind
- * everything, large centred cover, bold title, tinted artist line, caption, glass Shuffle / white Play / add
- * buttons ([actions]) and flat song rows underneath.
+ * Album / playlist / artist page after the reference: a row of round controls on top, one big pastel card
+ * ("Selected for you", the title, the cover, the track count with the running time and a black shuffle button),
+ * then plain song rows with the running time on the right.
  */
 @Composable
 private fun Detail(
-    cover: String?, title: String, accent: String?, caption: String,
+    cover: String?, title: String, accent: String?, count: String, length: String? = null,
     round: Boolean = false,
-    actions: (@Composable RowScope.() -> Unit)? = null,
+    actions: DetailActions? = null,
     body: LazyListScope.() -> Unit,
 ) {
     val lo = LocalLo.current
     val nav = LocalNav.current
     val fill = tileColor(Math.floorMod(title.hashCode(), 4))
-    Box(Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = bottomPad())) {
-            item {
-                val shape = RoundedCornerShape(32.dp)
-                Column(Modifier.fillMaxWidth().statusBarsPadding().padding(top = 60.dp, start = 16.dp, end = 16.dp)) {
-                    Column(Modifier.fillMaxWidth().background(fill, shape).padding(horizontal = 22.dp, vertical = 22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        if (!accent.isNullOrBlank()) Text(accent, style = LoType.sub, color = lo.grey, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(title, style = LoType.title.copy(fontSize = 28.sp, lineHeight = 33.sp, fontWeight = FontWeight.Bold), color = lo.ink, textAlign = TextAlign.Center, maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp, bottom = 18.dp))
-                        BoxWithConstraints(Modifier.fillMaxWidth(), Alignment.Center) {
-                            val side = minOf(maxWidth, 260.dp)
-                            Cover(cover, side, round = round, radius = 24.dp)
-                        }
-                        if (caption.isNotBlank()) Text(caption, style = LoType.small.copy(fontSize = 14.sp), color = lo.grey, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 16.dp))
-                    }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = bottomPad())) {
+        item {
+            Row(Modifier.fillMaxWidth().statusBarsPadding().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                val extras = actions?.extras.orEmpty()
+                if (extras.isNotEmpty()) Row(Modifier.background(lo.surface2, CircleShape).padding(3.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    extras.forEach { (icon, label, go) -> Box(Modifier.size(40.dp).a11y(label).pressable(CircleShape, onClick = go), Alignment.Center) { IcV(icon, 20.dp, lo.ink) } }
                 }
-                if (actions != null) Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically, content = actions)
-                else Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.weight(1f))
+                RoundBtn(Ph.Close.vector, "Close", nav::pop, size = 44.dp)
             }
-            body()
+            Column(Modifier.padding(horizontal = 16.dp).fillMaxWidth().background(fill, RoundedCornerShape(32.dp)).padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(accent?.takeIf { it.isNotBlank() } ?: "Selected for you", style = LoType.small.copy(fontSize = 14.sp), color = lo.grey, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(title, style = LoType.title.copy(fontSize = 26.sp, lineHeight = 31.sp, fontWeight = FontWeight.Bold), color = lo.ink, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp, bottom = 18.dp))
+                BoxWithConstraints(Modifier.fillMaxWidth(), Alignment.Center) {
+                    val side = minOf(maxWidth * 0.78f, 280.dp)
+                    Cover(cover, side, round = round, radius = 28.dp)
+                }
+                Row(Modifier.fillMaxWidth().padding(top = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(48.dp).background(lo.bg.copy(alpha = 0.55f), RoundedCornerShape(14.dp)), Alignment.Center) { Ic(Ph.Waveform, 22.dp, lo.grey) }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(count, style = LoType.small.copy(fontWeight = FontWeight.SemiBold, fontSize = 14.sp), color = lo.ink)
+                        if (length != null) Text(length, style = LoType.small, color = lo.grey)
+                    }
+                    if (actions?.shuffle != null) Box(Modifier.size(52.dp).a11y("Shuffle").background(lo.signal, CircleShape).pressable(CircleShape, onClick = actions.shuffle), Alignment.Center) { IcV(Ph.Shuffle.vector, 22.dp, lo.onSignal) }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
         }
-        TopBar("", nav::pop)
+        body()
     }
-}
-
-/** Glass round button used beside the Play pill (Shuffle, add to library, radio). */
-@Composable
-private fun GlassRound(icon: ImageVector, label: String, onClick: () -> Unit) {
-    val lo = LocalLo.current
-    Box(Modifier.size(46.dp).a11y(label).background(lo.surface2, CircleShape).pressable(CircleShape, onClick = onClick), Alignment.Center) { IcV(icon, 21.dp, lo.ink) }
-}
-
-/**
- * Round glass Shuffle, a wide white Play pill and an optional round third button ([extra], e.g. add to library
- * or start radio), the row under the cover on album, playlist and artist pages.
- */
-@Composable
-private fun RowScope.PlayShuffle(play: () -> Unit, shuffle: () -> Unit, vararg extras: Triple<ImageVector, String, () -> Unit>) {
-    val lo = LocalLo.current
-    GlassRound(Ph.Shuffle.vector, "Shuffle", shuffle)
-    Row(
-        Modifier.width(if (extras.size > 1) 130.dp else 176.dp).height(46.dp).background(lo.signal, CircleShape).pressable(CircleShape, onClick = play),
-        horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
-    ) {
-        IcV(Ph.Play.vector, 18.dp, lo.onSignal)
-        Spacer(Modifier.width(8.dp))
-        Text("Play", style = LoType.body.copy(fontWeight = FontWeight.Bold, fontSize = 17.sp), color = lo.onSignal)
-    }
-    extras.forEach { (icon, label, go) -> GlassRound(icon, label, go) }
 }
 
 @Composable
@@ -424,20 +416,18 @@ fun AlbumScreen(id: String) {
             val saved by remember(db, id) { (db?.album(id) ?: flowOf<com.lomu.app.db.entities.Album?>(null)).map { it?.album?.bookmarkedAt != null } }.collectAsState(false)
             Detail(
                 page.album.thumbnail, page.album.title, page.album.artists?.joinToString(", ") { it.name },
-                listOfNotNull("Album", page.album.year?.toString(), "${page.songs.size} songs").joinToString(" · "),
-                actions = {
-                    PlayShuffle(
+                "${page.songs.size} songs", runTime(page.songs.sumOf { (it.duration ?: 0).toLong() } * 1000),
+                actions = DetailActions(
                         { player?.playList(page.album.title, page.songs) }, { player?.playList(page.album.title, page.songs.shuffled()) },
-                        Triple(if (saved) Ph.Check.vector else Ph.Plus.vector, "Save", {
+                        Triple(if (saved) Ph.HeartFill.vector else Ph.Heart.vector, "Save", {
                             db?.let { d -> scope.launch { setAlbumSaved(d, page, !saved, sync); android.widget.Toast.makeText(ctx, if (saved) "Removed from Library" else "Saved to Library", android.widget.Toast.LENGTH_SHORT).show() } }; Unit
                         }),
                         Triple(Ph.AddList.vector, "Copy to a playlist", {
                             db?.let { d -> scope.launch { saveAsPlaylist(d, page.album.title, page.songs.map { it.toMediaMetadata() }); android.widget.Toast.makeText(ctx, "Copied to Playlists", android.widget.Toast.LENGTH_SHORT).show() } }; Unit
                         }),
-                    )
-                },
+                    ),
             ) {
-                itemsIndexed(page.songs) { i, s -> TrackRow(s, flat = true, modifier = Modifier.appear(i)) { player?.playList(page.album.title, page.songs, i) } }
+                itemsIndexed(page.songs) { i, s -> TrackRow(s, flat = true, showLine = false, modifier = Modifier.appear(i)) { player?.playList(page.album.title, page.songs, i) } }
             }
         }
     }
@@ -459,20 +449,18 @@ fun PlaylistScreen(id: String) {
             val pid = id.removePrefix("VL")
             val saved by remember(db, pid) { (db?.playlist(pid) ?: flowOf<com.lomu.app.db.entities.Playlist?>(null)).map { it?.playlist?.let { p -> !p.isLocal && p.bookmarkedAt != null } == true } }.collectAsState(false)
             Detail(
-                page.playlist.thumbnail, page.playlist.title, page.playlist.author?.name, page.playlist.songCountText.orEmpty(),
-                actions = {
-                    PlayShuffle(
+                page.playlist.thumbnail, page.playlist.title, page.playlist.author?.name, page.playlist.songCountText ?: "${page.songs.size} songs", runTime(page.songs.sumOf { (it.duration ?: 0).toLong() } * 1000),
+                actions = DetailActions(
                         { player?.playPlaylist(id, page.playlist.title, page.songs, page.songsContinuation) }, { player?.playList(page.playlist.title, page.songs.shuffled()) },
-                        Triple(if (saved) Ph.Check.vector else Ph.Plus.vector, "Save", {
+                        Triple(if (saved) Ph.HeartFill.vector else Ph.Heart.vector, "Save", {
                             db?.let { d -> scope.launch { setPlaylistSaved(d, pid, page.playlist.title, page.playlist.thumbnail, !saved, sync); android.widget.Toast.makeText(ctx, if (saved) "Removed from Library" else "Saved to Library", android.widget.Toast.LENGTH_SHORT).show() } }; Unit
                         }),
                         Triple(Ph.AddList.vector, "Copy to a playlist", {
                             db?.let { d -> scope.launch { saveAsPlaylist(d, page.playlist.title, page.songs.map { it.toMediaMetadata() }); android.widget.Toast.makeText(ctx, "Copied to Playlists", android.widget.Toast.LENGTH_SHORT).show() } }; Unit
                         }),
-                    )
-                },
+                    ),
             ) {
-                itemsIndexed(page.songs) { i, s -> TrackRow(s, flat = true, modifier = Modifier.appear(i)) { player?.playPlaylist(id, page.playlist.title, page.songs, page.songsContinuation, i) } }
+                itemsIndexed(page.songs) { i, s -> TrackRow(s, flat = true, showLine = false, modifier = Modifier.appear(i)) { player?.playPlaylist(id, page.playlist.title, page.songs, page.songsContinuation, i) } }
             }
         }
     }
@@ -495,27 +483,23 @@ fun ArtistScreen(id: String) {
             val sync = LocalSync.current
             val db = player?.database
             val saved by remember(db, id) { (db?.artist(id) ?: flowOf<com.lomu.app.db.entities.Artist?>(null)).map { it?.artist?.bookmarkedAt != null } }.collectAsState(false)
-            val saveButton = Triple(if (saved) Ph.Check.vector else Ph.Plus.vector, "Save", {
+            val saveButton = Triple(if (saved) Ph.HeartFill.vector else Ph.Heart.vector, "Save", {
                 db?.let { d -> scope.launch { setArtistSaved(d, page, !saved, sync); android.widget.Toast.makeText(ctx, if (saved) "Removed from Library" else "Saved to Library", android.widget.Toast.LENGTH_SHORT).show() } }; Unit
             })
             Detail(
-                page.artist.thumbnail, page.artist.title, page.subscriberCountText, "", round = true,
-                actions = if (firstSongs.isEmpty()) ({
-                    GlassRound(saveButton.first, saveButton.second, saveButton.third)
-                }) else ({
-                    PlayShuffle(
-                        { player?.playList(page.artist.title, firstSongs) }, { player?.playList(page.artist.title, firstSongs.shuffled()) },
-                        Triple(Ph.Radio.vector, "Start Radio", { player?.playRadio(firstSongs.first()); Unit }),
-                        saveButton,
-                    )
-                }),
+                page.artist.thumbnail, page.artist.title, "Artist", page.subscriberCountText.orEmpty(), round = true,
+                actions = if (firstSongs.isEmpty()) DetailActions(null, null, saveButton) else DetailActions(
+                    { player?.playList(page.artist.title, firstSongs) }, { player?.playList(page.artist.title, firstSongs.shuffled()) },
+                    Triple(Ph.Radio.vector, "Start Radio", { player?.playRadio(firstSongs.first()); Unit }),
+                    saveButton,
+                ),
             ) {
                 items(page.sections) { sec ->
                     val songs = sec.items.filterIsInstance<SongItem>()
                     if (songs.isNotEmpty() && songs.size == sec.items.size) {
                         Column {
                             CaptionedTitle(sec.title, null, "See All") { player?.playList(sec.title, songs) }
-                            songs.take(5).forEachIndexed { i, s -> TrackRow(s, flat = true, modifier = Modifier.appear(i)) { player?.playList(sec.title, songs, i) } }
+                            songs.take(5).forEachIndexed { i, s -> TrackRow(s, flat = true, showLine = false, modifier = Modifier.appear(i)) { player?.playList(sec.title, songs, i) } }
                         }
                     } else Shelf(sec.title, sec.items)
                 }
@@ -551,9 +535,8 @@ fun LocalPlaylistScreen(id: String) {
     val sync = LocalSync.current
     var confirmDelete by remember(id) { mutableStateOf(false) }
     Detail(
-        meta?.playlist?.thumbnailUrl ?: songs.firstOrNull()?.song?.song?.thumbnailUrl, meta?.playlist?.name ?: "Playlist", null, "${songs.size} songs",
-        actions = {
-            PlayShuffle(
+        meta?.playlist?.thumbnailUrl ?: songs.firstOrNull()?.song?.song?.thumbnailUrl, meta?.playlist?.name ?: "Playlist", null, "${songs.size} songs", runTime(songs.sumOf { it.song.song.duration.toLong() } * 1000),
+        actions = DetailActions(
                 { player?.playMediaItems("Playlist", items) }, { player?.playMediaItems("Playlist", items.shuffled()) },
                 Triple(Ph.Trash.vector, if (confirmDelete) "Tap again to delete this playlist" else "Delete playlist", {
                     val pl = meta?.playlist
@@ -561,13 +544,12 @@ fun LocalPlaylistScreen(id: String) {
                     else if (pl != null) player?.database?.let { d -> scope.launch(kotlinx.coroutines.Dispatchers.IO) { d.withTransaction { delete(pl) }; runCatching { sync?.sync() } }; nav.pop() }
                     Unit
                 }),
-            )
-        },
+            ),
     ) {
         if (songs.isEmpty()) item { EmptyState(Ph.Playlist, "This playlist is empty") }
         itemsIndexed(songs) { i, s ->
             MediaRow(
-                s.song.song.title, s.song.artists.joinToString { it.name }, s.song.song.thumbnailUrl, active = now == s.song.song.id, flat = true, modifier = Modifier.appear(i),
+                s.song.song.title, s.song.artists.joinToString { it.name }, s.song.song.thumbnailUrl, trailing = formatTime(s.song.song.duration * 1000L), active = now == s.song.song.id, flat = true, showLine = false, modifier = Modifier.appear(i),
                 menu = MenuTarget(s.song.toMediaMetadata(), "Remove from this Playlist") { player?.database?.let { d -> scope.launch(kotlinx.coroutines.Dispatchers.IO) { d.withTransaction { deletePlaylistSongMap(s.map.id) } } } },
             ) {
                 player?.playMediaItems("Playlist", items, i)
