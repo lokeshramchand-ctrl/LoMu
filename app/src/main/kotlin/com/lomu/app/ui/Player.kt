@@ -221,7 +221,7 @@ private fun FullPlayerContent(onClose: () -> Unit) {
 @Composable
 private fun ToggleChip(icon: ImageVector, on: Boolean, label: String, onClick: () -> Unit) {
     val lo = LocalLo.current
-    Box(Modifier.size(width = 36.dp, height = 28.dp).background(if (on) lo.signal else lo.grey.copy(alpha = 0.25f), RoundedCornerShape(7.dp)).a11y(label, if (on) "On" else "Off").pressable(RoundedCornerShape(7.dp), onClick = onClick), Alignment.Center) {
+    Box(Modifier.a11y(label, if (on) "On" else "Off").pressable(RoundedCornerShape(7.dp), onClick = onClick).minTouch().size(width = 36.dp, height = 28.dp).background(if (on) lo.signal else lo.grey.copy(alpha = 0.25f), RoundedCornerShape(7.dp)), Alignment.Center) {
         IcV(icon, 18.dp, if (on) Color.White else lo.ink)
     }
 }
