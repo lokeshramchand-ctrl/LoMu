@@ -37,7 +37,7 @@ export default function AlbumPage({ params }: { params: Promise<{ id: string }> 
           </button>
         }
         extra={data.more.map((s, i) => (
-          <ShelfTile key={s.title} shelf={s} kicker={String(i + 3).padStart(2, '0')} />
+          <ShelfTile key={s.title} shelf={s} />
         ))}
       />
     </>

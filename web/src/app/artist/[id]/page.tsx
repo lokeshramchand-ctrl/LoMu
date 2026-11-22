@@ -28,8 +28,6 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
     ['Audience', data.subscribers],
   ].filter(([, v]) => !!v) as [string, string][];
   const hasAbout = !!data.description || facts.length > 0;
-  let n = 0;
-  const k = () => String(++n).padStart(2, '0');
 
   return (
     <Bento className="fade-in">
@@ -68,7 +66,6 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
           span={12}
           md={12}
           flush
-          kicker={k()}
           title="Popular"
           sub={`${data.topSongs.length} songs`}
           label="Top songs"
@@ -89,7 +86,7 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
       )}
 
       {hasAbout && (
-        <Tile span={12} md={12} tone="card" kicker={k()} title="About" label="About">
+        <Tile span={12} md={12} tone="card" title="About" label="About">
           {data.description && (
             <div>
               <p className={`bio${bioOpen ? '' : ' clamp4'}`}>{data.description}</p>
@@ -113,7 +110,7 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
       )}
 
       {data.shelves.map((s) => (
-        <ShelfTile key={s.title} shelf={s} kicker={k()} />
+        <ShelfTile key={s.title} shelf={s} />
       ))}
 
       <style jsx global>{`

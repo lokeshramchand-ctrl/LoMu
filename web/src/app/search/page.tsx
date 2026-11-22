@@ -69,8 +69,9 @@ function SearchInner() {
   return (
     <Bento className="fade-in">
       <h1 className="sr-only">Search</h1>
+      <div className="bento-full sb">
       <form
-        className="box bento-full"
+        className="box"
         onSubmit={(e) => {
           e.preventDefault();
           submit(text);
@@ -95,38 +96,20 @@ function SearchInner() {
         )}
       </form>
 
-      {focused && (text.trim().length > 1 ? sugg.data : recent.length > 0) && (
-        <div className="sugg card fade-in bento-full">
-          {text.trim().length > 1 ? (
-            <>
-              {sugg.data?.queries.map((s) => (
-                <button key={s} className="srow" onMouseDown={(e) => e.preventDefault()} onClick={() => submit(s)}>
-                  <Icon name="search" size={16} />
-                  <span className="clamp1">{s}</span>
-                </button>
-              ))}
-              {sugg.data?.items.map((it) => (
-                <SuggestItem key={it.kind + it.id} item={it} onDone={() => setFocused(false)} />
-              ))}
-            </>
-          ) : (
-            <>
-              <div className="row" style={{ justifyContent: 'space-between', padding: '6px 12px' }}>
-                <span className="eyebrow" style={{ color: 'var(--muted)' }}>Recent</span>
-                <button className="muted" style={{ fontSize: 12.5, fontWeight: 500 }} onMouseDown={(e) => e.preventDefault()} onClick={() => useLibrary.getState().clearSearches()}>
-                  Clear
-                </button>
-              </div>
-              {recent.map((s) => (
-                <button key={s} className="srow" onMouseDown={(e) => e.preventDefault()} onClick={() => submit(s)}>
-                  <Icon name="history" size={16} />
-                  <span className="clamp1">{s}</span>
-                </button>
-              ))}
-            </>
-          )}
+      {focused && text.trim().length > 1 && sugg.data && (
+        <div className="sugg card fade-in">
+          {sugg.data.queries.map((s) => (
+            <button key={s} className="srow" onMouseDown={(e) => e.preventDefault()} onClick={() => submit(s)}>
+              <Icon name="search" size={16} />
+              <span className="clamp1">{s}</span>
+            </button>
+          ))}
+          {sugg.data.items.map((it) => (
+            <SuggestItem key={it.kind + it.id} item={it} onDone={() => setFocused(false)} />
+          ))}
         </div>
       )}
+      </div>
 
       {q && isLoading && (
         <Tile span={12} flush label="Loading results">
@@ -135,7 +118,7 @@ function SearchInner() {
       )}
       {error && (
         <Tile span={12} tone="quiet" label="Search error">
-          <div className="callout err"><Icon name="warn" size={16} />Search failed: {(error as Error).message}</div>
+          <div className="callout err"><Icon name="warn" size={16} />Search did not finish. Check your connection and try again.</div>
         </Tile>
       )}
 
@@ -166,7 +149,6 @@ function SearchInner() {
                   span={data.top ? 7 : 12}
                   md={12}
                   flush
-                  kicker="01"
                   title="Songs"
                   label="Songs"
                   action={
@@ -184,10 +166,10 @@ function SearchInner() {
                   </div>
                 </Tile>
               )}
-              {data.artists.length > 0 && <ShelfTile shelf={{ title: 'Artists', items: data.artists }} kicker="02" />}
-              {data.albums.length > 0 && <ShelfTile shelf={{ title: 'Albums & singles', items: data.albums }} kicker="03" />}
-              {data.playlists.length > 0 && <ShelfTile shelf={{ title: 'Playlists', items: data.playlists }} kicker="04" />}
-              {data.videos.length > 0 && <ShelfTile shelf={{ title: 'Videos', items: data.videos }} kicker="05" />}
+              {data.artists.length > 0 && <ShelfTile shelf={{ title: 'Artists', items: data.artists }} />}
+              {data.albums.length > 0 && <ShelfTile shelf={{ title: 'Albums & singles', items: data.albums }} />}
+              {data.playlists.length > 0 && <ShelfTile shelf={{ title: 'Playlists', items: data.playlists }} />}
+              {data.videos.length > 0 && <ShelfTile shelf={{ title: 'Videos', items: data.videos }} />}
             </>
           )}
 
@@ -195,7 +177,6 @@ function SearchInner() {
             <Tile
               span={12}
               flush
-              kicker="01"
               title="Songs"
               sub={`${data.songs.length} results`}
               label="Songs"
@@ -230,7 +211,6 @@ function SearchInner() {
           {recent.length > 0 && (
             <Tile
               span={12}
-              kicker="01"
               title="Recent searches"
               label="Recent searches"
               action={
@@ -248,7 +228,7 @@ function SearchInner() {
               </div>
             </Tile>
           )}
-          <Tile span={12} kicker={recent.length > 0 ? '02' : '01'} title="Browse categories" label="Browse categories">
+          <Tile span={12} title="Browse categories" label="Browse categories">
             <div className="cats">
               {CATS.map(([label, hue]) => (
                 <button key={label} className="cat" style={{ ['--hue' as string]: hue }} onClick={() => submit(label)}>
@@ -272,11 +252,12 @@ function SearchInner() {
         .box:focus-within { background: var(--card-hover); box-shadow: 0 0 0 2px var(--ink); color: var(--text); }
         .box input { flex: 1; border: 0; outline: 0; background: transparent; font-size: 16px; font-weight: 400; color: var(--ink); min-width: 0; }
         .box input::placeholder { color: var(--muted); font-weight: 400; }
-        .sugg { position: absolute; z-index: 30; margin-top: 8px; width: min(640px, calc(100% - 2 * var(--gutter))); padding: 8px; background: var(--card-hover); border-radius: 8px; box-shadow: var(--lift-hi); }
-        :global(.srow) { display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 12px; border-radius: 4px; text-align: left; font-weight: 400; font-size: 16px; color: var(--text); }
+        .sb { position: relative; }
+        .sugg { position: absolute; z-index: 30; inset-inline-start: 0; top: calc(100% + 8px); width: min(640px, 100%); padding: 8px; background: var(--card-hover); border-radius: var(--r); box-shadow: var(--shadow-lg), 0 0 0 1px var(--border-2); }
+        :global(.srow) { display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 12px; border-radius: var(--r-sm); text-align: start; font-weight: 400; font-size: 1rem; color: var(--text); }
         :global(.srow:hover) { background: var(--row-hover); }
         .pills { display: flex; flex-wrap: wrap; gap: 8px; }
-        .pill { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 14px; border-radius: 16px; background: var(--pill); font-size: 14px; font-weight: 500; transition: background .2s; }
+        .pill { display: inline-flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 14px; border-radius: var(--r); background: var(--pill); font-size: 14px; font-weight: 500; transition: background .2s; }
         .pill:hover { background: var(--pill-hover); }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(164px, 1fr)); gap: 24px 20px; }
         @media (max-width: 900px) {
@@ -335,7 +316,7 @@ function TopResult({ item }: { item: Item }) {
 
 function ItemGrid({ items, title }: { items: Item[]; title: string }) {
   return (
-    <Tile span={12} kicker="01" title={title} sub={`${items.length} results`} label={title}>
+    <Tile span={12} title={title} sub={`${items.length} results`} label={title}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(168px, 1fr))', gap: 'var(--sp-4)' }}>
         {items.map((it) => (
           <ItemCard key={it.kind + it.id} item={it} />

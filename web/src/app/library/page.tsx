@@ -126,7 +126,7 @@ export default function Library() {
       )}
 
       {tab === 'playlists' && (
-        <Tile span={12} kicker="01" title="Playlists" label="Playlists">
+        <Tile span={12} title="Playlists" label="Playlists">
         <div className="grid">
           {naming ? (
             <form
@@ -169,7 +169,7 @@ export default function Library() {
       )}
 
       {tab === 'albums' && (
-        <Tile span={12} kicker="01" title="Albums" label="Albums">
+        <Tile span={12} title="Albums" label="Albums">
         <div className="grid">
           {Object.values(albums).length === 0 && <Empty icon="disc" title="No saved albums" text="Save albums with the Save button on any album page." />}
           {Object.values(albums)
@@ -182,7 +182,7 @@ export default function Library() {
       )}
 
       {tab === 'artists' && (
-        <Tile span={12} kicker="01" title="Artists" label="Artists">
+        <Tile span={12} title="Artists" label="Artists">
         <div className="grid">
           {Object.values(artists).length === 0 && <Empty icon="user" title="No followed artists" text="Follow artists from their page and they show up here." />}
           {Object.values(artists)
@@ -195,7 +195,7 @@ export default function Library() {
       )}
 
       {tab === 'history' && (
-        <Tile span={12} flush kicker="01" title="History" sub={`${historyTracks.length} plays`} label="History">
+        <Tile span={12} flush title="History" sub={`${historyTracks.length} plays`} label="History">
           {historyTracks.length === 0 && <EmptyState icon={q ? 'search' : 'history'} title={q ? 'No matches' : 'Nothing played yet'} hint={q ? `Nothing in your history matches “${filter}”.` : 'Songs you play will appear here.'} />}
           <div className="list">
             {historyTracks.map((t, i) => (
@@ -225,7 +225,7 @@ export default function Library() {
         :global(.pl:hover) { background: var(--card-hover); }
         .t { font-weight: 700; font-size: 16px; margin-top: 16px; }
         .s { font-size: 14px; margin-top: 4px; }
-        @media (max-width: 900px) { .grid { grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); } .hero { flex-direction: column; align-items: flex-start; } }
+        @media (max-width: 900px) { .grid { grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); } .hero { gap: 16px; } .hero .grow { flex: 1 1 calc(100% - 112px); } .likeart { width: 96px; height: 96px; } }
       `}</style>
     </Bento>
   );

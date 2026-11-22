@@ -130,12 +130,13 @@ export function Collection({
 }
 
 export function PageError({ error, retry }: { error: unknown; retry?: () => void }) {
+  if (error) console.error(error); // details stay in the console, not on the page
   return (
     <div className="callout err" style={{ maxWidth: 560 }}>
       <Icon name="warn" size={20} />
       <div className="grow">
-        <b>Couldn&apos;t load this page</b>
-        <div className="small">{error instanceof Error ? error.message : String(error ?? 'Unknown error')}</div>
+        <b>This page did not load</b>
+        <div className="small">Check your connection and try again.</div>
       </div>
       {retry && (
         <button className="btn sm" onClick={retry}>

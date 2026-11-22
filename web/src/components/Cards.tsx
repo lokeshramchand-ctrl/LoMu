@@ -140,15 +140,14 @@ export function ShelfRow({ shelf, action }: { shelf: Shelf; action?: React.React
   );
 }
 
-/** A shelf as a bento tile: title and kicker on top, cards scrolling inside. */
-export function ShelfTile({ shelf, action, kicker, span = 12 }: { shelf: Shelf; action?: React.ReactNode; kicker?: string; span?: number }) {
+/** A shelf as a bento tile: title on top, cards scrolling inside. */
+export function ShelfTile({ shelf, action, span = 12 }: { shelf: Shelf; action?: React.ReactNode; span?: number }) {
   const songs = shelf.items.filter((i): i is Track => i.kind === 'song');
   const [open, setOpen] = useState(false);
   return (
     <Tile
       span={span}
       md={12}
-      kicker={kicker}
       title={shelf.title}
       sub={shelf.subtitle}
       action={

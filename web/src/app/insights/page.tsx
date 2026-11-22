@@ -61,7 +61,7 @@ export default function Insights() {
   if (!history.length) {
     return (
       <>
-        <PageHeader eyebrow="Insights" title="Your listening" />
+        <PageHeader  title="Your listening" />
         <EmptyState icon="history" title="Nothing to analyse yet" hint="Play some songs and your listening habits will show up here." />
       </>
     );
@@ -69,7 +69,7 @@ export default function Insights() {
 
   return (
     <Bento className="fade-in">
-      <PageHeader eyebrow="Insights" title="Your listening" sub="Built from your play history on every device." />
+      <PageHeader  title="Your listening" sub="Built from your play history on every device." />
 
       <Tile span={3} md={6} sm={6} tone="card" title="Time listened" sub="Awake, all time">
         <Big value={formatSpan(stats.totalMs)} />
@@ -77,7 +77,7 @@ export default function Insights() {
       </Tile>
       <Tile span={3} md={6} sm={6} tone="card" title="Last 30 days">
         <Big value={formatSpan(stats.monthMs)} />
-        <div className="muted small">{stats.newArtistsThisMonth} new artists</div>
+        <div className="muted small">{stats.newArtistsThisMonth} new {stats.newArtistsThisMonth === 1 ? 'artist' : 'artists'}</div>
       </Tile>
       <Tile span={3} md={6} sm={6} tone="card" title="Daily average" sub="On days you listen">
         <Big value={formatSpan(stats.avgDayMs)} />
@@ -97,7 +97,7 @@ export default function Insights() {
 
       <SleepTile sessions={sessions} />
 
-      <Tile span={6} md={12} flush kicker="01" title="Top artists" sub="By time listened">
+      <Tile span={6} md={12} flush title="Top artists" sub="By time listened">
         <ol className="rank">
           {stats.topArtistsMs.slice(0, 8).map((a, i) => (
             <li key={a.name}>
@@ -108,7 +108,7 @@ export default function Insights() {
           ))}
         </ol>
       </Tile>
-      <Tile span={6} md={12} flush kicker="02" title="Top songs" sub="By time listened">
+      <Tile span={6} md={12} flush title="Top songs" sub="By time listened">
         <ol className="rank">
           {stats.topTracks.slice(0, 8).map((t, i) => (
             <li key={t.track.id}>

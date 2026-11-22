@@ -9,7 +9,6 @@ export function Sheet({
   open,
   onClose,
   title,
-  eyebrow,
   sub,
   children,
   footer,
@@ -17,7 +16,6 @@ export function Sheet({
   open: boolean;
   onClose: () => void;
   title: string;
-  eyebrow?: string;
   sub?: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
@@ -44,7 +42,6 @@ export function Sheet({
       <aside className="sheet" role="dialog" aria-modal="true" aria-label={title}>
         <header>
           <div className="grow">
-            {eyebrow && <div className="eyebrow">{eyebrow}</div>}
             <h2>{title}</h2>
             {sub && <p className="muted">{sub}</p>}
           </div>
@@ -166,13 +163,12 @@ export function EmptyState({ icon, title, hint, action }: { icon: IconName; titl
   );
 }
 
-export function PageHeader({ eyebrow, title, sub, actions }: { eyebrow?: string; title: React.ReactNode; sub?: string; actions?: React.ReactNode }) {
+export function PageHeader({ title, sub, actions }: { title: React.ReactNode; sub?: string; actions?: React.ReactNode }) {
   const user = useAuth((s) => s.user);
   return (
     <header className="page-head fade-in">
       <Link href="/settings" className="avatar-link" aria-label="Account and settings">{(user ?? 'L')[0]?.toUpperCase()}</Link>
       <div>
-        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
         <h1 className="h1">{title}</h1>
         {sub && <p className="sub">{sub}</p>}
       </div>
