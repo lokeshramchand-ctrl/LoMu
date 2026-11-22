@@ -11,8 +11,8 @@ const GUEST_PW = 'guest-password-1';
 test.describe.configure({ mode: 'serial' });
 
 async function signIn(page: Page, user: string, pw: string) {
-  await page.getByPlaceholder('Username').fill(user);
-  await page.getByPlaceholder('Password').fill(pw);
+  await page.getByLabel('Username', { exact: true }).fill(user);
+  await page.getByLabel('Password', { exact: true }).fill(pw);
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.getByRole('button', { name: 'Sign in' })).toBeHidden({ timeout: 15_000 });
 }
@@ -47,14 +47,14 @@ test('admin adds a guest account from Settings', async ({ page }) => {
   await page.goto('/settings');
   await signIn(page, OWNER, OWNER_PW);
   await expect(page.getByText(/\d of 4 accounts/)).toBeVisible();
-  await page.getByPlaceholder('Username', { exact: true }).fill(GUEST);
-  await page.getByPlaceholder('Password (8+ characters)').last().fill(GUEST_PW);
+  await page.getByLabel('Username', { exact: true }).fill(GUEST);
+  await page.getByLabel('Password, at least 8 characters', { exact: true }).fill(GUEST_PW);
   await page.getByRole('button', { name: 'Add account' }).click();
   await expect(page.getByText(`${GUEST}`, { exact: false }).first()).toBeVisible();
   await expect(page.getByText('Account added')).toBeVisible();
   // a duplicate (other letter case) is refused with a message
-  await page.getByPlaceholder('Username', { exact: true }).fill('GUEST1');
-  await page.getByPlaceholder('Password (8+ characters)').last().fill(GUEST_PW);
+  await page.getByLabel('Username', { exact: true }).fill('GUEST1');
+  await page.getByLabel('Password, at least 8 characters', { exact: true }).fill(GUEST_PW);
   await page.getByRole('button', { name: 'Add account' }).click();
   await expect(page.getByText('that username is taken')).toBeVisible();
 });

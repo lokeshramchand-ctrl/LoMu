@@ -10,7 +10,11 @@ import { toast } from '@/components/Toast';
 
 function length(seconds: number) {
   const m = Math.round(seconds / 60);
-  return m >= 60 ? `${Math.floor(m / 60)} hr ${m % 60} min` : `${m} min`;
+  const hours = Math.floor(m / 60);
+  const rest = m % 60;
+  const hoursText = `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+  const minutesText = `${rest} ${rest === 1 ? 'minute' : 'minutes'}`;
+  return hours > 0 ? `${hoursText} ${minutesText}` : minutesText;
 }
 
 export default function UserPlaylistPage({ params }: { params: Promise<{ id: string }> }) {
@@ -58,7 +62,7 @@ export default function UserPlaylistPage({ params }: { params: Promise<{ id: str
           </form>
         ) : undefined
       }
-      empty={<EmptyState title="This playlist is empty" hint="Open the ⋯ menu on any song and choose “Add to playlist”." />}
+      empty={<EmptyState title="This playlist is empty" hint={'Use the More button on any song and choose "Add to playlist".'} />}
       actions={
         <>
           <button
@@ -79,7 +83,7 @@ export default function UserPlaylistPage({ params }: { params: Promise<{ id: str
                 className="btn primary"
                 onClick={() => {
                   useLibrary.getState().deletePlaylist(p.id);
-                  toast(`Deleted “${p.name}”`);
+                  toast(`Deleted "${p.name}"`);
                   router.replace('/library');
                 }}
               >

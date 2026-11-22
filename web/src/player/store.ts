@@ -272,7 +272,7 @@ const engine = (() => {
         a.play().catch(() => {});
         return;
       }
-      set({ error: `Couldn't play “${t.title}”`, buffering: false });
+      set({ error: `Could not play "${t.title}"`, buffering: false });
       setTimeout(() => {
         if (currentTrack(S())?.id === t.id) S().next(true);
       }, 1800);

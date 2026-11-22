@@ -135,7 +135,7 @@ export function TrackMenuHost() {
             close();
           }}
         >
-          <input autoFocus aria-label="Playlist name" placeholder="Playlist name…" autoComplete="off" value={newName} maxLength={80} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && (e.stopPropagation(), setMode('playlists'))} />
+          <div className="nfield"><label htmlFor="new-playlist-name">Playlist name</label><input id="new-playlist-name" autoFocus autoComplete="off" value={newName} maxLength={80} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && (e.stopPropagation(), setMode('playlists'))} /></div>
           <button type="submit" disabled={!newName.trim()}>Create</button>
         </form>
       ) : (
@@ -153,7 +153,8 @@ export function TrackMenuHost() {
         :global(.menu-item svg) { color: var(--muted); flex: none; }
         :global(.menu-item:hover) { background: var(--row-hover); }
         :global(.menu-item:hover svg) { color: var(--text); }
-        .namebox { display: flex; gap: 6px; padding: 4px; }
+        .namebox { display: flex; align-items: flex-end; gap: 6px; padding: 4px; }
+        .nfield { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; font-size: .75rem; color: var(--muted); }
         .namebox input { flex: 1; min-width: 0; height: 30px; padding: 0 8px; border-radius: var(--r-sm); border: 1px solid var(--border-2); background: var(--surface); color: var(--text); font: inherit; font-size: 13px; }
         .namebox input:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
         .namebox input:focus { border-color: var(--signal); }

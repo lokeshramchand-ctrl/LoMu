@@ -24,7 +24,7 @@ export default function ExploreGate() {
   if (!enabled)
     return (
       <Bento>
-        <PageHeader  title="Explore is off" sub="Turn it on under Settings → Developer." />
+        <PageHeader  title="Explore is off" sub="Turn it on in Settings, under Developer." />
         <Tile span={12} tone="quiet" label="Explore is off">
           <div>
             <Link href="/settings" className="btn primary">
