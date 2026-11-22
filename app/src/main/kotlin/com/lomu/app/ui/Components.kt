@@ -139,11 +139,12 @@ fun IconBtnV(icon: ImageVector, onClick: () -> Unit, size: Dp = 40.dp, iconSize:
 
 /** Artwork: a hairline-edged rounded square with the placeholder grey behind it, like an Apple Music album cover. */
 @Composable
-fun Cover(url: String?, size: Dp, round: Boolean = false, modifier: Modifier = Modifier, radius: Dp = 10.dp) {
+fun Cover(url: String?, size: Dp, round: Boolean = false, modifier: Modifier = Modifier, radius: Dp = 10.dp, placeholderUrl: String? = null) {
     val lo = LocalLo.current
     val shape = if (round) CircleShape else RoundedCornerShape(radius)
     AsyncImage(
         model = url,
+        placeholder = placeholderUrl?.let { coil3.compose.rememberAsyncImagePainter(it) },
         contentDescription = null,
         contentScale = ContentScale.Crop,
         modifier = modifier.size(size).clip(shape).background(lo.surface2).border(0.5.dp, lo.line.copy(alpha = 0.8f), shape),
@@ -304,7 +305,7 @@ fun EmptyState(icon: Ph, title: String, hint: String? = null, modifier: Modifier
 }
 
 @Composable
-fun ErrorBox(message: String) = EmptyState(Ph.Warn, "Something went wrong", message)
+fun ErrorBox(message: String) = EmptyState(Ph.Warn, "Can't load this right now", message)
 
 fun artistLine(s: SongItem) = s.artists.joinToString(", ") { it.name }
 
@@ -552,7 +553,7 @@ fun SearchField(value: String, onChange: (String) -> Unit, hint: String, onSearc
             textStyle = LoType.body.copy(color = lo.ink, fontSize = 17.sp), cursorBrush = SolidColor(lo.signal),
             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Search),
             keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSearch = { onSearch() }),
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).semantics { contentDescription = hint },
             decorationBox = { inner ->
                 if (value.isEmpty()) Text(hint, style = LoType.body.copy(fontSize = 17.sp), color = lo.grey)
                 inner()
