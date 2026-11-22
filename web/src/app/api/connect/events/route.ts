@@ -1,4 +1,4 @@
-import { requireUser } from '@/server/auth';
+import { getUser, requireUser } from '@/server/auth';
 import { connect } from '@/server/connect';
 import { hubConnect } from '@/server/hub';
 
@@ -42,12 +42,22 @@ export async function GET(req: Request) {
         return;
       }
       ping = setInterval(() => {
+        if (user.username && !getUser(user.id)) {
+          off();
+          clearInterval(ping);
+          try {
+            c.close();
+          } catch {
+            /* already closed */
+          }
+          return;
+        }
         try {
           c.enqueue(enc.encode(': ping\n\n'));
         } catch {
           /* closed */
         }
-      }, 20_000);
+      }, Number(process.env.LOMU_PING_MS) || 20_000);
       req.signal.addEventListener('abort', () => {
         off();
         clearInterval(ping);

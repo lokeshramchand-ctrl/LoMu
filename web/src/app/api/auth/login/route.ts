@@ -1,3 +1,4 @@
+import { readJson } from '@/server/body';
 import { checkPassword, hasOwner, issueTokens, setAuthCookies } from '@/server/auth';
 import { clientIp, limiter } from '@/server/ratelimit';
 
@@ -8,7 +9,7 @@ const byName = limiter(10, 10 * 60_000);
 export async function POST(req: Request) {
   const ip = clientIp(req);
   try {
-    const body = await req.json();
+    const body = await readJson(req);
     const username = String(body?.username ?? '').trim().toLowerCase().slice(0, 64);
     const password = String(body?.password ?? '');
     const wait = Math.max(byIp.blocked(ip), byName.blocked(username));

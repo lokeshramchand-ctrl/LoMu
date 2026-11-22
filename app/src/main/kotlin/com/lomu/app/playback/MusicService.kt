@@ -2898,6 +2898,8 @@ class MusicService :
                                     .Builder()
                                     .dns(object : Dns {
                                         override fun lookup(hostname: String): List<InetAddress> {
+                                            // The LoMu server's stream proxy: same fallback to its home-network address as sync uses.
+                                            if (syncClient.isServerHost(hostname)) return syncClient.lanAwareDns.lookup(hostname)
                                             val addresses = Dns.SYSTEM.lookup(hostname)
                                             return when (this@MusicService.ipVersion) {
                                                 IpVersion.IPV4 -> addresses.filter { it is Inet4Address }.ifEmpty { addresses }
