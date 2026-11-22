@@ -319,6 +319,14 @@ ok(!page.headers.get('x-powered-by'), 'no X-Powered-By');
 for (const hd of ['x-content-type-options', 'referrer-policy', 'x-frame-options', 'permissions-policy']) {
   ok(!!page.headers.get(hd), `security header ${hd} present`);
 }
+const health = await call('GET', '/api/health');
+ok(health.status === 200 && health.json?.ok === true && health.json?.db === 'ok', '/api/health is up and anonymous', health.text.slice(0, 80));
+ok(Object.keys(health.json ?? {}).sort().join() === 'accounts,db,ok,uptime,version', 'health reveals only status, version, account count and uptime', Object.keys(health.json ?? {}).join());
+ok(!/lan|192\.168|10\.10/.test(health.text), 'health does not leak network addresses');
+const st0 = await call('GET', '/api/auth/status');
+ok(!('lan' in (st0.json ?? {})), 'anonymous status does not leak the home addresses');
+const stU = await call('GET', '/api/auth/status', { token: users.guest1.access });
+ok('lan' in (stU.json ?? {}), 'signed-in status carries the home addresses field');
 const api = await call('GET', '/api/auth/status');
 ok(!!api.headers.get('x-content-type-options'), 'API responses carry X-Content-Type-Options');
 ok((await call('GET', '/api/sync', { token: users.guest1.access })).headers.get('cache-control')?.includes('no-store') ?? true, 'sync not cacheable');

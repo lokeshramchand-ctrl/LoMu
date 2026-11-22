@@ -187,7 +187,7 @@ function HubGroup({ kicker }: { kicker: string }) {
           <input placeholder="Server address" value={url} onChange={(e) => setUrl(e.target.value)} />
           <input placeholder="Username" autoComplete="username" value={u} onChange={(e) => setU(e.target.value)} />
           <input type="password" placeholder="Password" autoComplete="current-password" value={p} onChange={(e) => setP(e.target.value)} />
-          <input placeholder="Home network address (optional, like 192.168.1.17)" inputMode="decimal" value={lan} onChange={(e) => setLan(e.target.value)} style={{ flexBasis: '100%' }} />
+          <input placeholder="Home network address (optional, like 10.10.10.136; several allowed, comma separated)" inputMode="decimal" value={lan} onChange={(e) => setLan(e.target.value)} style={{ flexBasis: '100%' }} />
           <button className="btn primary" disabled={busy || !u || !p || !url}>{busy ? 'Connecting…' : 'Connect'}</button>
           {err && <div className="err">{err}</div>}
         </form>

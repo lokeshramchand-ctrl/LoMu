@@ -1,6 +1,6 @@
 import 'server-only';
 import { getSetting, setSetting } from './db';
-import { isLanAddress, isNetworkError, reach } from './lanfetch';
+import { checkAddresses, isNetworkError, parseAddresses, reach } from './lanfetch';
 import { applyRemote, currentSeq, onChange, pull, type Row } from './sync';
 
 // The desktop app belongs to one person: the first (and only) account in its own database.
@@ -20,7 +20,7 @@ export type HubStatus = {
   lastSync: number | null;
   pending: number; // local changes not yet at the hub
   error: string | null;
-  lan: string | null; // the server's address on the home network, used when its public name cannot be reached from here
+  lan: string | null; // the server's addresses on the home network (comma separated), used when its public name cannot be reached from here
   route: 'direct' | 'lan' | null; // which way the last request got through
 };
 
@@ -34,10 +34,11 @@ type Runtime = {
   started: boolean;
   refreshing: Promise<boolean> | null;
   route: 'direct' | 'lan' | null;
+  address: string | null; // the home address that last worked
 };
 type G = typeof globalThis & { __lomuHub?: Runtime };
 const rt: Runtime = ((globalThis as G).__lomuHub ??= {
-  state: 'off', lastSync: null, error: null, timer: null, running: false, failures: 0, started: false, refreshing: null, route: null,
+  state: 'off', lastSync: null, error: null, timer: null, running: false, failures: 0, started: false, refreshing: null, route: null, address: null,
 });
 
 const num = (k: string) => Number(getSetting(k) ?? 0) || 0;
@@ -64,12 +65,13 @@ const base = () => (getSetting('hub_url') ?? '').replace(/\/+$/, '');
 /** One request to the hub: the public name first, then the LAN address (or the reverse once the LAN has proved to be the way in). */
 async function transport(url: string, init: RequestInit, timeoutMs: number | null): Promise<Response> {
   const lan = getSetting('hub_lan') || null;
-  const { res, route } = await reach(
+  const { res, route, address } = await reach(
     url,
     { ...init, signal: init.signal ?? (timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined) },
-    { lan, preferLan: rt.route === 'lan', attemptMs: 7000 },
+    { lan, preferLan: rt.route === 'lan', attemptMs: 7000, lastGood: rt.address },
   );
   rt.route = lan ? route : 'direct';
+  rt.address = route === 'lan' ? address : rt.address;
   return res;
 }
 
@@ -98,7 +100,8 @@ async function learnLan() {
     if (getSetting('hub_lan')) return;
     const r = await hubFetch('/api/auth/status', {}, true, 10_000);
     const j = (await r.json()) as { lan?: string | null };
-    if (j.lan && isLanAddress(j.lan)) setSetting('hub_lan', j.lan);
+    const found = parseAddresses(j.lan);
+    if (found.length) setSetting('hub_lan', found.join(','));
   } catch {
     /* optional */
   }
@@ -106,10 +109,11 @@ async function learnLan() {
 
 /** Sets (or clears, with an empty string) the home-network address of the server. */
 export function setHubLan(address: string) {
-  const a = address.trim();
-  if (a && !isLanAddress(a)) throw new Error('Use the address of the server on your home network, like 192.168.1.17');
-  setSetting('hub_lan', a);
+  const { ok, bad } = checkAddresses(address);
+  if (bad.length) throw new Error(`Not a home network address: ${bad.join(', ')}. Use addresses like 10.10.10.136 or 192.168.1.17, separated by commas.`);
+  setSetting('hub_lan', ok.join(','));
   rt.route = null;
+  rt.address = null;
   if (getSetting('hub_url') && !rt.running) kick(0);
 }
 
@@ -159,8 +163,9 @@ function refreshTokens(): Promise<boolean> {
 export async function connectHub(url: string, username: string, password: string, lan = ''): Promise<void> {
   const u = url.trim().replace(/\/+$/, '');
   if (!/^https?:\/\//i.test(u)) throw new Error('Start the address with https://');
-  if (lan.trim() && !isLanAddress(lan)) throw new Error('The home network address should look like 192.168.1.17');
-  if (lan.trim()) setSetting('hub_lan', lan.trim());
+  const lanCheck = checkAddresses(lan);
+  if (lanCheck.bad.length) throw new Error(`Not a home network address: ${lanCheck.bad.join(', ')}. Use addresses like 10.10.10.136 or 192.168.1.17, separated by commas.`);
+  if (lanCheck.ok.length) setSetting('hub_lan', lanCheck.ok.join(','));
   rt.route = null;
   let r: Response;
   try {
@@ -174,7 +179,7 @@ export async function connectHub(url: string, username: string, password: string
     throw new Error(
       getSetting('hub_lan')
         ? "Can't reach that server, either by its name or at its home network address."
-        : "Can't reach that server. Check the address and your internet connection. If you are on the same network as the server, add its home network address (like 192.168.1.17).",
+        : "Can't reach that server. Check the address and your internet connection. If you are on the same network as the server, add its home network address (like 10.10.10.136).",
     );
   }
   const j = (await r.json().catch(() => ({}))) as { access?: string; refresh?: string; error?: string };

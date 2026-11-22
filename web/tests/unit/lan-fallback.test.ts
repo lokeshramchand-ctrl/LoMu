@@ -139,6 +139,32 @@ describe('reach', () => {
     expect(seenHosts).toContain('stream-closed');
   });
 
+  it('parses a list of home addresses and rejects anything that is not private', () => {
+    expect(lan.parseAddresses('10.10.10.136, 192.168.1.17')).toEqual(['10.10.10.136', '192.168.1.17']);
+    expect(lan.parseAddresses('10.10.10.136;8.8.8.8  10.10.10.136 192.168.1.17')).toEqual(['10.10.10.136', '192.168.1.17']);
+    expect(lan.parseAddresses('1.1.1.1')).toEqual([]);
+    expect(lan.parseAddresses(null)).toEqual([]);
+    expect(lan.parseAddresses('10.0.0.1,10.0.0.2,10.0.0.3,10.0.0.4,10.0.0.5')).toHaveLength(4);
+    expect(lan.checkAddresses('10.10.10.136, nope, 8.8.8.8')).toEqual({ ok: ['10.10.10.136'], bad: ['nope', '8.8.8.8'] });
+  });
+
+  it('tries home addresses in order, skipping one that does not answer, and reports which worked', async () => {
+    const t = Date.now();
+    // 127.0.0.2 hangs (black hole), 127.0.0.1 answers
+    const { res, route, address } = await lan.reach(`http://${NAME}:${port}/echo`, {}, { lan: '127.0.0.2, 127.0.0.1', attemptMs: 300 });
+    expect(route).toBe('lan');
+    expect(address).toBe('127.0.0.1');
+    expect(res.status).toBe(200);
+    expect(Date.now() - t).toBeLessThan(3000);
+  });
+
+  it('goes straight to the address that worked last time', async () => {
+    const t = Date.now();
+    const { address } = await lan.reach(`http://${NAME}:${port}/echo`, {}, { lan: '127.0.0.2, 127.0.0.1', preferLan: true, lastGood: '127.0.0.1', attemptMs: 2000 });
+    expect(address).toBe('127.0.0.1');
+    expect(Date.now() - t).toBeLessThan(1000); // did not wait on the black hole first
+  });
+
   it('classifies network failures but not other errors', () => {
     expect(lan.isNetworkError(Object.assign(new TypeError('fetch failed'), { cause: { code: 'ENOTFOUND' } }))).toBe(true);
     expect(lan.isNetworkError(new DOMException('x', 'TimeoutError'))).toBe(true);
@@ -163,6 +189,9 @@ describe('desktop hub over the LAN route', () => {
 
   it('rejects a public address as the home network address', () => {
     expect(() => hub.setHubLan('8.8.8.8')).toThrow(/home network/);
+    expect(() => hub.setHubLan('10.10.10.136, 8.8.8.8')).toThrow(/8\.8\.8\.8/);
+    hub.setHubLan('10.10.10.136, 192.168.1.17');
+    expect(hub.hubStatus().lan).toBe('10.10.10.136,192.168.1.17');
     expect(() => hub.setHubLan('')).not.toThrow();
   });
 
