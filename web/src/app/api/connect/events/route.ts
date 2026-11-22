@@ -1,4 +1,4 @@
-import { gate } from '@/server/auth';
+import { requireUser } from '@/server/auth';
 import { connect } from '@/server/connect';
 import { hubConnect } from '@/server/hub';
 
@@ -6,8 +6,8 @@ export const dynamic = 'force-dynamic';
 
 /** Server-sent events for one device: `devices` (who is online and what they play) and `command`s sent to it. */
 export async function GET(req: Request) {
-  const denied = await gate();
-  if (denied) return denied;
+  const user = await requireUser();
+  if (user instanceof Response) return user;
   const q = new URL(req.url).searchParams;
   const id = (q.get('id') ?? '').slice(0, 64);
   if (!/^[\w-]{8,64}$/.test(id)) return Response.json({ error: 'bad device id' }, { status: 400 });
@@ -34,7 +34,13 @@ export async function GET(req: Request) {
           /* closed */
         }
       };
-      off = connect(id, name, kind, send);
+      try {
+        off = connect(user.id, id, name, kind, send);
+      } catch (e) {
+        send('error', { error: e instanceof Error ? e.message : 'refused' });
+        c.close();
+        return;
+      }
       ping = setInterval(() => {
         try {
           c.enqueue(enc.encode(': ping\n\n'));

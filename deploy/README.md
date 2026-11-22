@@ -54,4 +54,8 @@ over: Settings → Import from YouTube Music (one-time sign-in, the session is d
 | `LOMU_CACHE_DIR` | OS temp | youtubei.js cache |
 | `LOMU_SECURE_COOKIES` | off | set to `1` behind HTTPS |
 | `LOMU_SETUP_CODE` | unset | required to create the owner account |
+| `LOMU_MAX_USERS` | `4` | accounts allowed (owner + guests), added by the admin in Settings → Accounts |
+| `LOMU_LAN_ADDRESS` | unset | the server's private address, advertised to signed-in clients as a way in from inside the LAN |
+| `LOMU_PROXY_HOPS` | `1` | reverse proxies in front of the app (sign-in rate limit) |
+| `LOMU_MAX_DOCS` | `300000` | per-account row ceiling |
 | `LOMU_REGION` | `IN` | YouTube catalogue region |

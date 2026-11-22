@@ -58,9 +58,20 @@ const memo: Map<string, Entry> = ((globalThis as any).__lomuMemo ??= new Map());
  * Memoises [fn] for [ttlMs]. Every good answer is also kept in the database, and if [fn] fails later (no internet,
  * YouTube refusing) the last good answer is served instead, however old: a page that was seen once still opens.
  */
-export async function cached<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
+const inflight: Map<string, Promise<unknown>> = ((globalThis as any).__lomuInflight ??= new Map());
+
+export function cached<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
   const hit = memo.get(key);
-  if (hit && Date.now() - hit.at < hit.ttl) return hit.value as T;
+  if (hit && Date.now() - hit.at < hit.ttl) return Promise.resolve(hit.value as T);
+  // Many clients asking for the same page at once share one upstream request instead of each making their own.
+  const running = inflight.get(key);
+  if (running) return running as Promise<T>;
+  const p = load(key, ttlMs, fn).finally(() => inflight.delete(key));
+  inflight.set(key, p);
+  return p;
+}
+
+async function load<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
   let value: T;
   try {
     value = await fn();

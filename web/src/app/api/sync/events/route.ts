@@ -1,12 +1,12 @@
-import { gate } from '@/server/auth';
+import { requireUser } from '@/server/auth';
 import { currentSeq, onChange } from '@/server/sync';
 
 export const dynamic = 'force-dynamic';
 
 /** Server-sent events: a `seq` message whenever any device pushes, so the others pull at once. */
 export async function GET(req: Request) {
-  const denied = await gate();
-  if (denied) return denied;
+  const user = await requireUser();
+  if (user instanceof Response) return user;
   const enc = new TextEncoder();
   let off = () => {};
   let ping: ReturnType<typeof setInterval>;
@@ -19,8 +19,8 @@ export async function GET(req: Request) {
           /* closed */
         }
       };
-      send(`event: seq\ndata: ${currentSeq()}\n\n`);
-      off = onChange((seq) => send(`event: seq\ndata: ${seq}\n\n`));
+      send(`event: seq\ndata: ${currentSeq(user.id)}\n\n`);
+      off = onChange(user.id, (seq) => send(`event: seq\ndata: ${seq}\n\n`));
       ping = setInterval(() => send(': ping\n\n'), 25_000);
       req.signal.addEventListener('abort', () => {
         off();
