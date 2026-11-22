@@ -28,7 +28,7 @@ export default function AlbumPage({ params }: { params: Promise<{ id: string }> 
           <button
             className={`icon-btn big${saved ? ' on' : ''}`}
             aria-label={saved ? 'Remove from library' : 'Add to library'}
-            title={saved ? 'Remove from Your Library' : 'Save to Your Library'}
+            title={saved ? 'Remove from your library' : 'Save to your library'}
             onClick={() =>
               useLibrary.getState().toggleSaved({ kind: 'album', id: data.id, title: data.title, artists: data.artists, year: data.year, thumb: data.thumb })
             }

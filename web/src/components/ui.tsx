@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Icon, type IconName } from './Icon';
+import { Icon } from './Icon';
 import { useAuth } from '@/player/sync';
 
 /** Docs-style side panel (bottom sheet on phones). Focus goes to Close on open; Escape closes. */
@@ -97,65 +97,9 @@ export function Toggle({ on, onChange, label, hint }: { on: boolean; onChange: (
   );
 }
 
-/** Small bar chart used inside Stat. Values are normalised to the largest one. */
-export function SparkBars({ values, label }: { values: number[]; label: string }) {
-  const max = Math.max(...values, 1);
-  return (
-    <div className="sb" role="img" aria-label={label}>
-      {values.map((v, i) => (
-        <i key={i} style={{ height: `${Math.max(8, (v / max) * 100)}%`, opacity: v ? 1 : 0.35, animationDelay: `${i * 40}ms` }} />
-      ))}
-      <style jsx>{`
-        .sb { display: flex; align-items: flex-end; gap: 3px; height: 28px; }
-        .sb i { flex: 1; min-width: 4px; border-radius: 3px 3px 1px 1px; background: var(--signal); transform-origin: bottom; animation: grow .7s var(--ease-out) both; }
-        @keyframes grow { from { transform: scaleY(0); } }
-      `}</style>
-    </div>
-  );
-}
-
-/** KPI card: icon chip, muted label, big value with unit, optional spark and context line. */
-export function Stat({ icon, label, value, unit, sub, spark }: { icon: IconName; label: string; value: React.ReactNode; unit?: string; sub?: string; spark?: React.ReactNode }) {
-  return (
-    <div className="stat card">
-      <div className="top">
-        <span className="chip-ic">
-          <Icon name={icon} size={16} />
-        </span>
-        <span className="lab clamp2">{label}</span>
-      </div>
-      <div className="val">
-        <span className="n clamp1">{value}</span>
-        {unit && <span className="u">{unit}</span>}
-      </div>
-      {(sub || spark) && (
-        <div className="foot">
-          {sub && <span className="sub clamp2">{sub}</span>}
-          <span className="grow" />
-          {spark && <span className="sp">{spark}</span>}
-        </div>
-      )}
-      <style jsx>{`
-        .stat { padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-        .top { display: flex; align-items: center; gap: 10px; }
-        .lab { font-size: 12.5px; color: var(--muted); font-weight: 500; }
-        .val { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
-        .n { font-size: clamp(1.5rem, 2.1vw, 2rem); font-weight: 600; letter-spacing: -.04em; line-height: 1.1; }
-        .u { font-size: 13px; font-weight: 500; color: var(--muted); }
-        .foot { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; min-height: 28px; }
-        .sub { font-size: 12.5px; color: var(--muted); align-self: center; }
-        .sp { width: 96px; flex: none; margin-left: auto; }
-      `}</style>
-    </div>
-  );
-}
-
-export function EmptyState({ icon, title, hint, action }: { icon: IconName; title: string; hint?: string; action?: React.ReactNode }) {
+export function EmptyState({ title, hint, action }: { title: string; hint?: string; action?: React.ReactNode }) {
   return (
     <div className="empty">
-      <span className="chip-ic lg">
-        <Icon name={icon} size={20} />
-      </span>
       <b>{title}</b>
       {hint && <span style={{ maxWidth: 360 }}>{hint}</span>}
       {action}

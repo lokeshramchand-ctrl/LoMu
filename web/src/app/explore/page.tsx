@@ -24,7 +24,7 @@ export default function ExploreGate() {
   if (!enabled)
     return (
       <Bento>
-        <PageHeader  title="Explore is off" sub="Trending songs, new releases and moods. Turn it on under Settings → Developer." />
+        <PageHeader  title="Explore is off" sub="Turn it on under Settings → Developer." />
         <Tile span={12} tone="quiet" label="Explore is off">
           <div>
             <Link href="/settings" className="btn primary">
@@ -49,7 +49,6 @@ function Explore() {
   return (
     <Bento className="fade-in">
       <PageHeader         title="What's happening"
-        sub="Charts, fresh releases and moods from YouTube Music."
         actions={
           tab === 'trending' && trending.length > 0 ? (
             <div className="row">
@@ -108,14 +107,14 @@ function Explore() {
             {releases.map((a) => (
               <ItemCard key={a.id} item={a} />
             ))}
-            {!isLoading && !releases.length && <EmptyState icon="disc" title="No new releases right now" />}
+            {!isLoading && !releases.length && <EmptyState title="No new releases right now" />}
           </div>
         </Tile>
       )}
 
       {tab === 'moods' && (
         <>
-          <Tile span={12} title="Moods" sub="Pick a mood to see playlists for it" label="Moods">
+          <Tile span={12} title="Moods" label="Moods">
             <div className="mood-grid">
               {(data?.moods ?? []).map((m) => {
                 const on = mood?.params === m.params;
@@ -132,7 +131,7 @@ function Explore() {
                 );
               })}
             </div>
-            {!isLoading && !(data?.moods?.length) && <EmptyState icon="sparkles" title="No moods available right now" />}
+            {!isLoading && !(data?.moods?.length) && <EmptyState title="No moods available right now" />}
           </Tile>
           {mood && moodData.isLoading && (
             <Tile span={12} flush label="Loading mood">

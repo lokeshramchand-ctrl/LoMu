@@ -8,7 +8,7 @@ import type { Track } from '@/lib/types';
 import { TrackRow, ItemCard } from '@/components/Cards';
 import { Cover } from '@/components/Art';
 import { Mosaic } from '@/components/Mosaic';
-import { Icon, type IconName } from '@/components/Icon';
+import { Icon } from '@/components/Icon';
 import { EmptyState, PageHeader } from '@/components/ui';
 import { Bento, Tile } from '@/components/Bento';
 
@@ -62,7 +62,7 @@ export default function Library() {
 
   return (
     <Bento className="fade-in">
-      <PageHeader title="Your Library" actions={<Link href="/import" className="btn"><Icon name="download" size={16} /> Import</Link>} />
+      <PageHeader title="Your library" actions={<Link href="/import" className="btn">Import</Link>} />
 
       <Tile span={12} className="bar-tile" label="Library controls">
       <div className="bar">
@@ -101,8 +101,7 @@ export default function Library() {
             <div className="hero">
               <span className="likeart"><Icon name="heartFill" size={64} /></span>
               <div className="grow">
-                <div className="ph-kind">Playlist</div>
-                <h2 className="ht">Liked Songs</h2>
+                <h2 className="ht">Liked songs</h2>
                 <div className="muted">{likedAll.length} songs{q ? ` · ${likedTracks.length} match` : ''}</div>
               </div>
               <button className="bigplay" aria-label="Play liked songs" disabled={!likedTracks.length} onClick={() => usePlayer.getState().play(likedTracks, 0, { source: 'liked' })}>
@@ -114,8 +113,8 @@ export default function Library() {
             </div>
           </Tile>
           <Tile span={12} flush label="Liked songs">
-            {likedAll.length === 0 && <EmptyState icon="heart" title="No liked songs yet" hint="Tap the heart on any song and it lands here." />}
-            {likedAll.length > 0 && likedTracks.length === 0 && <EmptyState icon="search" title="No matches" hint={`Nothing in your liked songs matches “${filter}”.`} />}
+            {likedAll.length === 0 && <EmptyState title="No liked songs yet" hint="Tap the heart on any song and it lands here." />}
+            {likedAll.length > 0 && likedTracks.length === 0 && <EmptyState title="No matches" hint={`Nothing in your liked songs matches “${filter}”.`} />}
             <div className="list">
               {likedTracks.map((t, i) => (
                 <TrackRow key={t.id} track={t} index={i} list={likedTracks} />
@@ -146,9 +145,7 @@ export default function Library() {
             </form>
           ) : (
             <button className="newpl card" onClick={() => setNaming(true)}>
-              <span className="chip-ic lg">
-                <Icon name="plus" size={20} />
-              </span>
+              <Icon name="plus" size={20} />
               New playlist
             </button>
           )}
@@ -171,7 +168,7 @@ export default function Library() {
       {tab === 'albums' && (
         <Tile span={12} title="Albums" label="Albums">
         <div className="grid">
-          {Object.values(albums).length === 0 && <Empty icon="disc" title="No saved albums" text="Save albums with the Save button on any album page." />}
+          {Object.values(albums).length === 0 && <Empty title="No saved albums" text="Save albums with the Save button on any album page." />}
           {Object.values(albums)
             .sort((a, b) => b.at - a.at)
             .map((x) => (
@@ -184,7 +181,7 @@ export default function Library() {
       {tab === 'artists' && (
         <Tile span={12} title="Artists" label="Artists">
         <div className="grid">
-          {Object.values(artists).length === 0 && <Empty icon="user" title="No followed artists" text="Follow artists from their page and they show up here." />}
+          {Object.values(artists).length === 0 && <Empty title="No followed artists" text="Follow artists from their page and they show up here." />}
           {Object.values(artists)
             .sort((a, b) => b.at - a.at)
             .map((x) => (
@@ -196,7 +193,7 @@ export default function Library() {
 
       {tab === 'history' && (
         <Tile span={12} flush title="History" sub={`${historyTracks.length} plays`} label="History">
-          {historyTracks.length === 0 && <EmptyState icon={q ? 'search' : 'history'} title={q ? 'No matches' : 'Nothing played yet'} hint={q ? `Nothing in your history matches “${filter}”.` : 'Songs you play will appear here.'} />}
+          {historyTracks.length === 0 && <EmptyState title={q ? 'No matches' : 'Nothing played yet'} hint={q ? `Nothing in your history matches “${filter}”.` : 'Songs you play will appear here.'} />}
           <div className="list">
             {historyTracks.map((t, i) => (
               <TrackRow key={`${t.id}-${i}`} track={t} index={i} list={historyTracks} />
@@ -231,10 +228,10 @@ export default function Library() {
   );
 }
 
-function Empty({ icon, title, text }: { icon: IconName; title: string; text: string }) {
+function Empty({ title, text }: { title: string; text: string }) {
   return (
     <div style={{ gridColumn: '1 / -1' }}>
-      <EmptyState icon={icon} title={title} hint={text} />
+      <EmptyState title={title} hint={text} />
     </div>
   );
 }

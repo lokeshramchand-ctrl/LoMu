@@ -54,7 +54,6 @@ export function Collection({
         <div className="ph-head">
           <div className="ph-art">{cover ?? <Cover src={thumb} size="100%" radius={4} />}</div>
           <div className="ph-info">
-            <div className="ph-kind">{kind}</div>
             {heading ?? <h1 className="ph-title clamp2">{title}</h1>}
             <div className="ph-sub">
               {artists?.map((a, i) => (
@@ -108,7 +107,7 @@ export function Collection({
                 <p className={`ph-desc${more ? '' : ' clamp4'}`}>{description}</p>
                 {description.length > 140 && (
                   <button className="ph-more" onClick={() => setMore(!more)}>
-                    {more ? 'Show less' : 'More'}
+                    {more ? 'Show less' : 'Show full description'}
                   </button>
                 )}
               </div>
