@@ -80,7 +80,6 @@ export default function Home() {
 
   const artistShelf: Shelf = {
     title: 'Your artists',
-    subtitle: 'Most played lately',
     items: artists.slice(0, 20).map((a): ArtistCard => ({ kind: 'artist', id: a.id!, title: a.name, thumb: artThumb(history, a.id!) })),
   };
 
@@ -93,10 +92,10 @@ export default function Home() {
         </div>
         <div className="grow" />
         <Link href="/insights" className="btn ghost">
-          <Icon name="history" size={14} /> Insights
+          Insights
         </Link>
         <button className="btn ghost" onClick={() => setCustom(true)}>
-          <Icon name="sliders" size={14} /> Customise
+          Customise
         </button>
       </header>
 
@@ -205,9 +204,6 @@ export default function Home() {
           {!recs.isLoading && !mixes.length && (
             <Tile span={12} tone="quiet" label="Mixes">
               <div className="empty-row">
-                <span className="chip-ic lg">
-                  <Icon name="sparkles" size={14} />
-                </span>
                 <div className="grow">
                   <b style={{ color: 'var(--text)', fontWeight: 700 }}>Your mixes will appear here</b>
                   <div className="small muted">LoMu builds Your Mix, On Repeat and Discover from what you finish, skip and like. Play a few songs and come back.</div>
@@ -224,9 +220,9 @@ export default function Home() {
           <ShelfSkeleton />
         </Tile>
       )}
-      {home.trending && trending.length > 0 && <ShelfTile shelf={{ title: 'Trending now', subtitle: 'What people are playing right now', items: trending.slice(0, 20) }} />}
+      {home.trending && trending.length > 0 && <ShelfTile shelf={{ title: 'Trending now', items: trending.slice(0, 20) }} />}
       {home.newReleases && explore.data && explore.data.newReleases.length > 0 && (
-        <ShelfTile shelf={{ title: 'New releases', subtitle: 'Fresh albums and singles', items: explore.data.newReleases.slice(0, 20) }} />
+        <ShelfTile shelf={{ title: 'New releases', items: explore.data.newReleases.slice(0, 20) }} />
       )}
 
       {home.youtube && (
@@ -255,10 +251,10 @@ export default function Home() {
         open={custom}
         onClose={() => setCustom(false)}
         title="Customise home"
-        sub="Choose what shows up and what stays out of the way. Saved on this device."
+        sub="Saved on this device."
         footer={
           <button className="btn" onClick={() => HOME_SECTIONS.forEach((s) => useSettings.getState().setHome(s.id, s.id !== 'youtube'))}>
-            Reset
+            Reset to defaults
           </button>
         }
       >
@@ -346,7 +342,7 @@ function Moods({ moods }: { moods: { title: string; params: string; browseId: st
   const { data, isLoading } = useMood(m?.browseId ?? '', m?.params ?? '');
   if (!moods.length) return null;
   return (
-    <Tile span={12} title="Browse by mood" sub="Jump straight into a feeling" label="Moods">
+    <Tile span={12} title="Browse by mood" label="Moods">
       <div className="chips mood-row">
         {moods.slice(0, 16).map((x, i) => (
           <button key={x.params} className={sel === i ? 'on' : ''} onClick={() => setSel(sel === i ? null : i)} aria-pressed={sel === i}>
