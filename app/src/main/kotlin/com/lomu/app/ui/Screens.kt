@@ -847,7 +847,7 @@ fun SettingsScreen() {
         run {
             var lanText by remember(st.lan) { mutableStateOf(st.lan) }
             var lanMsg by remember { mutableStateOf<String?>(null) }
-            Group("Home network", footer = lanMsg ?: "If the server's name does not work at home (router or WARP), the phone uses these addresses instead. Example: 10.10.10.136, 192.168.1.17. Leave empty to let the server tell the phone.") {
+            Group("Home network", footer = lanMsg ?: "If the server's name does not work at home (router or WARP), the phone uses these addresses instead. Example: 10.10.10.136 (through the proxy) or 10.10.10.136:4100 (straight to the server, plain HTTP). Leave empty to let the server tell the phone.") {
                 CellField(lanText, { lanText = it; lanMsg = null }, "Server address at home (optional)")
                 Hairline(16.dp)
                 ActionCell("Save", lo.signal) {
