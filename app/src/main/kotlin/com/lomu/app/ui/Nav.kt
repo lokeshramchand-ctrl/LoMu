@@ -22,6 +22,8 @@ sealed interface Screen {
     data object Albums : Screen
     data object Artists : Screen
     data object Sleep : Screen
+    /** A list of songs shown as an album-style page; the songs are held in [MixStore]. */
+    data object Mix : Screen
 }
 
 /** Tiny back stack: the bottom entry is the current tab, the rest are pushed detail pages. */
@@ -35,4 +37,10 @@ class Nav {
     fun push(s: Screen) { op = NavOp.Push; stack.add(s) }
     fun pop() { if (canPop) { op = NavOp.Pop; stack.removeAt(stack.lastIndex) } }
     fun tab(s: Screen) { op = NavOp.Tab; stack.clear(); stack.add(s) }
+}
+
+/** The songs behind [Screen.Mix] (set just before navigating). */
+object MixStore {
+    var title: String = ""
+    var tracks: List<com.lomu.app.models.MediaMetadata> = emptyList()
 }
