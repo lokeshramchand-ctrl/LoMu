@@ -68,7 +68,7 @@ class SyncClient @Inject constructor(
                 if (system.isEmpty()) throw UnknownHostException(hostname)
                 return system
             }
-            val port = runCatching { java.net.URI(base()).let { if (it.port > 0) it.port else if (it.scheme == "http") 80 else 443 } }.getOrDefault(443)
+            val port = runCatching { java.net.URI(publicBase()).let { if (it.port > 0) it.port else if (it.scheme == "http") 80 else 443 } }.getOrDefault(443)
             val answering = probeAll(home, port)
             val candidates = home.mapNotNull { runCatching { InetAddress.getByName(it) }.getOrNull() }
             val up = candidates.filter { it.hostAddress in answering }
@@ -86,13 +86,13 @@ class SyncClient @Inject constructor(
         val now = System.currentTimeMillis()
         val result = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
         val threads = addresses.map { a ->
-            val cached = probeCache[a]
+            val cached = probeCache["$a:$port"]
             if (cached != null && now - cached.second < 30_000) {
                 if (cached.first) result.add(a)
                 null
             } else Thread {
                 val ok = runCatching { java.net.Socket().use { it.connect(java.net.InetSocketAddress(a, port), 500); true } }.getOrDefault(false)
-                probeCache[a] = ok to System.currentTimeMillis()
+                probeCache["$a:$port"] = ok to System.currentTimeMillis()
                 if (ok) result.add(a)
             }.also { it.isDaemon = true; it.start() }
         }
@@ -103,8 +103,33 @@ class SyncClient @Inject constructor(
     /** The saved home addresses, validated (private ranges only), at most 4. */
     private fun homeAddresses(): List<String> = parseHomeAddresses(prefs.getString("lan", null))
 
-    private fun parseHomeAddresses(v: String?): List<String> =
-        (v ?: "").split(Regex("[\\s,;]+")).map { it.trim() }.filter { it.isNotEmpty() && isPrivateIpv4(it) }.distinct().take(4)
+    private fun parseHomeAddresses(v: String?): List<String> = parseHomeEntries(v).map { it.substringBefore(':') }.distinct()
+
+    /** Valid entries: a private IPv4 address, optionally with ":port" (the server container's own published port). At most 4. */
+    private fun parseHomeEntries(v: String?): List<String> =
+        (v ?: "").split(Regex("[\\s,;]+")).map { it.trim() }.filter { validEntry(it) }.distinct().take(4)
+
+    private fun validEntry(e: String): Boolean {
+        if (e.isEmpty()) return false
+        val port = e.substringAfter(':', "")
+        if (e.contains(':') && (port.toIntOrNull() ?: 0) !in 1..65535) return false
+        return isPrivateIpv4(e.substringBefore(':'))
+    }
+
+    /**
+     * "http://192.168.1.10:4100" when a home entry has a port and answers a quick TCP probe: the phone then talks to the server
+     * directly, with no proxy and no certificate involved (cleartext is allowed only for the home addresses in the network
+     * security config). Null otherwise, and the public https address is used.
+     */
+    private fun directBase(): String? {
+        val entries = parseHomeEntries(prefs.getString("lan", null)).filter { it.contains(':') }
+        for (e in entries) {
+            val ip = e.substringBefore(':')
+            val port = e.substringAfter(':').toInt()
+            if (ip in probeAll(listOf(ip), port)) return "http://$ip:$port"
+        }
+        return null
+    }
 
     private val http = OkHttpClient.Builder().dns(lanAwareDns).connectTimeout(7, TimeUnit.SECONDS).callTimeout(30, TimeUnit.SECONDS).build()
     private val json = "application/json".toMediaType()
@@ -135,7 +160,9 @@ class SyncClient @Inject constructor(
     private fun deviceId(): String =
         prefs.getString("deviceId", null) ?: java.util.UUID.randomUUID().toString().replace("-", "").take(16).also { prefs.edit().putString("deviceId", it).apply() }
 
-    private fun base() = (prefs.getString("url", null) ?: com.lomu.app.BuildConfig.DEFAULT_SERVER_URL).trimEnd('/')
+    private fun publicBase() = (prefs.getString("url", null) ?: com.lomu.app.BuildConfig.DEFAULT_SERVER_URL).trimEnd('/')
+
+    private fun base() = directBase() ?: publicBase()
 
     private fun post(path: String, body: JSONObject, auth: Boolean): Pair<Int, JSONObject> {
         val b = Request.Builder().url(base() + path).header("x-lomu-device", "android")
@@ -151,7 +178,7 @@ class SyncClient @Inject constructor(
     }
 
     /** True for the LoMu server's own host name (the only one the LAN address applies to). */
-    fun isServerHost(hostname: String): Boolean = runCatching { java.net.URI(base()).host == hostname }.getOrDefault(false)
+    fun isServerHost(hostname: String): Boolean = runCatching { java.net.URI(publicBase()).host == hostname }.getOrDefault(false)
 
     private fun isPrivateIpv4(v: String): Boolean {
         val m = Regex("^(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})$").matchEntire(v.trim()) ?: return false
@@ -165,7 +192,7 @@ class SyncClient @Inject constructor(
         prefs.edit().putLong("lanTried", System.currentTimeMillis()).apply()
         runCatching {
             val (code, o) = get("/api/auth/status")
-            val found = parseHomeAddresses(o.optString("lan", ""))
+            val found = parseHomeEntries(o.optString("lan", ""))
             if (code == 200 && found.isNotEmpty() && prefs.getString("lanManual", null) == null) {
                 prefs.edit().putString("lan", found.joinToString(",")).apply()
                 _state.value = _state.value.copy(lan = found.joinToString(", "))
@@ -179,9 +206,9 @@ class SyncClient @Inject constructor(
      */
     fun setLan(value: String): String? {
         val parts = value.split(Regex("[\\s,;]+")).map { it.trim() }.filter { it.isNotEmpty() }
-        val bad = parts.filter { !isPrivateIpv4(it) }
-        if (bad.isNotEmpty()) return "Not a home network address: ${bad.joinToString(", ")}. Use addresses like 192.168.1.10 or 192.168.1.20."
-        val ok = parseHomeAddresses(value)
+        val bad = parts.filter { !validEntry(it) }
+        if (bad.isNotEmpty()) return "Not a home network address: ${bad.joinToString(", ")}. Use addresses like 192.168.1.10 or 192.168.1.10:4100."
+        val ok = parseHomeEntries(value)
         probeCache.clear()
         if (ok.isEmpty()) {
             prefs.edit().remove("lan").remove("lanManual").remove("lanTried").apply()
