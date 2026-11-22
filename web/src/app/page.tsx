@@ -2,79 +2,51 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useExplore, useHome, useMood, useRecs } from '@/lib/api';
 import { artistNames } from '@/lib/format';
-import { detectSleep, formatSpan } from '@/lib/sleep';
-import { useSleep } from '@/player/sleep';
 import Link from 'next/link';
-import { formatMinutes, recentTracks, topArtists, weekStats } from '@/lib/insights';
+import { formatMinutes, topArtists, weekStats } from '@/lib/insights';
 import type { ArtistCard, Item, Shelf, Track } from '@/lib/types';
 import { ItemCard, ShelfSkeleton, ShelfTile } from '@/components/Cards';
-import { Cover } from '@/components/Art';
+import { Mosaic } from '@/components/Mosaic';
 import { Bento, Tile } from '@/components/Bento';
 import { Icon } from '@/components/Icon';
 import { Sheet, Toggle } from '@/components/ui';
 import { useLibrary } from '@/player/library';
 import { currentTrack, usePlayer } from '@/player/store';
 import { HOME_SECTIONS, useSettings } from '@/player/settings';
-import { warm, warmProps } from '@/lib/warm';
-
-const LOG_SHOWN = 12;
 
 export default function Home() {
   const home = useSettings((s) => s.home);
   const history = useLibrary((s) => s.history);
   const liked = useLibrary((s) => s.liked);
   const [custom, setCustom] = useState(false);
-  const [showAll, setShowAll] = useState(false);
 
   const recs = useRecs();
   const explore = useExplore();
   const feed = useHome();
 
   const likedList = useMemo(() => Object.values(liked), [liked]);
-  const recent = useMemo(() => recentTracks(history, likedList, 8), [history, likedList]);
   const stats = useMemo(() => weekStats(history), [history]);
-  const anchors = useSleep((s) => s.anchors);
-  // The most recent sleep with the queue on, whenever it was (older nights are on the Insights page).
-  const lastSleep = useMemo(() => detectSleep(history, anchors)[0] ?? null, [history, anchors]);
   const artists = useMemo(() => topArtists(history), [history]);
   const personal = history.length > 0 || likedList.length > 0;
   const mixes: Shelf[] = recs.data ?? [];
-  const mixTracks = (mixes[0]?.items.filter((i): i is Track => i.kind === 'song') ?? []) as Track[];
+  const songsOf = (s?: Shelf) => (s?.items.filter((i): i is Track => i.kind === 'song') ?? []) as Track[];
+  const trending = explore.data?.trending ?? [];
+  // The featured card is your first mix; before any mix exists it is what is trending.
+  const heroShelf: Shelf | undefined = mixes[0] ?? (trending.length ? { title: 'Trending now', items: trending } : undefined);
+  const heroTracks = songsOf(heroShelf);
+  const otherMixes = mixes.slice(1).filter((s) => songsOf(s).length > 0);
+  const hour = new Date().getHours();
+  const greeting = hour < 5 ? 'Late night' : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
   const cur = usePlayer((s) => currentTrack(s)?.id);
   const playing = usePlayer((s) => s.playing);
-  const nowTrack = usePlayer((s) => currentTrack(s)) ?? history[0]?.track;
-  // newest first, whatever order the history was stored in
-  const sorted = useMemo(() => [...history].sort((a, b) => b.at - a.at).slice(0, 40), [history]);
-  const logTracks = useMemo(() => sorted.map((p) => p.track), [sorted]);
-  // the log: newest first, grouped by day
-  const groups = useMemo(() => {
-    const out: { label: string; rows: { p: (typeof sorted)[number]; i: number }[] }[] = [];
-    const today = new Date().toDateString();
-    const yday = new Date(Date.now() - 864e5).toDateString();
-    sorted.slice(0, showAll ? sorted.length : LOG_SHOWN).forEach((p, i) => {
-      const d = new Date(p.at);
-      const ds = d.toDateString();
-      const label = ds === today ? 'Today' : ds === yday ? 'Yesterday' : d.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'short' });
-      let g = out[out.length - 1];
-      if (!g || g.label !== label) out.push((g = { label, rows: [] }));
-      g.rows.push({ p, i });
-    });
-    return out;
-  }, [sorted, showAll]);
-  // only the latest play of the current song is marked as current
-  const curRow = sorted.findIndex((p) => p.track.id === cur);
-  // where the sleep note belongs: before the first play that happened after the sleep began
-  const noteAt = lastSleep ? sorted.findIndex((p) => p.at <= lastSleep.end) : -1;
-
-  const playMix = () => {
-    const list = mixTracks.length ? mixTracks : recent;
-    if (list.length) usePlayer.getState().play(list, 0, { source: 'home-mix' });
+  const heroActive = !!cur && heroTracks.some((t) => t.id === cur);
+  const playList = (list: Track[], source: string) => {
+    if (list.length) usePlayer.getState().play(list, 0, { source });
   };
 
   const showStats = home.stats && history.length > 0;
   const m = formatMinutes(stats.minutes);
-  const trending = explore.data?.trending ?? [];
   const hasArtists = home.artists && artists.length > 0;
   const hasMoods = home.moods && (explore.data?.moods?.length ?? 0) > 0;
 
@@ -87,8 +59,10 @@ export default function Home() {
     <Bento className="fade-in">
       <header className="greet">
         <div className="gtext">
-          <h1 suppressHydrationWarning>{new Date().toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })}</h1>
-          {!personal && <p className="muted">Play a few songs and LoMu starts learning your taste.</p>}
+          <h1 suppressHydrationWarning>{greeting}</h1>
+          <p className="muted" suppressHydrationWarning>
+            {personal ? new Date().toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' }) : 'Play a few songs and LoMu starts learning your taste.'}
+          </p>
         </div>
         <div className="grow" />
         <Link href="/insights" className="btn ghost">
@@ -99,75 +73,58 @@ export default function Home() {
         </button>
       </header>
 
-      {nowTrack && (
-        <div className="now" role="region" aria-label="Now">
-          <Cover src={nowTrack.thumb} size={48} radius={10} />
-          <div className="what">
-            <span className="state">{cur ? (playing ? 'Playing now' : 'Paused') : 'Last played'}</span>
-            <b className="clamp1">{nowTrack.title}</b>
-            <span className="muted small clamp1">{artistNames(nowTrack.artists)}</span>
-          </div>
-          {mixTracks.length > 0 && (
-            <button className="btn" onClick={playMix}>
-              <Icon name="play" size={10} /> My mix
-            </button>
+      {home.quick && (heroShelf || recs.isLoading || explore.isLoading) && (
+        <section className="feature" aria-label="Start here">
+          {heroShelf ? (
+            <div className="hero">
+              <div className="hero-art">
+                <Mosaic tracks={heroTracks} size={220} />
+              </div>
+              <div className="hero-text">
+                <span className="kick">{mixes[0] ? 'Made for you' : 'Trending'}</span>
+                <h2>{heroShelf.title}</h2>
+                <p className="hero-sub clamp2">{heroShelf.subtitle ?? heroTracks.slice(0, 3).map((t) => artistNames(t.artists)).join(', ')}</p>
+                <div className="hero-act">
+                  <button className="btn primary" onClick={() => (heroActive ? usePlayer.getState().toggle() : playList(heroTracks, 'home-mix'))}>
+                    <Icon name={heroActive && playing ? 'pause' : 'play'} size={12} /> {heroActive ? (playing ? 'Pause' : 'Resume') : 'Play'}
+                  </button>
+                  <button className="btn" onClick={() => playList([...heroTracks].sort(() => Math.random() - 0.5), 'home-mix')}>
+                    Shuffle
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="skeleton" style={{ height: 220, borderRadius: 12 }} />
           )}
-          <button className="btn primary" onClick={() => (cur ? usePlayer.getState().toggle() : usePlayer.getState().play([nowTrack], 0, { source: 'home-resume' }))}>
-            <Icon name={cur && playing ? 'pause' : 'play'} size={12} /> {cur ? (playing ? 'Pause' : 'Resume') : 'Play'}
-          </button>
-        </div>
+          {otherMixes.length > 0 && (
+            <div className="side">
+              <h3>More mixes</h3>
+              {otherMixes.slice(0, 5).map((s) => (
+                <button key={s.title} className="mix-row" onClick={() => playList(songsOf(s), 'home-mix')}>
+                  <Mosaic tracks={songsOf(s)} size={56} />
+                  <div>
+                    <div className="clamp1 t">{s.title}</div>
+                    <div className="clamp1 s">{songsOf(s).length} songs</div>
+                  </div>
+                  <Icon name="play" size={14} />
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
       )}
 
-      {history.length > 0 ? (
-        <div className="log-grid">
-          <section aria-label="Listening log">
-            {groups.map((g) => (
-              <div key={g.label} className="log-group">
-                <h2 className="log-day">{g.label}</h2>
-                {g.rows.map(({ p, i }) => (
-                  <div key={`${p.at}-${i}`}>
-                    {i === noteAt && lastSleep && (
-                      <p className="log-note">
-                        You may have fallen asleep at {new Date(lastSleep.asleepFrom).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} during {lastSleep.lastAwake.title}. The queue kept going for {formatSpan(lastSleep.asleepMs)}.
-                      </p>
-                    )}
-                    <button className={`log-row${cur === p.track.id && i === curRow ? ' active' : ''}`} onClick={() => usePlayer.getState().play(logTracks, i, { source: 'home-log' })} {...warmProps(p.track.id)}>
-                      <time dateTime={new Date(p.at).toISOString()}>{new Date(p.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</time>
-                      <Cover src={p.track.thumb} size={40} radius={8} />
-                      <div className="grow">
-                        <div className="clamp1 t">{p.track.title}</div>
-                        <div className="clamp1 s">{artistNames(p.track.artists)}</div>
-                      </div>
-                      <span className="end">
-                        {!p.completed && <span className="small">partial</span>}
-                        <Icon name="play" size={14} />
-                      </span>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ))}
-            {sorted.length > LOG_SHOWN && (
-              <button className="btn log-more" onClick={() => setShowAll(!showAll)}>
-                {showAll ? 'Show fewer' : `Show earlier (${sorted.length - LOG_SHOWN})`}
-              </button>
-            )}
-          </section>
-          {showStats && (
-            <aside className="rail" aria-label="This week">
-              <h2>This week</h2>
-              <dl className="facts">
-                <div><dt>Listened</dt><dd>{m.value}{m.unit ? ` ${m.unit}` : ''}</dd></div>
-                <div><dt>Songs finished</dt><dd>{stats.plays}</dd></div>
-                <div><dt>Streak</dt><dd>{stats.streak} {stats.streak === 1 ? 'day' : 'days'}</dd></div>
-                <div><dt>Top artist</dt><dd className="clamp1">{stats.topArtist?.name ?? '-'}</dd></div>
-              </dl>
-              <Link href="/insights" className="showall" style={{ display: 'inline-block', marginTop: 12 }}>All insights</Link>
-            </aside>
-          )}
-        </div>
-      ) : (
-        home.quick && <QuickPicks tracks={recent.length ? recent : trending.slice(0, 8)} personal={recent.length > 0} loading={!recent.length && explore.isLoading} />
+      {showStats && (
+        <aside className="week-line" aria-label="This week">
+          <h2>This week</h2>
+          <dl className="facts">
+            <div><dt>Listened</dt><dd>{m.value}{m.unit ? ` ${m.unit}` : ''}</dd></div>
+            <div><dt>Songs finished</dt><dd>{stats.plays}</dd></div>
+            <div><dt>Streak</dt><dd>{stats.streak} {stats.streak === 1 ? 'day' : 'days'}</dd></div>
+            <div><dt>Top artist</dt><dd className="clamp1">{stats.topArtist?.name ?? '-'}</dd></div>
+          </dl>
+        </aside>
       )}
 
       {home.moods && explore.isLoading && (
@@ -184,7 +141,7 @@ export default function Home() {
               <ShelfSkeleton title={false} />
             </Tile>
           )}
-          {mixes.map((s) => (
+          {mixes.slice(home.quick ? 1 + Math.min(5, otherMixes.length) : 0).map((s) => (
             <ShelfTile
               key={`rec-${s.title}`}
               shelf={s}
@@ -277,63 +234,6 @@ export default function Home() {
 /** The artist avatar comes from the song art of their most recent play (artist photos need a network call). */
 function artThumb(history: { track: Track }[], artistId: string) {
   return history.find((p) => p.track.artists[0]?.id === artistId)?.track.thumb;
-}
-
-/** First-run view, before there is any history: a grid of songs to start from. */
-function QuickPicks({ tracks, personal, loading }: { tracks: Track[]; personal: boolean; loading: boolean }) {
-  const cur = usePlayer((s) => currentTrack(s)?.id);
-  const playing = usePlayer((s) => s.playing);
-  // The first few quick picks are the likeliest next play: resolve them while the page is idle.
-  useEffect(() => {
-    const t = setTimeout(() => tracks.slice(0, 4).forEach((x) => warm(x.id)), 600);
-    return () => clearTimeout(t);
-  }, [tracks]);
-  if (!loading && !tracks.length) return null;
-  return (
-    <section className="qwrap" aria-label="Quick picks">
-      <div className="qgrid">
-        {loading
-          ? Array.from({ length: 8 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 72, borderRadius: 8 }} />)
-          : tracks.map((t, i) => {
-              const active = cur === t.id;
-              return (
-                <button
-                  key={t.id}
-                  className={`q${active ? ' active' : ''}`}
-                  onClick={() => usePlayer.getState().play(tracks, i, { source: 'home-quick' })}
-                  title={`${t.title} by ${artistNames(t.artists)}`}
-                  {...warmProps(t.id)}
-                >
-                  <Cover src={t.thumb} size={72} radius={0} />
-                  <div className="grow tx">
-                    <div className="clamp1 t">{t.title}</div>
-                    {!personal && <div className="clamp1 s">{artistNames(t.artists)}</div>}
-                  </div>
-                  <span className="go">
-                    <Icon name={active && playing ? 'pause' : 'play'} size={18} />
-                  </span>
-                </button>
-              );
-            })}
-      </div>
-      <style jsx>{`
-        .qwrap { grid-column: 1 / -1; }
-        .qgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 16px; }
-        .q { position: relative; display: flex; align-items: center; gap: 16px; min-width: 0; width: 100%; min-height: 72px; padding-block: 0; padding-inline: 0 16px; border-radius: var(--r); overflow: hidden; background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); text-align: start; transition: background .15s var(--ease), transform .1s ease-out; }
-        .q:hover { background: var(--card-hover); }
-        .q:active { transform: scale(.985); }
-        .q :global(.cover) { border-radius: var(--r-sm) 0 0 var(--r-sm); box-shadow: none; }
-        .tx { min-width: 0; }
-        .t { font-weight: 600; font-size: .9375rem; color: var(--ink); }
-        .q.active .t { color: var(--signal-t); }
-        .s { color: var(--muted); font-size: .8125rem; }
-        .go { width: 40px; height: 40px; border-radius: var(--r); display: grid; place-items: center; background: var(--signal); color: var(--on-signal); opacity: 0; transform: translateY(4px); transition: opacity .2s var(--ease), transform .2s var(--ease); flex: none; }
-        .q:hover .go, .q:focus-visible .go, .q.active .go { opacity: 1; transform: none; }
-        @media (hover: none) { .go { opacity: 1; transform: none; } }
-        @media (max-width: 700px) { .qgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } .q { height: 56px; gap: 8px; } .q :global(.cover) { width: 56px !important; height: 56px !important; } .go { display: none; } .t { font-size: .8125rem; } }
-      `}</style>
-    </section>
-  );
 }
 
 function Moods({ moods }: { moods: { title: string; params: string; browseId: string }[] }) {
