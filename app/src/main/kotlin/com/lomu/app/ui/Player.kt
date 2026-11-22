@@ -182,7 +182,7 @@ private fun FullPlayerContent(onClose: () -> Unit) {
                         }),
                     Alignment.Center,
                 ) {
-                    if (mode == 0) Box(Modifier.fillMaxSize().graphicsLayer { translationX = skipX.value * 0.7f; rotationZ = skipX.value / 60f }) { Artwork(art, playing, tint) } else LyricsPanel(pc, m)
+                    if (mode == 0) Box(Modifier.fillMaxSize().graphicsLayer { translationX = skipX.value * 0.7f; rotationZ = skipX.value / 60f }) { Artwork(art, playing, tint, m?.thumbnailUrl) } else LyricsPanel(pc, m)
                 }
                 Spacer(Modifier.height(18.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -228,13 +228,13 @@ private fun ToggleChip(icon: ImageVector, on: Boolean, label: String, onClick: (
 
 /** Big square artwork that gently shrinks while paused, with a soft drop shadow. */
 @Composable
-private fun Artwork(url: String?, playing: Boolean, glow: Color) {
+private fun Artwork(url: String?, playing: Boolean, glow: Color, thumb: String? = null) {
     val scale by animateFloatAsState(if (playing) 1f else 0.86f, spring(dampingRatio = 0.7f, stiffness = 300f), label = "art")
     BoxWithConstraints(Modifier.fillMaxSize(), Alignment.Center) {
         val side = minOf(maxWidth, maxHeight)
         // Coloured glow behind the cover, then the cover itself.
         Box(Modifier.size(side * 0.86f).graphicsLayer { scaleX = scale; scaleY = scale; translationY = 24f }.blur(48.dp).background(glow.copy(alpha = 1f), RoundedCornerShape(40.dp)))
-        Box(Modifier.size(side).graphicsLayer { scaleX = scale; scaleY = scale }.coverShadow(14.dp, 24.dp)) { Cover(url, side, radius = 14.dp) }
+        Box(Modifier.size(side).graphicsLayer { scaleX = scale; scaleY = scale }.coverShadow(14.dp, 24.dp)) { Cover(url, side, radius = 14.dp, placeholderUrl = thumb) }
     }
 }
 
