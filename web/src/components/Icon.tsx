@@ -9,7 +9,7 @@ import { LINEAR } from './linear-icons';
 export type IconName = keyof typeof ICONS | keyof typeof LINEAR;
 
 export function Icon({ name, size = 16, ...rest }: { name: IconName; size?: number } & Omit<SVGProps<SVGSVGElement>, 'name'>) {
-  // Spotify-style glyphs (Phosphor, MIT) win; the Linear set only supplies names the Phosphor set does not have.
+  // Phosphor glyphs (MIT) win; the Linear set only supplies names the Phosphor set does not have.
   if (!(name in ICONS) && name in LINEAR) {
     const { s, b } = LINEAR[name as keyof typeof LINEAR];
     return <svg width={size} height={size} viewBox={`0 0 ${s} ${s}`} fill="none" aria-hidden focusable="false" dangerouslySetInnerHTML={{ __html: b }} {...rest} />;

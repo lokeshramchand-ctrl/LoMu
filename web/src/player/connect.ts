@@ -94,7 +94,7 @@ function handoffTo(to: string) {
   });
 }
 
-/** Spotify-style "play on this device": move playback from wherever it is to `id`. */
+/** "Play on this device": move playback from wherever it is to `id`. */
 export function transferTo(id: string) {
   const { self, active, target } = useConnect.getState();
   if (id === self) {

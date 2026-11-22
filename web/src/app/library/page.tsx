@@ -211,15 +211,15 @@ export default function Library() {
         .filter { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 8px 0 12px; border-radius: 4px; background: var(--pill); color: var(--muted); flex: 1; min-width: 180px; max-width: 320px; }
         .filter:focus-within { box-shadow: 0 0 0 2px var(--ink); color: var(--text); }
         .filter input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-size: 14px; color: var(--ink); }
-        .sort { height: 32px; padding: 0 12px; border-radius: 4px; border: 0; background: var(--pill); color: var(--text); font-size: 14px; font-weight: 500; }
+        .sort { height: 32px; padding: 0 12px; border-radius: var(--r); border: 0; background: var(--pill); color: var(--text); font-size: 14px; font-weight: 500; }
         .nameinp { width: 100%; height: 40px; padding: 0 12px; border-radius: 4px; border: 0; background: var(--surface-2); color: var(--ink); outline: 0; font-size: 16px; }
         .nameinp:focus { box-shadow: 0 0 0 2px var(--ink); }
         .hero { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
-        .likeart { width: 140px; height: 140px; border-radius: 4px; display: grid; place-items: center; color: #f4f4f5; background: linear-gradient(135deg, #450af5, #8e8ee5 60%, #c4efd9); box-shadow: 0 4px 60px rgba(0, 0, 0, .5); flex: none; }
-        .ht { font-size: clamp(32px, 4.4vw, 64px); font-weight: 900; letter-spacing: -.03em; line-height: 1.05; margin: 4px 0 8px; }
-        :global(.likedhead) { background: linear-gradient(180deg, rgba(80, 56, 160, .55), transparent) !important; padding: var(--sp-5) !important; }
+        .likeart { width: 140px; height: 140px; border-radius: 4px; display: grid; place-items: center; color: var(--on-signal); background: var(--liked); box-shadow: 0 0 0 1px var(--border); flex: none; }
+        .ht { font-size: clamp(32px, 4.4vw, 64px); font-family: var(--font-display); font-weight: 400; letter-spacing: -.03em; line-height: 1; margin: 4px 0 8px; }
+        :global(.likedhead) { background: linear-gradient(180deg, var(--signal-soft), transparent) !important; padding: var(--sp-5) !important; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 16px; }
-        .newpl { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 12px; aspect-ratio: 1; font-weight: 700; border-radius: 8px; background: var(--surface); transition: background .3s var(--ease); }
+        .newpl { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 12px; aspect-ratio: 1; font-weight: 600; border-radius: var(--r); background: var(--surface); transition: background .3s var(--ease); }
         .newpl:hover { background: var(--card-hover); }
         :global(.pl) { display: block; padding: 12px; border-radius: 8px; background: var(--surface); transition: background .3s var(--ease); }
         :global(.pl:hover) { background: var(--card-hover); }
