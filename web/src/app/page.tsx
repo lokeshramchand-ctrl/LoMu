@@ -255,7 +255,6 @@ export default function Home() {
         open={custom}
         onClose={() => setCustom(false)}
         title="Customise home"
-        eyebrow="Home"
         sub="Choose what shows up and what stays out of the way. Saved on this device."
         footer={
           <button className="btn" onClick={() => HOME_SECTIONS.forEach((s) => useSettings.getState().setHome(s.id, s.id !== 'youtube'))}>

@@ -26,8 +26,6 @@ type TileProps = {
   rows?: number;
   tone?: Tone;
   title?: ReactNode;
-  /** Small mono label before the title, e.g. "01". */
-  kicker?: string;
   sub?: ReactNode;
   action?: ReactNode;
   /** No inner padding: for tiles that hold edge-to-edge lists. */
@@ -40,7 +38,7 @@ type TileProps = {
   onClick?: () => void;
 };
 
-export function Tile({ span = 4, md, sm, rows, tone = 'default', title, kicker, sub, action, flush, href, className = '', children, style, label, onClick }: TileProps) {
+export function Tile({ span = 4, md, sm, rows, tone = 'default', title, sub, action, flush, href, className = '', children, style, label, onClick }: TileProps) {
   const cm = md ?? (span >= 8 ? 12 : span >= 4 ? 6 : 6);
   const cs = sm ?? 12;
   const vars = { ['--c' as string]: span, ['--cm' as string]: cm, ['--cs' as string]: cs, ...(rows ? { ['--r' as string]: rows } : {}), ...style } as CSSProperties;
@@ -49,7 +47,6 @@ export function Tile({ span = 4, md, sm, rows, tone = 'default', title, kicker, 
       {(title || action) && (
         <header className="tile-h">
           <div className="tile-t">
-            {kicker && <span className="tile-k">{kicker}</span>}
             {title && <h2>{title}</h2>}
             {sub && <p>{sub}</p>}
           </div>
