@@ -38,8 +38,8 @@ export function Brand({ mini }: { mini?: boolean }) {
 
 const THEMES: { id: Theme; label: string; dot: string }[] = [
   { id: 'dark', label: 'Dark', dot: 'var(--signal)' },
-  { id: 'light', label: 'Light', dot: '#d4d4d4' },
-  { id: 'system', label: 'System', dot: '#b3b3b3' },
+  { id: 'light', label: 'Light', dot: 'var(--muted)' },
+  { id: 'system', label: 'System', dot: 'var(--faint)' },
 ];
 
 /** Interface theme dropdown. */
@@ -79,14 +79,14 @@ export function ThemeSelect({ up = false }: { up?: boolean }) {
       )}
       <style jsx>{`
         .ts { position: relative; }
-        .cur { display: flex; align-items: center; gap: 8px; width: 100%; height: 36px; padding: 0 12px 0 6px; border-radius: 4px; background: var(--surface-2); color: var(--text); font-size: 14px; font-weight: 500; transition: background .15s; }
+        .cur { display: flex; align-items: center; gap: 8px; width: 100%; height: 36px; padding: 0 12px 0 6px; border-radius: var(--r-sm); background: var(--surface-2); color: var(--text); font-size: 14px; font-weight: 500; transition: background .15s; }
         .cur:hover { background: var(--card-hover); }
         .nm { flex: 1; text-align: left; }
         .aa { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 7px; border-radius: 4px; background: var(--bg); font-size: 12px; font-weight: 700; color: var(--text); }
         .aa i { width: 6px; height: 6px; border-radius: 50%; }
-        .pop { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 90; padding: 4px; border-radius: 4px; background: var(--card-hover); box-shadow: var(--lift-hi); animation: rise .15s var(--ease-out) both; }
+        .pop { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 90; padding: 4px; border-radius: var(--r-sm); background: var(--card-hover); box-shadow: var(--lift-hi); animation: rise .15s var(--ease-out) both; }
         .pop.up { top: auto; bottom: calc(100% + 4px); }
-        .pop button { display: flex; align-items: center; gap: 8px; width: 100%; height: 36px; padding: 0 8px; border-radius: 2px; font-size: 14px; color: var(--text); text-align: left; }
+        .pop button { display: flex; align-items: center; gap: 8px; width: 100%; height: 36px; padding: 0 8px; border-radius: 6px; font-size: 14px; color: var(--text); text-align: left; }
         .pop button:hover, .pop button.on { background: var(--row-hover); }
       `}</style>
     </div>
@@ -121,7 +121,7 @@ function LibArt({ it, size }: { it: LibItem; size: number }) {
       <span className="lk" style={{ width: size, height: size }}>
         <Icon name="heartFill" size={Math.round(size * 0.42)} />
         <style jsx>{`
-          .lk { display: grid; place-items: center; border-radius: 4px; flex: none; color: #f4f4f5; background: linear-gradient(135deg, #450af5, #8e8ee5 60%, #c4efd9); }
+          .lk { display: grid; place-items: center; border-radius: var(--r-sm); flex: none; color: var(--on-signal); background: var(--liked); }
         `}</style>
       </span>
     );
@@ -132,12 +132,12 @@ function LibArt({ it, size }: { it: LibItem; size: number }) {
       <span className="ph2" style={{ width: size, height: size }}>
         <Icon name="note" size={Math.round(size * 0.42)} />
         <style jsx>{`
-          .ph2 { display: grid; place-items: center; border-radius: 4px; flex: none; background: var(--surface-2); color: var(--muted); }
+          .ph2 { display: grid; place-items: center; border-radius: var(--r-sm); flex: none; background: var(--surface-2); color: var(--muted); }
         `}</style>
       </span>
     );
   }
-  return <Cover src={it.thumb} size={size} radius={4} />;
+  return <Cover src={it.thumb} size={size} radius={10} />;
 }
 
 export function Sidebar() {
@@ -207,19 +207,19 @@ export function Sidebar() {
 
       <style jsx>{`
         .side { display: flex; flex-direction: column; gap: 8px; min-height: 0; grid-column: 1; grid-row: 1; }
-        .navp { background: var(--bg); border-radius: 8px; padding: 8px 12px; display: flex; flex-direction: column; flex: none; }
-        :global(.side .link) { display: flex; align-items: center; gap: 20px; height: 40px; padding: 0 12px; border-radius: 4px; color: var(--muted); font-weight: 700; font-size: 16px; white-space: nowrap; transition: color .2s var(--ease); }
+        .navp { background: var(--bg); border-radius: var(--r); padding: 8px 12px; display: flex; flex-direction: column; flex: none; }
+        :global(.side .link) { display: flex; align-items: center; gap: 20px; height: 40px; padding: 0 12px; border-radius: var(--r-sm); color: var(--muted); font-weight: 700; font-size: 16px; white-space: nowrap; transition: color .2s var(--ease); }
         :global(.side .link:hover) { color: var(--text); }
         :global(.side .link.active) { color: var(--ink); }
         :global(.side .link svg) { flex: none; }
-        .lib { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg); border-radius: 8px; }
+        .lib { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg); border-radius: var(--r); }
         .lh { display: flex; align-items: center; gap: 4px; padding: 12px 16px 8px 20px; }
         .ttl { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; color: var(--muted); font-weight: 700; font-size: 16px; text-align: left; transition: color .2s var(--ease); }
         .ttl:hover { color: var(--text); }
         .lbl { min-width: 0; }
         .lchips { padding: 4px 16px 8px; flex: none; }
         .items { flex: 1; min-height: 0; overflow-y: auto; padding: 0 8px 8px; }
-        :global(.side .item) { display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 6px; transition: background .15s var(--ease); }
+        :global(.side .item) { display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: var(--r-sm); transition: background .15s var(--ease); }
         :global(.side .item:hover) { background: var(--surface-2); }
         :global(.side .item.on) { background: var(--active); }
         .tx { min-width: 0; flex: 1; }
@@ -308,10 +308,10 @@ export function Topbar() {
         .top { position: sticky; top: 0; z-index: 30; height: var(--top-h); display: flex; align-items: center; gap: 8px; padding: 0 16px; background: transparent; transition: background .25s var(--ease); }
         .top.solid { background: color-mix(in srgb, var(--tint) 55%, var(--bg)); }
         .arrows { display: flex; gap: 8px; }
-        .round { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: rgba(0, 0, 0, .7); color: #f4f4f5; transition: transform .15s var(--ease); }
-        .round:hover { transform: scale(1.06); }
-        :global(.top .homebtn) { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); color: var(--ink); margin-left: 8px; transition: transform .15s var(--ease), background .15s; }
-        :global(.top .homebtn:hover) { transform: scale(1.06); background: var(--card-hover); }
+        .round { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--shade); color: var(--fixed-light); transition: background .15s var(--ease); }
+        .round:hover { background: var(--fixed-dark); }
+        :global(.top .homebtn) { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); color: var(--ink); margin-left: 8px; transition: background .15s; }
+        :global(.top .homebtn:hover) { background: var(--card-hover); }
         .search { display: flex; align-items: center; gap: 12px; height: 48px; width: min(364px, 100%); padding: 0 16px; border-radius: 500px; background: var(--surface-2); color: var(--muted); box-shadow: 0 0 0 0 transparent; transition: background .15s, box-shadow .15s; }
         .search.gone { display: none; } /* the Search page has its own field with live suggestions */
         .search:hover { background: var(--card-hover); color: var(--text); }
@@ -320,9 +320,9 @@ export function Topbar() {
         .search input::placeholder { color: var(--muted); }
         .clr { color: var(--muted); display: grid; place-items: center; }
         .clr:hover { color: var(--ink); }
-        :global(.top .avatar) { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: #09090b; color: #f4f4f5; font-weight: 700; font-size: 16px; transition: transform .15s var(--ease); }
-        :global(.top .avatar:hover) { transform: scale(1.06); }
-        .avatar span { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: #3a3a42; color: #f4f4f5; font-weight: 700; font-size: 14px; }
+        :global(.top .avatar) { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--fixed-dark); color: var(--fixed-light); font-weight: 700; font-size: 16px; transition: box-shadow .15s var(--ease); }
+        :global(.top .avatar:hover) { box-shadow: 0 0 0 2px var(--border-2); }
+        .avatar span { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--fixed-grey); color: var(--fixed-light); font-weight: 700; font-size: 14px; }
         @media (max-width: 900px) { .top { display: none; } }
       `}</style>
     </header>
@@ -346,9 +346,9 @@ export function MobileTabs() {
       <style jsx>{`
         .tabs { display: none; }
         @media (max-width: 900px) {
-          .tabs { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; height: calc(56px + env(safe-area-inset-bottom)); padding: 0 8px env(safe-area-inset-bottom); background: linear-gradient(180deg, rgba(0, 0, 0, .75), #09090b 40%); }
+          .tabs { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; height: calc(56px + env(safe-area-inset-bottom)); padding: 0 8px env(safe-area-inset-bottom); background: linear-gradient(180deg, var(--shade), var(--fixed-dark) 40%); }
           .tabs :global(a) { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--muted); font-size: 11px; font-weight: 500; transition: color .15s var(--ease); }
-          .tabs :global(a.on) { color: #f4f4f5; }
+          .tabs :global(a.on) { color: var(--fixed-light); }
         }
       `}</style>
     </nav>
