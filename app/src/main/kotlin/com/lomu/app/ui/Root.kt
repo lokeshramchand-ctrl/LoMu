@@ -48,7 +48,7 @@ fun Welcome(onStart: () -> Unit) {
     val lo = LocalLo.current
     Column(Modifier.fillMaxSize().background(lo.bg).statusBarsPadding().navigationBarsPadding().padding(horizontal = 28.dp, vertical = 24.dp)) {
         Spacer(Modifier.weight(1f))
-        Box(Modifier.size(72.dp).background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color(0xFF5AC8FA), lo.signal)), RoundedCornerShape(17.dp)), Alignment.Center) {
+        Box(Modifier.size(72.dp).background(lo.signal, RoundedCornerShape(17.dp)), Alignment.Center) {
             IcV(androidx.compose.material.icons.Icons.Rounded.MusicNote, 40.dp, Color.White)
         }
         Spacer(Modifier.height(24.dp))
@@ -95,7 +95,8 @@ fun LoMuRoot(seenWelcome: Boolean, onWelcomeDone: () -> Unit) {
     }
     // Tab bar 58dp + gaps, plus the mini player capsule (48dp) when something is loaded.
     val hasPlayer = meta != null || remote != null
-    val insetBase by androidx.compose.animation.core.animateDpAsState(if (hasPlayer) 138.dp else 82.dp, tween(380, easing = IosEase), label = "inset")
+    val landscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val insetBase by androidx.compose.animation.core.animateDpAsState(if (landscape) (if (hasPlayer) 112.dp else 62.dp) else if (hasPlayer) 138.dp else 82.dp, tween(380, easing = IosEase), label = "inset")
     val inset = insetBase + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     CompositionLocalProvider(LocalNav provides nav, LocalBottomInset provides inset, LocalOpenDevices provides { showDevices = true }, LocalTrackMenu provides { menu = it }) {
         Box(Modifier.fillMaxSize().background(lo.bg)) {
@@ -183,7 +184,8 @@ private fun TabBar(nav: Nav) {
     )
     val shape = RoundedCornerShape(36.dp)
     val haptic = rememberHaptic()
-    Row(Modifier.fillMaxWidth().height(58.dp).glass(shape, lo).padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
+    val landscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    Row(Modifier.fillMaxWidth().height(if (landscape) 46.dp else 58.dp).glass(shape, lo).padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
         tabs.forEach { t ->
             val active = nav.stack.first() == t.screen
             val tint by animateColorAsState(if (active) lo.signal else lo.ink, tween(220), label = "tabTint")
@@ -197,7 +199,7 @@ private fun TabBar(nav: Nav) {
                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
             ) {
                 IcV(if (active) t.on else t.off, 24.dp, tint, Modifier.graphicsLayer { scaleX = pop; scaleY = pop })
-                Text(t.label, style = LoType.caption.copy(fontWeight = FontWeight.Bold, lineHeight = 12.sp), color = tint, modifier = Modifier.padding(top = 2.dp))
+                if (!landscape) Text(t.label, style = LoType.caption.copy(fontWeight = FontWeight.Bold, lineHeight = 12.sp), color = tint, modifier = Modifier.padding(top = 2.dp))
             }
         }
     }

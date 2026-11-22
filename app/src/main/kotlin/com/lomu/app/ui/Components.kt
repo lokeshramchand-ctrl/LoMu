@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -116,6 +117,15 @@ fun iconLabel(name: String): String = when (val key = name.substringAfterLast('.
 
 /** A round glyph button. [filled] gives the solid accent button, [bordered] a translucent chip for floating over art. */
 @Composable
+/** Grows the area that reacts to a finger to at least [min] without changing how big the control looks. Put it after `pressable` and before `size`. */
+fun Modifier.minTouch(min: Dp = 44.dp): Modifier = layout { measurable, constraints ->
+    val p = measurable.measure(constraints)
+    val w = maxOf(p.width, min.roundToPx())
+    val h = maxOf(p.height, min.roundToPx())
+    layout(w, h) { p.place((w - p.width) / 2, (h - p.height) / 2) }
+}
+
+@Composable
 fun IconBtn(
     icon: Ph, onClick: () -> Unit, size: Dp = 40.dp, iconSize: Dp = 20.dp,
     tint: Color = LocalLo.current.ink, bordered: Boolean = false, filled: Boolean = false, modifier: Modifier = Modifier,
@@ -123,18 +133,16 @@ fun IconBtn(
 ) {
     val lo = LocalLo.current
     Box(
-        modifier.size(size)
+        modifier.a11y(label).pressable(CircleShape, onClick = onClick).minTouch().size(size)
             .then(if (filled) Modifier.background(lo.signal, CircleShape) else Modifier)
-            .then(if (bordered) Modifier.background(lo.surface2.copy(alpha = 0.85f), CircleShape) else Modifier)
-            .a11y(label)
-            .pressable(CircleShape, onClick = onClick),
+            .then(if (bordered) Modifier.background(lo.surface2.copy(alpha = 0.85f), CircleShape) else Modifier),
         Alignment.Center,
     ) { Ic(icon, iconSize, if (filled) Color.White else tint) }
 }
 
 @Composable
 fun IconBtnV(icon: ImageVector, onClick: () -> Unit, size: Dp = 40.dp, iconSize: Dp = 24.dp, tint: Color = LocalLo.current.ink, modifier: Modifier = Modifier, label: String = iconLabel(icon.name)) {
-    Box(modifier.size(size).a11y(label).pressable(CircleShape, onClick = onClick), Alignment.Center) { IcV(icon, iconSize, tint) }
+    Box(modifier.a11y(label).pressable(CircleShape, onClick = onClick).minTouch().size(size), Alignment.Center) { IcV(icon, iconSize, tint) }
 }
 
 /** Artwork: a hairline-edged rounded square with the placeholder grey behind it, like an Apple Music album cover. */
@@ -453,10 +461,8 @@ fun Pill(text: String, onClick: () -> Unit, filled: Boolean = true, icon: Ph? = 
 fun GlassCircle(icon: ImageVector, onClick: () -> Unit, size: Dp = 42.dp, tint: Color = LocalLo.current.ink, modifier: Modifier = Modifier, label: String = iconLabel(icon.name)) {
     val lo = LocalLo.current
     Box(
-        modifier.size(size).shadow(6.dp, CircleShape, clip = false, ambientColor = Color.Black.copy(alpha = 0.18f), spotColor = Color.Black.copy(alpha = 0.18f))
-            .background(lo.card.copy(alpha = 0.92f), CircleShape).border(0.5.dp, lo.line.copy(alpha = 0.7f), CircleShape)
-            .a11y(label)
-            .pressable(CircleShape, onClick = onClick),
+        modifier.a11y(label).pressable(CircleShape, onClick = onClick).minTouch().size(size).shadow(6.dp, CircleShape, clip = false, ambientColor = Color.Black.copy(alpha = 0.18f), spotColor = Color.Black.copy(alpha = 0.18f))
+            .background(lo.card.copy(alpha = 0.92f), CircleShape).border(0.5.dp, lo.line.copy(alpha = 0.7f), CircleShape),
         Alignment.Center,
     ) { IcV(icon, size * 0.5f, tint) }
 }
@@ -465,9 +471,9 @@ fun GlassCircle(icon: ImageVector, onClick: () -> Unit, size: Dp = 42.dp, tint: 
 @Composable
 fun Avatar(initial: String, onClick: () -> Unit, size: Dp = 36.dp) {
     Box(
-        Modifier.size(size).background(Brush.linearGradient(listOf(Color(0xFFC3B1F5), Color(0xFF6F7BD9))), CircleShape).a11y("Account and settings").pressable(CircleShape, onClick = onClick),
+        Modifier.a11y("Account and settings").pressable(CircleShape, onClick = onClick).minTouch().size(size).background(LocalLo.current.surface2, CircleShape),
         Alignment.Center,
-    ) { Text(initial.take(2).uppercase(), style = LoType.body.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold), color = Color.White) }
+    ) { Text(initial.take(2).uppercase(), style = LoType.body.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold), color = LocalLo.current.ink) }
 }
 
 /** Floating glass surface used by the mini player and the tab bar. */
