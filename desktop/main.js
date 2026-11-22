@@ -146,7 +146,7 @@ function saveState() {
 const SPLASH =
   'data:text/html;charset=utf-8,' +
   encodeURIComponent(
-    '<body style="margin:0;height:100vh;display:grid;place-items:center;background:#1a1814;color:#a39b8a;font:14px system-ui"><div style="text-align:center"><div style="font-size:26px;color:#f6f1e4;margin-bottom:8px;font-family:Georgia,serif">LoMu</div>Starting…</div></body>',
+    '<body style="margin:0;height:100vh;display:grid;place-items:center;background:#0b0b0c;color:#a0a0a6;font:14px system-ui"><div style="text-align:center"><div style="font-size:26px;color:#f5f5f6;margin-bottom:8px;font-weight:700;font-family:system-ui">LoMu</div>Starting…</div></body>',
   );
 
 function createWindow() {
@@ -158,7 +158,7 @@ function createWindow() {
     y: st.y,
     minWidth: 900,
     minHeight: 600,
-    backgroundColor: '#1a1814',
+    backgroundColor: '#0b0b0c',
     autoHideMenuBar: true,
     icon: iconPath,
     show: false,

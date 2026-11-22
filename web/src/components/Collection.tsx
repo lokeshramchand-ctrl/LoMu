@@ -1,14 +1,26 @@
 'use client';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { ArtistRef, Track } from '@/lib/types';
 import { usePlayer } from '@/player/store';
 import { Cover } from './Art';
 import { Icon } from './Icon';
-import { Bento, Tile } from './Bento';
+import { Bento } from './Bento';
 import { TrackRow } from './Cards';
 
-/** Shared header + tracklist for albums and playlists. */
+/** "1:45:13" for a total running time in seconds. */
+export function runTime(seconds: number) {
+  const s = Math.max(0, Math.round(seconds));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return h ? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}` : `${m}:${String(sec).padStart(2, '0')}`;
+}
+
+/**
+ * Shared page for albums, playlists and generated mixes, after the Soundwaves reference: round controls on top, one
+ * pastel card (small label, title, cover, song count with running time, black shuffle button), then plain song rows.
+ */
 export function Collection({
   kind,
   title,
@@ -18,12 +30,12 @@ export function Collection({
   description,
   tracks,
   source,
-  numbered,
   actions,
   playlistId,
   cover,
   empty,
   heading,
+  eyebrow,
   extra,
 }: {
   kind: string;
@@ -40,89 +52,63 @@ export function Collection({
   cover?: React.ReactNode;
   empty?: React.ReactNode;
   heading?: React.ReactNode;
+  eyebrow?: string;
   extra?: React.ReactNode;
 }) {
+  const router = useRouter();
   const [more, setMore] = useState(false);
-  const rows: [string, React.ReactNode][] = [
-    ['Type', kind],
-    ['Songs', tracks.length],
-    ...(meta ? ([['Details', meta]] as [string, React.ReactNode][]) : []),
-  ];
+  const total = tracks.reduce((n, t) => n + (t.duration || 0), 0);
+  const fill = `var(--tile-${(Math.abs([...title].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) | 0, 7)) % 4) + 1})`;
+  const label = eyebrow ?? (artists?.length ? artists.map((a) => a.name).join(', ') : 'Selected for you');
   return (
     <Bento className="fade-in">
-      <Tile span={12} className="hd" label={`${kind} header`}>
-        <div className="ph-head">
-          <div className="ph-art">{cover ?? <Cover src={thumb} size="100%" radius={4} />}</div>
-          <div className="ph-info">
-            {heading ?? <h1 className="ph-title clamp2">{title}</h1>}
-            <div className="ph-sub">
-              {artists?.map((a, i) => (
-                <span key={i}>
-                  {i > 0 && ', '}
-                  {a.id ? <Link href={`/artist/${a.id}`}>{a.name}</Link> : <b>{a.name}</b>}
-                </span>
-              ))}
-              {artists && artists.length > 0 && meta && <span className="dot"> • </span>}
-              {meta && <span>{meta}</span>}
-            </div>
-          </div>
+      <div className="acol">
+        <div className="abar">
+          {actions && <div className="apill">{actions}</div>}
+          <div className="grow" />
+          <button className="aclose" aria-label="Close" onClick={() => router.back()}>
+            <Icon name="close" size={18} />
+          </button>
         </div>
-      </Tile>
 
-      <div className="bento-full actionbar">
-        <button className="bigplay" aria-label="Play" disabled={!tracks.length} onClick={() => usePlayer.getState().play(tracks, 0, { source })}>
-          <Icon name="play" size={24} />
-        </button>
-        <button className="icon-btn big" aria-label="Shuffle play" title="Shuffle" disabled={!tracks.length} onClick={() => usePlayer.getState().play(tracks, 0, { source, shuffle: true })}>
-          <Icon name="shuffle" size={28} />
-        </button>
-        {actions}
-      </div>
+        <section className="acard" style={{ background: fill }} aria-label={`${kind} header`}>
+          <div className="alab clamp1">{label}</div>
+          {heading ?? <h1 className="atitle clamp2">{title}</h1>}
+          <button className="aart" aria-label={`Play ${title}`} disabled={!tracks.length} onClick={() => usePlayer.getState().play(tracks, 0, { source })}>
+            {cover ?? <Cover src={thumb} size="100%" radius={28} />}
+          </button>
+          <div className="afoot">
+            <span className="aicon"><Icon name="waveform" size={22} /></span>
+            <div className="grow">
+              <b>{tracks.length} {tracks.length === 1 ? 'song' : 'songs'}</b>
+              <span>{total ? runTime(total) : meta}</span>
+            </div>
+            <button className="ashuf" aria-label="Shuffle play" title="Shuffle" disabled={!tracks.length} onClick={() => usePlayer.getState().play(tracks, 0, { source, shuffle: true })}>
+              <Icon name="shuffle" size={22} />
+            </button>
+          </div>
+        </section>
 
-      {!tracks.length && (
-        <Tile span={12} tone="quiet" label="Empty">
-          {empty}
-        </Tile>
-      )}
-      {tracks.length > 0 && (
-        <>
-          <Tile span={12} flush label="Songs">
-            <div className="thead" aria-hidden>
-              <span className="i">#</span>
-              <span className="g" style={numbered ? undefined : { paddingLeft: 56 }}>Title</span>
-              {!numbered && <span className="a">Album</span>}
-              <span className="sp" />
-              <span className="d"><Icon name="clock" size={16} /></span>
-              <span className="sp" />
-            </div>
-            <div className="list">
-              {tracks.map((t, i) => (
-                <TrackRow key={`${t.id}-${i}`} track={t} index={i} list={tracks} showIndex showArt={!numbered} playlistId={playlistId} />
-              ))}
-            </div>
-          </Tile>
-          <Tile span={12} tone="card" title="About" label="About">
-            {description && (
-              <div>
-                <p className={`ph-desc${more ? '' : ' clamp4'}`}>{description}</p>
-                {description.length > 140 && (
-                  <button className="ph-more" onClick={() => setMore(!more)}>
-                    {more ? 'Show less' : 'Show full description'}
-                  </button>
-                )}
-              </div>
+        {!tracks.length && <div className="aempty">{empty}</div>}
+        {tracks.length > 0 && (
+          <div className="alist">
+            {tracks.map((t, i) => (
+              <TrackRow key={`${t.id}-${i}`} track={t} index={i} list={tracks} showArt showArtist={false} playlistId={playlistId} />
+            ))}
+          </div>
+        )}
+
+        {description && (
+          <div className="adesc">
+            <p className={`ph-desc${more ? '' : ' clamp4'}`}>{description}</p>
+            {description.length > 140 && (
+              <button className="ph-more" onClick={() => setMore(!more)}>
+                {more ? 'Show less' : 'Show full description'}
+              </button>
             )}
-            <dl className="facts">
-              {rows.map(([k, v]) => (
-                <div key={k}>
-                  <dt>{k}</dt>
-                  <dd>{v}</dd>
-                </div>
-              ))}
-            </dl>
-          </Tile>
-        </>
-      )}
+          </div>
+        )}
+      </div>
       {extra}
     </Bento>
   );
