@@ -10,6 +10,7 @@ sealed interface Screen {
     data object New : Screen
     data object Search : Screen
     data object Library : Screen
+    data object Create : Screen
     data object Settings : Screen
     data class Album(val id: String) : Screen
     data class Artist(val id: String) : Screen
