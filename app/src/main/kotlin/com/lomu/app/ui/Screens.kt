@@ -841,6 +841,17 @@ fun SettingsScreen() {
                 ActionCell("Create Account", lo.signal) { scope.launch { sync?.signIn(url, user, pass, true); sync?.sync() } }
             }
         }
+        run {
+            var lanText by remember(st.lan) { mutableStateOf(st.lan) }
+            var lanMsg by remember { mutableStateOf<String?>(null) }
+            Group("Home network", footer = lanMsg ?: "If the server's name does not work at home (router or WARP), the phone uses these addresses instead. Example: 192.168.1.10, 192.168.1.20. Leave empty to let the server tell the phone.") {
+                CellField(lanText, { lanText = it; lanMsg = null }, "Server address at home (optional)")
+                Hairline(16.dp)
+                ActionCell("Save", lo.signal) {
+                    lanMsg = sync?.setLan(lanText) ?: "Saved. Takes effect on the next request."
+                }
+            }
+        }
         if (st.user != null) {
             val openDevices = LocalOpenDevices.current
             Group("Devices", footer = "See the other devices signed in to this account, move music between them, and control them from here.") {

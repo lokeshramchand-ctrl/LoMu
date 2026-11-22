@@ -22,9 +22,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
-import java.net.Inet4Address
 import java.net.InetAddress
-import java.net.NetworkInterface
 import java.net.UnknownHostException
 import java.time.Instant
 import java.time.LocalDateTime
@@ -39,6 +37,7 @@ data class SyncState(
     val status: String = "Not signed in",
     val busy: Boolean = false,
     val error: String? = null,
+    val lan: String = "",
 )
 
 /**
@@ -55,26 +54,57 @@ class SyncClient @Inject constructor(
     /**
      * The server's public name does not work from inside the home network: many routers cannot loop a connection back in,
      * and with Cloudflare WARP on, the connection is tunnelled out and has to come back in from the internet. The server is
-     * reachable on its private address though, and its certificate is for the public name, so for the server's own host this
-     * resolver adds that address (learned from the server, see [learnLan]) to the candidates. OkHttp tries them in order and
-     * moves on when one does not connect; on the same subnet as the server the private address goes first. TLS still uses
-     * the public name, so nothing about certificate checking is relaxed.
+     * reachable on private addresses though (a list, e.g. 192.168.1.10 and 192.168.1.20; set by hand in Settings or learned
+     * from the server), and its certificate is for the public name. So for the server's own host this resolver offers those
+     * addresses too: the ones that answer a quick TCP probe go first, then the public name, then the rest. TLS still uses the
+     * public name, so nothing about certificate checking is relaxed. Away from home the probes fail in ~0.5 s (in parallel,
+     * and remembered for 30 s) and the public name is used as before.
      */
     val lanAwareDns: Dns = object : Dns {
         override fun lookup(hostname: String): List<InetAddress> {
             val system = runCatching { Dns.SYSTEM.lookup(hostname) }.getOrDefault(emptyList())
-            val lan = prefs.getString("lan", null)
-            val serverHost = runCatching { java.net.URI(base()).host }.getOrNull()
-            if (lan.isNullOrBlank() || !isPrivateIpv4(lan) || hostname != serverHost) {
+            val home = homeAddresses()
+            if (home.isEmpty() || !isServerHost(hostname)) {
                 if (system.isEmpty()) throw UnknownHostException(hostname)
                 return system
             }
-            val local = runCatching { InetAddress.getByName(lan) }.getOrNull()
-            val all = if (local == null) system else if (onSameSubnet(local)) listOf(local) + system else system + local
+            val port = runCatching { java.net.URI(base()).let { if (it.port > 0) it.port else if (it.scheme == "http") 80 else 443 } }.getOrDefault(443)
+            val answering = probeAll(home, port)
+            val candidates = home.mapNotNull { runCatching { InetAddress.getByName(it) }.getOrNull() }
+            val up = candidates.filter { it.hostAddress in answering }
+            val down = candidates.filter { it.hostAddress !in answering }
+            val all = (up + system + down).distinct()
             if (all.isEmpty()) throw UnknownHostException(hostname)
-            return all.distinct()
+            return all
         }
     }
+
+    private val probeCache = java.util.concurrent.ConcurrentHashMap<String, Pair<Boolean, Long>>()
+
+    /** Which of [addresses] accept a TCP connection on [port] right now. Parallel, 500 ms each, cached for 30 s. */
+    private fun probeAll(addresses: List<String>, port: Int): Set<String> {
+        val now = System.currentTimeMillis()
+        val result = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+        val threads = addresses.map { a ->
+            val cached = probeCache[a]
+            if (cached != null && now - cached.second < 30_000) {
+                if (cached.first) result.add(a)
+                null
+            } else Thread {
+                val ok = runCatching { java.net.Socket().use { it.connect(java.net.InetSocketAddress(a, port), 500); true } }.getOrDefault(false)
+                probeCache[a] = ok to System.currentTimeMillis()
+                if (ok) result.add(a)
+            }.also { it.isDaemon = true; it.start() }
+        }
+        threads.forEach { it?.join(700) }
+        return result
+    }
+
+    /** The saved home addresses, validated (private ranges only), at most 4. */
+    private fun homeAddresses(): List<String> = parseHomeAddresses(prefs.getString("lan", null))
+
+    private fun parseHomeAddresses(v: String?): List<String> =
+        (v ?: "").split(Regex("[\\s,;]+")).map { it.trim() }.filter { it.isNotEmpty() && isPrivateIpv4(it) }.distinct().take(4)
 
     private val http = OkHttpClient.Builder().dns(lanAwareDns).connectTimeout(7, TimeUnit.SECONDS).callTimeout(30, TimeUnit.SECONDS).build()
     private val json = "application/json".toMediaType()
@@ -85,6 +115,7 @@ class SyncClient @Inject constructor(
             serverUrl = prefs.getString("url", null) ?: com.lomu.app.BuildConfig.DEFAULT_SERVER_URL,
             user = prefs.getString("user", null),
             status = if (prefs.getString("refresh", null) != null) "Signed in" else "Not signed in",
+            lan = (prefs.getString("lan", null) ?: "").split(",").filter { it.isNotBlank() }.joinToString(", "),
         ),
     )
     val state: StateFlow<SyncState> = _state.asStateFlow()
@@ -129,25 +160,36 @@ class SyncClient @Inject constructor(
         return a == 10 || (a == 172 && b in 16..31) || (a == 192 && b == 168) || (a == 100 && b in 64..127)
     }
 
-    /** True when this phone has an address on the same IPv4 subnet as [other] (so it is at home, on the server's network). */
-    private fun onSameSubnet(other: InetAddress): Boolean = runCatching {
-        NetworkInterface.getNetworkInterfaces().asSequence().filter { it.isUp && !it.isLoopback }.flatMap { it.interfaceAddresses.asSequence() }.any { ia ->
-            val mine = ia.address as? Inet4Address ?: return@any false
-            val prefix = ia.networkPrefixLength.toInt().coerceIn(1, 32)
-            val mask = (-1 shl (32 - prefix))
-            fun v(a: InetAddress) = a.address.fold(0) { acc, x -> (acc shl 8) or (x.toInt() and 0xff) }
-            (v(mine) and mask) == (v(other) and mask)
-        }
-    }.getOrDefault(false)
-
     /** Asks the server for its address on the home network (it advertises it to signed-in accounts) and remembers it. */
     private fun learnLan() {
         prefs.edit().putLong("lanTried", System.currentTimeMillis()).apply()
         runCatching {
             val (code, o) = get("/api/auth/status")
-            val lan = o.optString("lan", "")
-            if (code == 200 && lan.isNotBlank() && isPrivateIpv4(lan)) prefs.edit().putString("lan", lan).apply()
+            val found = parseHomeAddresses(o.optString("lan", ""))
+            if (code == 200 && found.isNotEmpty() && prefs.getString("lanManual", null) == null) {
+                prefs.edit().putString("lan", found.joinToString(",")).apply()
+                _state.value = _state.value.copy(lan = found.joinToString(", "))
+            }
         }
+    }
+
+    /**
+     * Sets the home network addresses by hand (comma separated, e.g. "192.168.1.10, 192.168.1.20"); an empty string clears them
+     * and lets the app learn them from the server again. Returns an error message, or null when saved.
+     */
+    fun setLan(value: String): String? {
+        val parts = value.split(Regex("[\\s,;]+")).map { it.trim() }.filter { it.isNotEmpty() }
+        val bad = parts.filter { !isPrivateIpv4(it) }
+        if (bad.isNotEmpty()) return "Not a home network address: ${bad.joinToString(", ")}. Use addresses like 192.168.1.10 or 192.168.1.20."
+        val ok = parseHomeAddresses(value)
+        probeCache.clear()
+        if (ok.isEmpty()) {
+            prefs.edit().remove("lan").remove("lanManual").remove("lanTried").apply()
+        } else {
+            prefs.edit().putString("lan", ok.joinToString(",")).putString("lanManual", "1").apply()
+        }
+        _state.value = _state.value.copy(lan = ok.joinToString(", "))
+        return null
     }
 
     private fun saveTokens(o: JSONObject) {
@@ -235,7 +277,7 @@ class SyncClient @Inject constructor(
             if (previous != null && !previous.equals(user.trim(), ignoreCase = true)) {
                 database.delegate.clearAllTables()
                 prefs.edit().remove("liked").remove("lastEvent").remove("plSnap").remove("savedSnap").remove("queueJson").remove("queueAt")
-                    .remove("queuePushedAt").remove("queueSeenAt").remove("queueSig").remove("remoteQueue").remove("lan").apply()
+                    .remove("queuePushedAt").remove("queueSeenAt").remove("queueSig").remove("remoteQueue").apply()
                 _remoteQueue.value = null
             }
             saveTokens(o)
