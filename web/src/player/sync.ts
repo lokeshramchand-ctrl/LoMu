@@ -15,6 +15,7 @@ type AuthState = {
   status: 'loading' | 'setup' | 'login' | 'ready';
   user: string | null;
   needsCode: boolean;
+  admin: boolean; // may add and remove accounts
   local: boolean; // Windows desktop app: its own server, no login screen, sync goes through the hub
   error: string | null;
   sync: 'off' | 'syncing' | 'live' | 'error';
@@ -24,10 +25,28 @@ type AuthState = {
   logout: () => Promise<void>;
 };
 
+/* Everything this browser keeps about one person. When a different account signs in, it is wiped, so one person's
+   likes and history are never uploaded into another account, and the old sync cursor cannot make the new account
+   skip its own documents. (The device id and theme belong to the browser and stay.) */
+const ACCOUNT_KEY = 'lomu-account';
+const PER_ACCOUNT_KEYS = ['lomu-library', 'lomu-sync-seq', 'lomu-sleep', 'lomu-player', 'lomu-queue-at', 'lomu-queue-seen'];
+
+/** Returns true when the stored data belonged to someone else and was cleared (the page must reload to start clean). */
+export function adoptAccount(user: string): boolean {
+  if (typeof localStorage === 'undefined') return false;
+  const owner = localStorage.getItem(ACCOUNT_KEY);
+  if (owner === user.toLowerCase()) return false;
+  const reset = owner !== null; // first run after an update: nobody owned it yet, so keep it for the first account
+  if (reset) for (const k of PER_ACCOUNT_KEYS) localStorage.removeItem(k);
+  localStorage.setItem(ACCOUNT_KEY, user.toLowerCase());
+  return reset;
+}
+
 export const useAuth = create<AuthState>((set, get) => ({
   status: 'loading',
   user: null,
   needsCode: false,
+  admin: false,
   local: false,
   error: null,
   sync: 'off',
@@ -35,10 +54,11 @@ export const useAuth = create<AuthState>((set, get) => ({
   async refresh() {
     try {
       const r = await fetch('/api/auth/status', { cache: 'no-store' });
-      const s = (await r.json()) as { setup: boolean; user: string | null; needsCode?: boolean; local?: boolean };
-      set({ local: !!s.local });
+      const s = (await r.json()) as { setup: boolean; user: string | null; role?: 'admin' | 'user' | null; needsCode?: boolean; local?: boolean };
+      set({ local: !!s.local, admin: s.role === 'admin' });
       if (!s.setup) return set({ status: 'setup', user: null, needsCode: !!s.needsCode });
       if (s.user) {
+        if (!s.local && adoptAccount(s.user)) return location.reload();
         set({ status: 'ready', user: s.user });
         startSync();
         return;
@@ -57,13 +77,14 @@ export const useAuth = create<AuthState>((set, get) => ({
     const r = await fetch(`/api/auth/${mode}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username, password, code }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) return set({ error: j.error ?? 'Something went wrong' });
-    set({ status: 'ready', user: j.user ?? username });
+    if (!get().local && adoptAccount(j.user ?? username)) return location.reload();
+    set({ status: 'ready', user: j.user ?? username, admin: j.role === 'admin' });
     startSync();
   },
   async logout() {
     stopSync();
     await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
-    set({ status: 'login', user: null, sync: 'off' });
+    set({ status: 'login', user: null, admin: false, sync: 'off' });
   },
 }));
 
