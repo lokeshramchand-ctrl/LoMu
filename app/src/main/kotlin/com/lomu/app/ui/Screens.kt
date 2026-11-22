@@ -142,10 +142,6 @@ fun HomeScreen() {
     }
     val state by load("home") { YouTube.home() }
     val sleep = lastSleep()
-    // A soft wash of the playing song's colour behind the top of the page; it fades slowly when the song changes.
-    val nowArt = LocalPlayer.current?.let { pc -> val meta by pc.mediaMetadata.collectAsState(); meta?.thumbnailUrl }
-    val wash by animateColorAsState(rememberTint(nowArt)?.copy(alpha = 0.34f) ?: Color.Transparent, tween(900), label = "homeWash")
-    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to wash, 0.45f to Color.Transparent))) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = bottomPad())) {
         item { TitleBar("Home") }
         if (sleep != null) item { SleepCard(sleep) }
@@ -215,7 +211,6 @@ fun HomeScreen() {
             is Load.Err -> item { ErrorBox(st.message) }
             is Load.Ok -> items(st.value.sections.take(3)) { Shelf(it.title, it.items) }
         }
-    }
     }
 }
 
@@ -341,7 +336,7 @@ fun SearchScreen() {
 private fun CategoryTile(label: String, colors: Pair<Color, Color>, modifier: Modifier, onClick: () -> Unit) {
     val shape = RoundedCornerShape(10.dp)
     Box(
-        modifier.height(96.dp).background(Brush.linearGradient(listOf(colors.first, colors.second)), shape).pressable(shape, onClick = onClick).padding(12.dp),
+        modifier.height(96.dp).background(androidx.compose.ui.graphics.lerp(colors.first, Color.Black, 0.35f), shape).pressable(shape, onClick = onClick).padding(12.dp),
     ) {
         Text(label, style = LoType.body.copy(fontWeight = FontWeight.Bold), color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
@@ -439,13 +434,13 @@ internal fun BackTitle(back: String, title: String, onBack: () -> Unit) {
     val lo = LocalLo.current
     Column(Modifier.statusBarsPadding()) {
         Row(
-            Modifier.padding(start = 16.dp, top = 10.dp).height(38.dp).background(lo.surface2, CircleShape)
-                .pressable(CircleShape, onClick = onBack).padding(start = 10.dp, end = 16.dp),
+            Modifier.padding(start = 8.dp, top = 6.dp).height(44.dp)
+                .pressable(CircleShape, onClick = onBack).padding(start = 8.dp, end = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Ic(Ph.Left, 16.dp, lo.ink)
-            Spacer(Modifier.width(6.dp))
-            Text(back, style = LoType.sub.copy(fontWeight = FontWeight.Medium), color = lo.ink)
+            Ic(Ph.Left, 18.dp, lo.signal)
+            Spacer(Modifier.width(4.dp))
+            Text(back, style = LoType.body, color = lo.signal)
         }
         Text(title, style = LoType.hero, color = lo.ink, modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 8.dp))
     }
