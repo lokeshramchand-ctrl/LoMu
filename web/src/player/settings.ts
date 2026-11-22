@@ -10,9 +10,9 @@ export const HOME_SECTIONS = [
   { id: 'stats', label: 'Your week', hint: 'Minutes listened, streak, top artist' },
   { id: 'mixes', label: 'Made for you', hint: 'Mixes built from what you play and like' },
   { id: 'artists', label: 'Your artists', hint: 'The artists you play most' },
-  { id: 'moods', label: 'Moods', hint: 'Jump into a mood' },
-  { id: 'trending', label: 'Trending', hint: 'What is popular right now' },
-  { id: 'newReleases', label: 'New releases', hint: 'Fresh albums and singles' },
+  { id: 'moods', label: 'Moods', hint: 'Mood playlists from YouTube Music' },
+  { id: 'trending', label: 'Trending', hint: 'The YouTube Music chart' },
+  { id: 'newReleases', label: 'New releases', hint: 'New albums and singles on YouTube Music' },
   { id: 'youtube', label: 'From YouTube Music', hint: 'The rest of the YouTube Music feed' },
 ] as const;
 export type HomeSectionId = (typeof HOME_SECTIONS)[number]['id'];

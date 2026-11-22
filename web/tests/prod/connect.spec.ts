@@ -13,10 +13,10 @@ const phone = async (page: Page) => (await devices(page)).devices.find((d: any) 
 test('web steers the phone, then takes playback over', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('lomu-welcomed', '1'));
   await page.goto('/');
-  await page.getByPlaceholder('Username').fill(USER, { timeout: 45_000 });
-  await page.getByPlaceholder('Password').fill(PASS);
+  await page.getByLabel('Username', { exact: true }).fill(USER, { timeout: 45_000 });
+  await page.getByLabel('Password', { exact: true }).fill(PASS);
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page.getByPlaceholder('Username')).toBeHidden({ timeout: 20_000 });
+  await expect(page.getByLabel('Username', { exact: true })).toBeHidden({ timeout: 20_000 });
   await page.waitForTimeout(4000);
 
   let p = await phone(page);
@@ -47,7 +47,7 @@ test('web steers the phone, then takes playback over', async ({ page }) => {
 
   // Play something new from the web onto the phone.
   // A full page load would drop the steering, so search through the app's own box.
-  await page.getByPlaceholder('What do you want to play?').fill('tum hi ho');
+  await page.getByLabel('Search').first().fill('tum hi ho');
   await page.keyboard.press('Enter');
   await page.waitForTimeout(3500);
   await page.getByText('Tum Hi Ho', { exact: true }).first().click();

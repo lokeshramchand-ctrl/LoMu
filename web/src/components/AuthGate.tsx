@@ -30,17 +30,26 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         <div className="mk"><span className="mark" /><b>LoMu</b></div>
         <h1>{mode === 'setup' ? 'Create your account' : 'Welcome back'}</h1>
         {mode === 'setup' && <p>One account for you. It syncs this browser and your phone.</p>}
-        <input autoFocus name="username" aria-label="Username" spellCheck={false} placeholder="Username…" autoComplete="username" value={u} onChange={(e) => setU(e.target.value)} />
+        <label htmlFor="gate-user">Username</label>
+        <input id="gate-user" autoFocus name="username" spellCheck={false} autoComplete="username" value={u} onChange={(e) => setU(e.target.value)} />
+        <label htmlFor="gate-pass">Password</label>
         <input
+          id="gate-pass"
           type="password"
           name="password"
-          aria-label="Password"
-          placeholder={mode === 'setup' ? 'Password (8+ characters)…' : 'Password…'}
           autoComplete={mode === 'setup' ? 'new-password' : 'current-password'}
+          aria-describedby={mode === 'setup' ? 'gate-pass-rule' : undefined}
           value={p}
           onChange={(e) => setP(e.target.value)}
         />
-        {mode === 'setup' && needsCode && <input name="setup-code" aria-label="Setup code" spellCheck={false} autoComplete="off" placeholder="Setup code from the server config…" value={code} onChange={(e) => setCode(e.target.value)} />}
+        {mode === 'setup' && <span id="gate-pass-rule" className="rule">At least 8 characters.</span>}
+        {mode === 'setup' && needsCode && (
+          <>
+            <label htmlFor="gate-code">Setup code</label>
+            <input id="gate-code" name="setup-code" spellCheck={false} autoComplete="off" value={code} onChange={(e) => setCode(e.target.value)} />
+            <span className="rule">It is in the server config.</span>
+          </>
+        )}
         {error && <div className="err" role="alert">{error}</div>}
         <button disabled={busy || !u || !p}>{mode === 'setup' ? 'Create account' : 'Sign in'}</button>
       </form>
@@ -52,6 +61,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         .mk b { font-family: var(--font-display); font-size: 1.5rem; font-weight: 400; letter-spacing: -.02em; line-height: 1; color: var(--ink); }
         h1 { font-size: 1.75rem; font-weight: 400; line-height: 1.1; margin: 0; letter-spacing: -.02em; }
         p { color: var(--muted); margin: 0 0 8px; }
+        label { font-size: .8125rem; font-weight: 500; color: var(--muted); margin-top: 6px; }
+        .rule { font-size: .75rem; color: var(--muted); }
         input { height: 36px; padding: 0 12px; border-radius: var(--r-sm); font-size: 13px; border: 1px solid var(--border-2); background: var(--surface); color: var(--text); font: inherit; transition: border-color .2s, box-shadow .2s; }
         input:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
         input:focus { border-color: var(--signal); box-shadow: 0 0 0 2px var(--signal-soft); }

@@ -78,8 +78,8 @@ export function topArtists(history: PlayLike[], n = 12): ArtistRef[] {
 }
 
 export function formatMinutes(m: number): { value: string; unit: string } {
-  if (m >= 90) return { value: (m / 60).toFixed(m >= 600 ? 0 : 1), unit: 'h' };
-  return { value: String(m), unit: 'min' };
+  if (m >= 90) return { value: (m / 60).toFixed(m >= 600 ? 0 : 1), unit: 'hours' };
+  return { value: String(m), unit: m === 1 ? 'minute' : 'minutes' };
 }
 
 /* ---------------------------------------------------------------- deeper analytics */

@@ -36,9 +36,9 @@ function Bars({ values, labels, label, mark }: { values: number[]; labels: strin
   );
 }
 
-function Big({ value, unit }: { value: string; unit?: string }) {
+function Big({ value, unit, lead }: { value: string; unit?: string; lead?: boolean }) {
   return (
-    <div className="big">
+    <div className={`big${lead ? ' lead' : ' compact'}`}>
       <span className="n">{value}</span>
       {unit && <span className="u">{unit}</span>}
     </div>
@@ -70,18 +70,18 @@ export default function Insights() {
     <Bento className="fade-in">
       <PageHeader  title="Your listening" />
 
-      <Tile span={3} md={6} sm={6} tone="card" className="stat" title="Time listened" sub="Awake, all time">
-        <Big value={formatSpan(stats.totalMs)} />
+      <Tile span={6} md={12} tone="accent" title="Time listened" sub="Awake, all time">
+        <Big lead value={formatSpan(stats.totalMs)} />
         {asleepTotal > 60_000 && <div className="muted small">{`+ ${formatSpan(asleepTotal)} asleep with music on`}</div>}
       </Tile>
-      <Tile span={3} md={6} sm={6} tone="card" className="stat" title="Last 30 days">
+      <Tile span={2} md={4} sm={12} className="stat" title="Last 30 days">
         <Big value={formatSpan(stats.monthMs)} />
         <div className="muted small">{stats.newArtistsThisMonth} new {stats.newArtistsThisMonth === 1 ? 'artist' : 'artists'}</div>
       </Tile>
-      <Tile span={3} md={6} sm={6} tone="card" className="stat" title="Daily average" sub="On days you listen">
+      <Tile span={2} md={4} sm={12} className="stat" title="Daily average" sub="On days you listen">
         <Big value={formatSpan(stats.avgDayMs)} />
       </Tile>
-      <Tile span={3} md={6} sm={6} tone="card" className="stat" title="Best streak">
+      <Tile span={2} md={4} sm={12} className="stat" title="Best streak">
         <Big value={String(stats.longestStreak)} unit={stats.longestStreak === 1 ? 'day' : 'days'} />
         <div className="muted small">{Math.round(stats.completionRate * 100)}% of songs finished</div>
       </Tile>
@@ -154,10 +154,10 @@ function SleepTile({ sessions }: { sessions: SleepSession[] }) {
               {on && (
                 <div className="body">
                   <p className="small">
-                    You probably nodded off around <b>{clock(s.asleepFrom)}</b> during <b>{s.lastAwake.title}</b>. The queue then played{' '}
+                    You may have fallen asleep at <b>{clock(s.asleepFrom)}</b> during <b>{s.lastAwake.title}</b>. The queue then played{' '}
                     <b>{s.plays.length - s.lastAwakeIndex - 1}</b> more songs until <b>{clock(s.end)}</b>.
                   </p>
-                  <p className="muted small">Tap the last song you actually remember hearing:</p>
+                  <p className="muted small">Tap the last song you remember hearing:</p>
                   <ol>
                     {s.plays.map((p, j) => (
                       <li key={p.at} className={j === s.lastAwakeIndex ? 'mark' : j > s.lastAwakeIndex ? 'dim' : ''}>
