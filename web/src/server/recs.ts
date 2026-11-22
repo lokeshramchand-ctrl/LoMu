@@ -51,6 +51,12 @@ async function dailyPlaylist(uid: number, aff: Affinity, now: number, fallback: 
   return mix;
 }
 
+export function userAffinity(uid: number): Affinity {
+  const plays = all(uid, 'play', 3000).map((r) => r.value as PlayDoc);
+  const likes = all(uid, 'like', 3000).map((r) => r.value as LikeDoc);
+  return affinity(plays, likes, Date.now());
+}
+
 export function buildMixes(uid: number): Promise<Shelf[]> {
   // The play log changes slowly relative to how often the home page is opened.
   return cached(`recs:u${uid}:mixes`, 3 * 60_000, async () => {

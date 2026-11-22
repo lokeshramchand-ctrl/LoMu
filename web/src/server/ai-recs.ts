@@ -95,6 +95,20 @@ export function aiShelf(uid: number, now = Date.now()): Shelf | null {
   return { title: mix.title, subtitle: mix.blurb || 'Picked by AI', items: mix.items };
 }
 
+export type BuildReport = { title: string; proposed: number; found: number; kept: number; ms: number };
+
+/** One full build: ask the model, check every pick against the catalogue, store the result. Throws with a readable reason. */
+export async function buildAiMix(uid: number, aff: Affinity, now = Date.now()): Promise<BuildReport> {
+  const t0 = Date.now();
+  const plan = parsePlan(await chatJson(SYSTEM, profile(aff)));
+  if (!plan) throw new Error('The model answered, but not with a usable playlist (too few songs or not JSON).');
+  const found = await resolve(plan.picks);
+  const items = diversify(found.filter((t) => !aff.heavilyPlayed.has(t.id) && !aff.skipped.has(t.id)), 2);
+  if (items.length < MIN_TRACKS) throw new Error(`The model proposed ${plan.picks.length} songs but only ${items.length} could be used (found on YouTube Music, not played to death or skipped). Needs ${MIN_TRACKS}.`);
+  writeStale(key(uid, 'mix'), { day: dayKey(now), at: Date.now(), title: plan.title, blurb: plan.blurb, items } satisfies AiMix);
+  return { title: plan.title, proposed: plan.picks.length, found: found.length, kept: items.length, ms: Date.now() - t0 };
+}
+
 /** Starts today's build in the background when it is due. Never throws and never waits. */
 export function refreshAiMix(uid: number, aff: Affinity, now = Date.now()): void {
   if (!aiConfigured() || running.has(uid)) return;
@@ -103,18 +117,52 @@ export function refreshAiMix(uid: number, aff: Affinity, now = Date.now()): void
   if (!decide(mix, lastTry, now).refresh) return;
   running.add(uid);
   writeStale(key(uid, 'try'), now);
-  void (async () => {
-    try {
-      const plan = parsePlan(await chatJson(SYSTEM, profile(aff)));
-      if (!plan) throw new Error('AI plan was unusable');
-      const found = await resolve(plan.picks);
-      const items = diversify(found.filter((t) => !aff.heavilyPlayed.has(t.id) && !aff.skipped.has(t.id)), 2);
-      if (items.length < MIN_TRACKS) throw new Error(`only ${items.length} songs resolved`);
-      writeStale(key(uid, 'mix'), { day: dayKey(now), at: Date.now(), title: plan.title, blurb: plan.blurb, items } satisfies AiMix);
-    } catch (e) {
-      console.warn('[ai] daily mix not built:', e instanceof Error ? e.message : e);
-    } finally {
-      running.delete(uid);
-    }
-  })();
+  void buildAiMix(uid, aff, now)
+    .then(() => writeStale(key(uid, 'err'), ''))
+    .catch((e) => {
+      const msg = e instanceof Error ? e.message : String(e);
+      writeStale(key(uid, 'err'), msg);
+      console.warn('[ai] daily mix not built:', msg);
+    })
+    .finally(() => running.delete(uid));
+}
+
+export type AiStatus = { configured: boolean; host: string | null; building: boolean; builtAt: number | null; title: string | null; songs: number; lastTry: number | null; lastError: string | null; shown: boolean };
+
+export function aiStatus(uid: number, now = Date.now()): AiStatus {
+  const mix = readStale<AiMix>(key(uid, 'mix'));
+  let host: string | null = null;
+  try {
+    host = process.env.LOMU_AI_URL ? new URL(process.env.LOMU_AI_URL).host : null;
+  } catch {
+    host = process.env.LOMU_AI_URL ?? null;
+  }
+  return {
+    configured: aiConfigured(),
+    host,
+    building: running.has(uid),
+    builtAt: mix?.at ?? null,
+    title: mix?.title ?? null,
+    songs: mix?.items.length ?? 0,
+    lastTry: readStale<number>(key(uid, 'try')) ?? null,
+    lastError: readStale<string>(key(uid, 'err')) || null,
+    shown: !!mix && decide(mix, 0, now).show,
+  };
+}
+
+/** Builds now, ignoring the once-a-day rule (the Settings button). */
+export async function buildAiMixNow(uid: number, aff: Affinity): Promise<BuildReport> {
+  if (running.has(uid)) throw new Error('A build is already running. Try again in a minute.');
+  running.add(uid);
+  writeStale(key(uid, 'try'), Date.now());
+  try {
+    const r = await buildAiMix(uid, aff);
+    writeStale(key(uid, 'err'), '');
+    return r;
+  } catch (e) {
+    writeStale(key(uid, 'err'), e instanceof Error ? e.message : String(e));
+    throw e;
+  } finally {
+    running.delete(uid);
+  }
 }
