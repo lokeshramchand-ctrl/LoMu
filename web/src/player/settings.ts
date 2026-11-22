@@ -19,12 +19,10 @@ export type HomeSectionId = (typeof HOME_SECTIONS)[number]['id'];
 
 type Settings = {
   theme: Theme;
-  sideMini: boolean;
   home: Record<HomeSectionId, boolean>;
   /** Developer flags: features that are off by default. */
   dev: { explore: boolean; streamInfo: boolean; artistEnrichment: boolean };
   setTheme: (t: Theme) => void;
-  setSideMini: (v: boolean) => void;
   setHome: (id: HomeSectionId, v: boolean) => void;
   setDev: (k: keyof Settings['dev'], v: boolean) => void;
 };
@@ -35,14 +33,12 @@ export const useSettings = create<Settings>()(
   persist(
     (set) => ({
       theme: 'dark',
-      sideMini: false,
       home: defaultHome,
       dev: { explore: true, streamInfo: false, artistEnrichment: true },
       setTheme: (theme) => {
         set({ theme });
         applyTheme(theme);
       },
-      setSideMini: (sideMini) => set({ sideMini }),
       setHome: (id, v) => set((s) => ({ home: { ...s.home, [id]: v } })),
       setDev: (k, v) => set((s) => ({ dev: { ...s.dev, [k]: v } })),
     }),
@@ -50,7 +46,7 @@ export const useSettings = create<Settings>()(
       name: 'lomu-settings',
       version: 2,
       storage: createJSONStorage(() => localStorage),
-      migrate: (old: unknown) => ({ ...(old as object), sideMini: false, home: defaultHome }) as Settings,
+      migrate: (old: unknown) => ({ ...(old as object), home: defaultHome }) as Settings,
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<Settings>;
         return { ...current, ...p, home: { ...defaultHome, ...(p.home ?? {}) } };

@@ -9,7 +9,6 @@ import { Icon } from '@/components/Icon';
 import { useLibrary } from '@/player/library';
 import { usePlayer } from '@/player/store';
 import { useSettings } from '@/player/settings';
-import { useTint } from '@/lib/tint';
 
 export default function ArtistPage({ params }: { params: Promise<{ id: string }> }) {
   const id = decodeURIComponent(use(params).id);
@@ -18,7 +17,6 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
   const following = useLibrary((s) => !!s.artists[id]);
   const [bioOpen, setBioOpen] = useState(false);
   const [allSongs, setAllSongs] = useState(false);
-  useTint(null, '#3a3a42');
   if (isLoading) return <PageSkeleton />;
   if (error || !data) return <PageError error={error} retry={() => refetch()} />;
 
@@ -120,7 +118,7 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
 
       <style jsx global>{`
         .bio { margin: 0; line-height: 1.55; color: var(--text); font-size: 14px; white-space: pre-line; }
-        .follow { background: transparent; box-shadow: inset 0 0 0 1px #71717a; }
+        .follow { background: transparent; box-shadow: inset 0 0 0 1px var(--border-2); }
         .follow:hover { box-shadow: inset 0 0 0 1px var(--ink); background: transparent; }
       `}</style>
     </Bento>
