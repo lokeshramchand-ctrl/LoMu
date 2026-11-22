@@ -62,7 +62,7 @@ import com.lomu.app.models.toMediaMetadata
 import kotlinx.coroutines.launch
 
 @Composable
-private fun likedSongs(): List<Song> {
+internal fun likedSongs(): List<Song> {
     val player = LocalPlayer.current
     val flow = remember(player) { player?.database?.likedSongs(SongSortType.CREATE_DATE, true) ?: flowOf(emptyList()) }
     val songs by flow.collectAsState(emptyList())
@@ -94,122 +94,6 @@ private fun CaptionedTitle(title: String, caption: String?, action: String? = nu
         }
         if (action != null && onAction != null) {
             Text(action, style = LoType.sub, color = lo.signal, modifier = Modifier.pressable(CircleShape, onClick = onAction).padding(horizontal = 8.dp, vertical = 4.dp))
-        }
-    }
-}
-
-/** Large portrait card: full art with a tinted caption plate at the foot (Home "Top Picks for you"). */
-@Composable
-private fun FeatureCard(thumb: String?, title: String, line: String, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(14.dp)
-    Box(Modifier.width(248.dp).height(300.dp).pressable(shape, onClick = onClick).background(LocalLo.current.surface2, shape)) {
-        AsyncImage(model = thumb, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-        Column(
-            Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                .background(Brush.verticalGradient(0f to Color.Transparent, 0.35f to Color(0x99000000), 1f to Color(0xEB000000)))
-                .padding(start = 14.dp, end = 14.dp, top = 84.dp, bottom = 16.dp),
-            horizontalAlignment = Alignment.Start,
-        ) {
-            Text(title, style = LoType.sub.copy(fontWeight = FontWeight.SemiBold), color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(line, style = LoType.small, color = Color(0xE6FFFFFF), maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-    }
-}
-
-// ======================================================================================= Home
-
-@Composable
-fun HomeScreen() {
-    val player = LocalPlayer.current
-    val nav = LocalNav.current
-    val liked = likedSongs()
-    val recent = liked.take(12)
-    val now = playingId()
-    val sync = LocalSync.current
-    val fallback = remember { kotlinx.coroutines.flow.MutableStateFlow(com.lomu.app.sync.SyncState()) }
-    val syncState by (sync?.state ?: fallback).collectAsState()
-    val noQueue = remember { kotlinx.coroutines.flow.MutableStateFlow<com.lomu.app.sync.SyncClient.RemoteQueue?>(null) }
-    val remoteQueue by (sync?.remoteQueue ?: noQueue).collectAsState()
-    val lo = LocalLo.current
-    // Start from the cached shelves so Home doesn't flash the open feed ("India's Biggest Hits")
-    // before the personal "Top Picks" finish building a few seconds later.
-    var recsLoaded by remember { mutableStateOf(sync == null) }
-    val recs by produceState<List<com.lomu.app.sync.SyncClient.RecShelf>>(
-        remember { runCatching { sync?.cachedRecs() }.getOrNull().orEmpty() }, syncState.user, syncState.status.startsWith("Up to date"),
-    ) {
-        value = runCatching { sync?.recs() }.getOrNull().orEmpty()
-        recsLoaded = true
-    }
-    val state by load("home") { YouTube.home() }
-    val sleep = lastSleep()
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = bottomPad())) {
-        item { TitleBar("Home") }
-        if (sleep != null) item { SleepCard(sleep) }
-        val resume = remoteQueue
-        if (resume != null) item {
-            val first = resume.tracks[resume.index]
-            val ctx = LocalContext.current
-            Column {
-                CaptionedTitle("Continue listening", "From ${resume.device}")
-                Box(Modifier.padding(horizontal = 20.dp)) {
-                    MediaRow(first.title, first.artists.joinToString { it.name }, first.thumbnailUrl, separator = false, pad = 0.dp) {
-                        player?.let { pc ->
-                            pc.playQueue(com.lomu.app.playback.queues.ListQueue(title = "Continue", items = resume.tracks.map { it.toMediaItem() }, startIndex = resume.index))
-                            val at = resume.positionMs
-                            sync?.dismissRemoteQueue()
-                            if (at > 2_000) pc.player.let { p ->
-                                // The queue is handed to the player service asynchronously: seek once it has the song.
-                                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ if (p.currentMediaItem?.mediaId == first.id) p.seekTo(at) }, 800)
-                            }
-                        } ?: android.widget.Toast.makeText(ctx, "Player is starting", android.widget.Toast.LENGTH_SHORT).show()
-                    }
-                }
-                Text("Dismiss", style = LoType.small, color = lo.grey, modifier = Modifier.padding(start = 20.dp, bottom = 8.dp).pressable { sync?.dismissRemoteQueue() })
-            }
-        }
-        val top = recs.firstOrNull()
-        if (top != null) item {
-            Column(Modifier.appear(1)) {
-                CaptionedTitle("Top Picks for you", top.title)
-                LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    items(top.tracks.take(10)) { m ->
-                        FeatureCard(m.thumbnailUrl, m.title, m.artists.joinToString { it.name }) {
-                            player?.playRadio(m)
-                        }
-                    }
-                }
-            }
-        }
-        if (recent.isNotEmpty()) item {
-            Column(Modifier.appear(3)) {
-                SectionTitle("Recently Liked") { nav.push(Screen.Liked) }
-                LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    itemsIndexed(recent) { i, s ->
-                        MediaCard(s.song.thumbnailUrl, s.song.title, s.artists.joinToString { it.name }, now == s.song.id) {
-                            player?.playMediaItems("Liked", recent.map { it.toMediaItem() }, i)
-                        }
-                    }
-                }
-            }
-        }
-        itemsIndexed(recs.drop(1)) { i, shelf ->
-            Column(Modifier.appear(4 + i)) {
-                SectionTitle(shelf.title, chevron = false)
-                LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    items(shelf.tracks) { m ->
-                        MediaCard(m.thumbnailUrl, m.title, m.artists.joinToString { it.name }, now == m.id) {
-                            player?.playRadio(m)
-                        }
-                    }
-                }
-            }
-        }
-        // Until the personal shelves arrive (or when signed out) fall back to the open feed.
-        if (recs.isEmpty() && recent.isEmpty() && !recsLoaded) item { SkeletonShelves() }
-        else if (recs.isEmpty() && recent.isEmpty()) when (val st = state) {
-            is Load.Loading -> item { SkeletonShelves() }
-            is Load.Err -> item { ErrorBox(st.message, st.retry) }
-            is Load.Ok -> items(st.value.sections.take(3)) { Shelf(it.title, it.items) }
         }
     }
 }
@@ -362,70 +246,11 @@ fun ResultRow(item: YTItem, onClick: () -> Unit) {
 // ==================================================================================== Library
 
 @Composable
-private fun playlistsState(): List<com.lomu.app.db.entities.Playlist> {
+internal fun playlistsState(): List<com.lomu.app.db.entities.Playlist> {
     val player = LocalPlayer.current
     val plFlow = remember(player) { player?.database?.playlists(PlaylistSortType.CREATE_DATE, true) ?: flowOf(emptyList()) }
     val playlists by plFlow.collectAsState(emptyList())
     return playlists
-}
-
-@Composable
-private fun LibraryRow(icon: Ph, label: String, onClick: () -> Unit) {
-    val lo = LocalLo.current
-    Column(Modifier.fillMaxWidth().pressable(RoundedCornerShape(0.dp), onClick = onClick)) {
-        Row(Modifier.padding(start = 20.dp, end = 16.dp, top = 14.dp, bottom = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Ic(icon, 22.dp, lo.ink, Modifier.width(30.dp))
-            Spacer(Modifier.width(12.dp))
-            Text(label, style = LoType.body, color = lo.ink, modifier = Modifier.weight(1f))
-            Icon(Icons.Rounded.ChevronRight, null, tint = lo.grey.copy(alpha = 0.7f), modifier = Modifier.size(22.dp))
-        }
-        Hairline(62.dp)
-    }
-}
-
-@Composable
-fun LibraryScreen() {
-    val lo = LocalLo.current
-    val nav = LocalNav.current
-    val player = LocalPlayer.current
-    val songs = likedSongs()
-    val playlists = playlistsState()
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = bottomPad())) {
-        item { TitleBar("Library") }
-        if (playlists.isEmpty() && songs.isEmpty()) item {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                EmptyState(Ph.Library, "Your library is empty", "Like songs from the player, or bring your library over from YouTube Music.")
-                Pill("Import from YouTube Music", { nav.push(Screen.Import) }, accent = true, icon = Ph.Download)
-            }
-        }
-        item {
-            // Three-up grid of what was added most recently: playlists first, then liked songs.
-            val likedItems = remember(songs) { songs.map { it.toMediaItem() } }
-            val tiles = playlists.map { p -> Triple(p.playlist.name, "${p.songCount} songs", p.playlist.thumbnailUrl ?: p.thumbnails.firstOrNull()) to { nav.push(Screen.LocalPlaylist(p.playlist.id)) } } +
-                songs.take(9).mapIndexed { i, s -> Triple(s.song.title, s.artists.joinToString { it.name }, s.song.thumbnailUrl) to { player?.playMediaItems("Liked", likedItems, i); Unit } }
-            Column(Modifier.padding(horizontal = 20.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                tiles.take(6).chunked(3).forEach { row ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        row.forEach { (t, go) ->
-                            Column(Modifier.weight(1f).pressable(RoundedCornerShape(12.dp)) { go() }) {
-                                BoxWithConstraints { Cover(t.third, maxWidth, radius = 14.dp) }
-                                Text(t.first, style = LoType.small.copy(fontWeight = FontWeight.Medium), color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 5.dp))
-                            }
-                        }
-                        repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
-                    }
-                }
-            }
-            Spacer(Modifier.height(6.dp))
-            Hairline(20.dp)
-            LibraryRow(Ph.Playlist, "Playlists") { nav.push(Screen.Playlists) }
-            LibraryRow(Ph.Disc, "Albums") { nav.push(Screen.Albums) }
-            LibraryRow(Ph.User, "Artists") { nav.push(Screen.Artists) }
-            LibraryRow(Ph.Heart, "Liked Songs") { nav.push(Screen.Liked) }
-            LibraryRow(Ph.Moon, "Sleep") { nav.push(Screen.Sleep) }
-            LibraryRow(Ph.Download, "Import from YouTube Music") { nav.push(Screen.Import) }
-        }
-    }
 }
 
 /** Glass "back" capsule above a large title, for pushed list pages. */
@@ -532,33 +357,23 @@ private fun Detail(
 ) {
     val lo = LocalLo.current
     val nav = LocalNav.current
-    val base = rememberTint(cover) ?: lo.surface2
-    val wash by androidx.compose.animation.animateColorAsState(base, tween(600), label = "wash")
-    val state = androidx.compose.foundation.lazy.rememberLazyListState()
+    val fill = tileColor(Math.floorMod(title.hashCode(), 4))
     Box(Modifier.fillMaxSize()) {
-        // The wash scrolls away with the header, then the page is plain.
-        Box(
-            Modifier.fillMaxWidth().height(720.dp)
-                .graphicsLayer { translationY = -(if (state.firstVisibleItemIndex == 0) state.firstVisibleItemScrollOffset.toFloat() else 100_000f) }
-                .background(Brush.verticalGradient(listOf(
-                    androidx.compose.ui.graphics.lerp(lo.bg, wash, if (lo.dark) 0.62f else 0.72f),
-                    androidx.compose.ui.graphics.lerp(lo.bg, wash, if (lo.dark) 0.28f else 0.34f),
-                    lo.bg,
-                ))),
-        )
-        LazyColumn(Modifier.fillMaxSize(), state = state, contentPadding = PaddingValues(bottom = bottomPad())) {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = bottomPad())) {
             item {
-                Column(Modifier.fillMaxWidth().statusBarsPadding().padding(top = 56.dp, start = 40.dp, end = 40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    BoxWithConstraints(Modifier.fillMaxWidth(), Alignment.Center) {
-                        val side = minOf(maxWidth, 270.dp)
-                        Cover(cover, side, round = round, radius = 16.dp, modifier = Modifier.coverShadow(if (round) side / 2 else 16.dp, 16.dp))
+                val shape = RoundedCornerShape(32.dp)
+                Column(Modifier.fillMaxWidth().statusBarsPadding().padding(top = 60.dp, start = 16.dp, end = 16.dp)) {
+                    Column(Modifier.fillMaxWidth().background(fill, shape).padding(horizontal = 22.dp, vertical = 22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        if (!accent.isNullOrBlank()) Text(accent, style = LoType.sub, color = lo.grey, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(title, style = LoType.title.copy(fontSize = 28.sp, lineHeight = 33.sp, fontWeight = FontWeight.Bold), color = lo.ink, textAlign = TextAlign.Center, maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp, bottom = 18.dp))
+                        BoxWithConstraints(Modifier.fillMaxWidth(), Alignment.Center) {
+                            val side = minOf(maxWidth, 260.dp)
+                            Cover(cover, side, round = round, radius = 24.dp)
+                        }
+                        if (caption.isNotBlank()) Text(caption, style = LoType.small.copy(fontSize = 14.sp), color = lo.grey, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 16.dp))
                     }
-                    Spacer(Modifier.height(22.dp))
-                    Text(title, style = LoType.title.copy(fontSize = 22.sp, lineHeight = 27.sp, fontWeight = FontWeight.Bold), color = lo.ink, textAlign = TextAlign.Center, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                    if (!accent.isNullOrBlank()) Text(accent, style = LoType.body.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold), color = androidx.compose.ui.graphics.lerp(wash, lo.ink, 0.3f), textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 3.dp))
-                    if (caption.isNotBlank()) Text(caption, style = LoType.small, color = lo.grey, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 3.dp))
                 }
-                if (actions != null) Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically, content = actions)
+                if (actions != null) Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically, content = actions)
                 else Spacer(Modifier.height(8.dp))
             }
             body()
@@ -571,7 +386,7 @@ private fun Detail(
 @Composable
 private fun GlassRound(icon: ImageVector, label: String, onClick: () -> Unit) {
     val lo = LocalLo.current
-    Box(Modifier.size(46.dp).background(lo.ink.copy(alpha = 0.12f), CircleShape).pressable(CircleShape, onClick = onClick), Alignment.Center) { IcV(icon, 21.dp, lo.ink) }
+    Box(Modifier.size(46.dp).a11y(label).background(lo.surface2, CircleShape).pressable(CircleShape, onClick = onClick), Alignment.Center) { IcV(icon, 21.dp, lo.ink) }
 }
 
 /**
@@ -580,15 +395,15 @@ private fun GlassRound(icon: ImageVector, label: String, onClick: () -> Unit) {
  */
 @Composable
 private fun RowScope.PlayShuffle(play: () -> Unit, shuffle: () -> Unit, vararg extras: Triple<ImageVector, String, () -> Unit>) {
+    val lo = LocalLo.current
     GlassRound(Ph.Shuffle.vector, "Shuffle", shuffle)
     Row(
-        Modifier.width(if (extras.size > 1) 130.dp else 176.dp).height(46.dp).shadow(10.dp, CircleShape, clip = false, ambientColor = Color.Black.copy(alpha = 0.2f), spotColor = Color.Black.copy(alpha = 0.2f))
-            .background(Color.White.copy(alpha = 0.95f), CircleShape).pressable(CircleShape, onClick = play),
+        Modifier.width(if (extras.size > 1) 130.dp else 176.dp).height(46.dp).background(lo.signal, CircleShape).pressable(CircleShape, onClick = play),
         horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
     ) {
-        IcV(Ph.Play.vector, 18.dp, Color(0xFF111111))
+        IcV(Ph.Play.vector, 18.dp, lo.onSignal)
         Spacer(Modifier.width(8.dp))
-        Text("Play", style = LoType.body.copy(fontWeight = FontWeight.Bold, fontSize = 17.sp), color = Color(0xFF111111))
+        Text("Play", style = LoType.body.copy(fontWeight = FontWeight.Bold, fontSize = 17.sp), color = lo.onSignal)
     }
     extras.forEach { (icon, label, go) -> GlassRound(icon, label, go) }
 }
@@ -731,9 +546,23 @@ fun LocalPlaylistScreen(id: String) {
     val songs = rows.sortedBy { it.map.position }
     val items = songs.map { it.song.toMediaItem() }
     val now = playingId()
+    val nav = LocalNav.current
+    val ctx = LocalContext.current
+    val sync = LocalSync.current
+    var confirmDelete by remember(id) { mutableStateOf(false) }
     Detail(
         meta?.playlist?.thumbnailUrl ?: songs.firstOrNull()?.song?.song?.thumbnailUrl, meta?.playlist?.name ?: "Playlist", null, "${songs.size} songs",
-        actions = { PlayShuffle({ player?.playMediaItems("Playlist", items) }, { player?.playMediaItems("Playlist", items.shuffled()) }) },
+        actions = {
+            PlayShuffle(
+                { player?.playMediaItems("Playlist", items) }, { player?.playMediaItems("Playlist", items.shuffled()) },
+                Triple(Ph.Trash.vector, if (confirmDelete) "Tap again to delete this playlist" else "Delete playlist", {
+                    val pl = meta?.playlist
+                    if (!confirmDelete) { confirmDelete = true; android.widget.Toast.makeText(ctx, "Tap again to delete this playlist", android.widget.Toast.LENGTH_SHORT).show() }
+                    else if (pl != null) player?.database?.let { d -> scope.launch(kotlinx.coroutines.Dispatchers.IO) { d.withTransaction { delete(pl) }; runCatching { sync?.sync() } }; nav.pop() }
+                    Unit
+                }),
+            )
+        },
     ) {
         if (songs.isEmpty()) item { EmptyState(Ph.Playlist, "This playlist is empty") }
         itemsIndexed(songs) { i, s ->
