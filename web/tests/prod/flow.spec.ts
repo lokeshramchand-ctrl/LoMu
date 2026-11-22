@@ -15,10 +15,10 @@ const log = (...a: unknown[]) => console.log('>>', ...a);
 async function login(page: Page) {
   await page.addInitScript(() => localStorage.setItem('lomu-welcomed', '1'));
   await page.goto('/');
-  await page.getByPlaceholder('Username').fill(USER, { timeout: 45_000 });
-  await page.getByPlaceholder('Password').fill(PASS);
+  await page.getByLabel('Username', { exact: true }).fill(USER, { timeout: 45_000 });
+  await page.getByLabel('Password', { exact: true }).fill(PASS);
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page.getByPlaceholder('Username')).toBeHidden({ timeout: 20_000 });
+  await expect(page.getByLabel('Username', { exact: true })).toBeHidden({ timeout: 20_000 });
   // Never steer the owner's other devices from a test run.
   await page.waitForTimeout(2500);
   await page.getByRole('button', { name: 'Devices' }).first().click();

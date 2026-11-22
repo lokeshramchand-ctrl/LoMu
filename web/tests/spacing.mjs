@@ -30,8 +30,8 @@ for (const w of WIDTHS) {
   const page = await ctx.newPage();
   await page.addInitScript(() => localStorage.setItem('lomu-welcomed', '1'));
   await page.goto(BASE + '/');
-  await page.getByPlaceholder('Username').fill(USER);
-  await page.getByPlaceholder('Password').fill(PASS);
+  await page.getByLabel('Username', { exact: true }).fill(USER);
+  await page.getByLabel('Password', { exact: true }).fill(PASS);
   await page.getByRole('button', { name: 'Sign in' }).click();
   await page.waitForTimeout(2000);
   for (const [name, url] of PAGES) {
