@@ -154,7 +154,7 @@ fun PlayPauseIcon(playing: Boolean, size: Dp, tint: Color = LocalLo.current.ink)
 @Composable
 fun PlayPauseBtn(playing: Boolean, onClick: () -> Unit, size: Dp, iconSize: Dp, tint: Color = LocalLo.current.ink) {
     val haptic = rememberHaptic()
-    Box(Modifier.size(size).pressable(androidx.compose.foundation.shape.CircleShape) { haptic(false); onClick() }, Alignment.Center) { PlayPauseIcon(playing, iconSize, tint) }
+    Box(Modifier.size(size).a11y(if (playing) "Pause" else "Play").pressable(androidx.compose.foundation.shape.CircleShape) { haptic(false); onClick() }, Alignment.Center) { PlayPauseIcon(playing, iconSize, tint) }
 }
 
 /** Heart that pops (scales up, then settles) when it becomes liked. */
