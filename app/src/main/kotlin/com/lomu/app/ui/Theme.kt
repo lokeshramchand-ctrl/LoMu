@@ -37,16 +37,34 @@ data class Lo(
     val signalSoft: Color,  // accent tint for fills
     val red: Color,         // destructive / error
     val dark: Boolean,
+    val onSignal: Color = Color.White, // label or icon drawn on a filled accent surface
 )
 
+/**
+ * Graphite and bone with one amber accent (the same identity as the web app). Every pair is checked for 4.5:1 or better:
+ * text on the page, grey text, accent text on the page, and the label on a filled accent surface.
+ */
 val LightLo = Lo(
+    bg = Color(0xFFFAF7F2), card = Color(0xFFFFFFFF), surface2 = Color(0xFFEDE8DF),
+    grouped = Color(0xFFF3EFE8), cell = Color(0xFFFFFFFF),
+    ink = Color(0xFF1B1A17), grey = Color(0xFF645F57), line = Color(0xFFDDD6CA), border2 = Color(0xFFC9C1B2),
+    signal = Color(0xFF9A4A00), signalSoft = Color(0x1F9A4A00), red = Color(0xFFC21A1A), dark = false, onSignal = Color.White,
+)
+val DarkLo = Lo(
+    bg = Color(0xFF0F0E0C), card = Color(0xFF1D1B18), surface2 = Color(0xFF2A2723),
+    grouped = Color(0xFF0F0E0C), cell = Color(0xFF1A1815),
+    ink = Color(0xFFF4EFE6), grey = Color(0xFFA39C90), line = Color(0xFF36322C), border2 = Color(0xFF4A453D),
+    signal = Color(0xFFFBBF24), signalSoft = Color(0x33FBBF24), red = Color(0xFFFF6B5E), dark = true, onSignal = Color(0xFF14110A),
+)
+
+/** The previous Apple-style palette. The player screens keep it so their look does not change. */
+val LegacyLightLo = Lo(
     bg = Color(0xFFFFFFFF), card = Color(0xFFFAFAFA), surface2 = Color(0xFFEEEEF0),
     grouped = Color(0xFFF2F2F7), cell = Color(0xFFFFFFFF),
-    // Secondary text, accent and red darkened from the iOS defaults (3.3 / 4.0 / 3.6 : 1 on white) to 5.7 / 5.8 / 5.4 : 1 so small text is readable in daylight.
     ink = Color(0xFF000000), grey = Color(0xFF666669), line = Color(0xFFC6C6C8), border2 = Color(0xFFC6C6C8),
     signal = Color(0xFF0062CC), signalSoft = Color(0x1F0062CC), red = Color(0xFFD70015), dark = false,
 )
-val DarkLo = Lo(
+val LegacyDarkLo = Lo(
     bg = Color(0xFF000000), card = Color(0xFF222222), surface2 = Color(0xFF2C2C2E),
     grouped = Color(0xFF000000), cell = Color(0xFF1C1C1E),
     ink = Color(0xFFFFFFFF), grey = Color(0xFF9A9AA0), line = Color(0xFF38383A), border2 = Color(0xFF444446),
@@ -97,13 +115,15 @@ val LoFont: FontFamily by lazy {
 }
 
 /** Title family (Large Title, Title 2): SF Pro Display when SF Pro is chosen, otherwise the same as the body. */
-val LoDisplay: FontFamily by lazy { if (appFont == AppFont.SfPro) sfFamily(true) ?: LoFont else LoFont }
+val LoDisplay: FontFamily by lazy { if (appFont == AppFont.SfPro) sfFamily(true) ?: LoFont else FontFamily.Serif }
 
 /** Type scale after the iOS text styles: Large Title, Title 2, Headline, Body, Subhead, Footnote. */
 object LoType {
-    val hero = TextStyle(fontFamily = LoDisplay, fontWeight = FontWeight.Bold, fontSize = 34.sp, lineHeight = 41.sp, letterSpacing = 0.37.sp)       // Large Title
-    val title = TextStyle(fontFamily = LoDisplay, fontWeight = FontWeight.Bold, fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = 0.35.sp)       // Title 2
-    val section = TextStyle(fontFamily = LoDisplay, fontWeight = FontWeight.Bold, fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = 0.35.sp)
+    val hero = TextStyle(fontFamily = LoDisplay, fontWeight = FontWeight.SemiBold, fontSize = 36.sp, lineHeight = 42.sp, letterSpacing = (-0.4).sp)       // Large Title
+    val title = TextStyle(fontFamily = LoDisplay, fontWeight = FontWeight.SemiBold, fontSize = 24.sp, lineHeight = 30.sp, letterSpacing = (-0.2).sp)
+    /** The player's own title style: the former Apple-style Title 2, so the player is unchanged. */
+    val playerTitle = TextStyle(fontFamily = LoFont, fontWeight = FontWeight.Bold, fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = 0.35.sp)       // Title 2
+    val section = TextStyle(fontFamily = LoDisplay, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = (-0.2).sp)
     val body = TextStyle(fontFamily = LoFont, fontWeight = FontWeight.Normal, fontSize = 17.sp, lineHeight = 22.sp, letterSpacing = (-0.41).sp)  // Body
     val small = TextStyle(fontFamily = LoFont, fontWeight = FontWeight.Normal, fontSize = 13.sp, lineHeight = 16.sp, letterSpacing = (-0.08).sp) // Footnote
     val eyebrow = TextStyle(fontFamily = LoFont, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, lineHeight = 16.sp, letterSpacing = (-0.08).sp)
@@ -115,8 +135,8 @@ object LoType {
 fun LoMuTheme(content: @Composable () -> Unit) {
     LoFonts.assets = LocalContext.current.assets
     val lo = if (isSystemInDarkTheme()) DarkLo else LightLo
-    val scheme = if (lo.dark) darkColorScheme(background = lo.bg, surface = lo.card, primary = lo.signal, onPrimary = Color.White, onBackground = lo.ink, onSurface = lo.ink)
-    else lightColorScheme(background = lo.bg, surface = lo.card, primary = lo.signal, onPrimary = Color.White, onBackground = lo.ink, onSurface = lo.ink)
+    val scheme = if (lo.dark) darkColorScheme(background = lo.bg, surface = lo.card, primary = lo.signal, onPrimary = lo.onSignal, onBackground = lo.ink, onSurface = lo.ink)
+    else lightColorScheme(background = lo.bg, surface = lo.card, primary = lo.signal, onPrimary = lo.onSignal, onBackground = lo.ink, onSurface = lo.ink)
     MaterialTheme(colorScheme = scheme) {
         CompositionLocalProvider(LocalLo provides lo, content = content)
     }

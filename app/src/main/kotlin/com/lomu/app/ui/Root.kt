@@ -49,8 +49,8 @@ fun Welcome(onStart: () -> Unit) {
     val lo = LocalLo.current
     Column(Modifier.fillMaxSize().background(lo.bg).statusBarsPadding().navigationBarsPadding().padding(horizontal = 28.dp, vertical = 24.dp)) {
         Spacer(Modifier.weight(1f))
-        Box(Modifier.size(72.dp).background(lo.signal, RoundedCornerShape(17.dp)), Alignment.Center) {
-            IcV(androidx.compose.material.icons.Icons.Rounded.MusicNote, 40.dp, Color.White)
+        Box(Modifier.size(72.dp).background(lo.signal, RoundedCornerShape(16.dp)), Alignment.Center) {
+            IcV(androidx.compose.material.icons.Icons.Rounded.MusicNote, 40.dp, lo.onSignal)
         }
         Spacer(Modifier.height(24.dp))
         Text("Welcome to LoMu", style = LoType.hero, color = lo.ink)
@@ -184,23 +184,22 @@ private fun TabBar(nav: Nav) {
         TabDef("Search", Lin.Search.vector, Lin.Search.vector, Screen.Search),
         TabDef("Library", Lin.Views.vector, Lin.Views.vector, Screen.Library),
     )
-    val shape = RoundedCornerShape(36.dp)
+    val shape = RoundedCornerShape(22.dp)
     val haptic = rememberHaptic()
     val landscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
     Row(Modifier.fillMaxWidth().height(if (landscape) 46.dp else 58.dp).glass(shape, lo).padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
         tabs.forEach { t ->
             val active = nav.stack.first() == t.screen
             val tint by animateColorAsState(if (active) lo.signal else lo.ink, tween(220), label = "tabTint")
-            val pill by animateColorAsState(if (active) lo.surface2 else Color.Transparent, tween(260), label = "tabPill")
-            val pop by androidx.compose.animation.core.animateFloatAsState(if (active) 1.14f else 1f, spring(dampingRatio = 0.4f, stiffness = 380f), label = "tabPop")
+            val bar by animateColorAsState(if (active) lo.signal else Color.Transparent, tween(220), label = "tabBar")
             Column(
                 Modifier.weight(1f).fillMaxHeight()
-                    .background(pill, RoundedCornerShape(30.dp))
                     .semantics { selected = active }
                     .pressable(RoundedCornerShape(30.dp), role = androidx.compose.ui.semantics.Role.Tab) { if (!active) haptic(false); nav.tab(t.screen) },
                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
             ) {
-                IcV(if (active) t.on else t.off, 24.dp, tint, Modifier.graphicsLayer { scaleX = pop; scaleY = pop })
+                Box(Modifier.padding(bottom = 3.dp).width(20.dp).height(3.dp).background(bar, RoundedCornerShape(2.dp)))
+                IcV(if (active) t.on else t.off, 24.dp, tint)
                 if (!landscape) Text(t.label, style = LoType.caption.copy(fontWeight = FontWeight.Bold, lineHeight = 12.sp), color = tint, modifier = Modifier.padding(top = 2.dp))
             }
         }
