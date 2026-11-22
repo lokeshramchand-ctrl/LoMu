@@ -1,6 +1,3 @@
-/* LoMu: the current Spotify look (pure black frame, rounded #121212 panels, #1ed760 green, pill buttons and chips,
-   bold Figtree type). Brand marks are not used. Figtree stands in for Spotify's proprietary Circular. */
-
 /* LoMu: night-ink frame with soft rounded panels, one ember accent, Geist type. Radius rule: panels 20, cards 16,
    inputs 12, covers 12, interactive controls are pills. No pure black or white anywhere. */
 
@@ -68,6 +65,11 @@
   --ease-out: cubic-bezier(.22, 1, .36, 1);
   --spring: cubic-bezier(.34, 1.4, .64, 1);
   --tint: #3a3a46;
+  /* surfaces that stay dark or light in both themes (player bar, toast, art overlays) */
+  --fixed-dark: #09090b; --fixed-light: #f4f4f5; --fixed-grey: #3a3a42;
+  --shade: color-mix(in srgb, var(--fixed-dark) 70%, transparent);
+  --cast: color-mix(in srgb, var(--fixed-dark) 50%, transparent);
+  --liked: linear-gradient(135deg, var(--signal) 0%, color-mix(in srgb, var(--signal) 40%, var(--blue)) 100%);
 }
 
 * { box-sizing: border-box; }
@@ -120,7 +122,7 @@ code { font-family: var(--font-mono), 'JetBrains Mono', ui-monospace, Menlo, Con
   font-weight: 700; font-size: 14px; white-space: nowrap;
   transition: background .15s var(--ease), transform .15s var(--ease);
 }
-.btn:hover { background: var(--pill-hover); transform: scale(1.04); }
+.btn:hover { background: var(--pill-hover); }
 .btn:active { transform: scale(.98); }
 .btn.primary { background: var(--ink); color: var(--on-ink); }
 .btn.primary:hover { background: color-mix(in srgb, var(--ink) 90%, transparent); }
@@ -134,7 +136,7 @@ code { font-family: var(--font-mono), 'JetBrains Mono', ui-monospace, Menlo, Con
   width: 32px; height: 32px; border-radius: 50%; display: inline-grid; place-items: center; color: var(--muted);
   transition: color .15s, transform .15s var(--ease), background .15s;
 }
-.icon-btn:hover { color: var(--text); transform: scale(1.06); }
+.icon-btn:hover { color: var(--text); background: var(--pill); }
 .icon-btn:active { transform: scale(.96); }
 .icon-btn.sm { width: 28px; height: 28px; }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
@@ -151,7 +153,7 @@ code { font-family: var(--font-mono), 'JetBrains Mono', ui-monospace, Menlo, Con
 .icon-btn.on { color: var(--signal-t); }
 
 /* neutral icon chip */
-.chip-ic { width: 20px; height: 20px; border-radius: 4px; display: grid; place-items: center; flex: none; background: var(--signal); color: #000; }
+.chip-ic { width: 20px; height: 20px; border-radius: 4px; display: grid; place-items: center; flex: none; background: var(--signal); color: var(--on-signal); }
 .chip-ic.lg { width: 28px; height: 28px; border-radius: 6px; }
 
 /* ---------- badges, pills, chips ---------- */
@@ -233,8 +235,8 @@ code { font-family: var(--font-mono), 'JetBrains Mono', ui-monospace, Menlo, Con
 .ph-actions { display: flex; align-items: center; gap: 16px; margin-top: 16px; flex-wrap: wrap; }
 .ph-desc { max-width: 64ch; margin-top: 10px; font-size: 14px; line-height: 1.5; color: var(--muted); }
 .ph-more { margin-top: 2px; font-weight: 700; font-size: 14px; color: var(--text); }
-.bigplay { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; background: var(--signal); color: #000; flex: none; transition: transform .15s var(--ease), background .15s; }
-.bigplay:hover { transform: scale(1.06); background: var(--signal-hi); }
+.bigplay { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; background: var(--signal); color: var(--on-signal); flex: none; transition: transform .15s var(--ease), background .15s; }
+.bigplay:hover { background: var(--signal-hi); }
 .bigplay:active { transform: scale(1); }
 .bigplay:disabled { opacity: .5; transform: none; }
 .icon-btn.big { width: 48px; height: 48px; }
@@ -317,11 +319,6 @@ button.tile.clickable:hover, a.tile.tone-card:hover, a.tile.tone-glow:hover { ba
   .tile-t h2 { font-size: 20px; }
 }
 
-/* tiles rise in one after another: shows hierarchy on load, then stays still */
-.bento > .tile, .bento > .greet { animation: rise .55s var(--ease-out) both; }
-.bento > :nth-child(2) { animation-delay: 60ms; } .bento > :nth-child(3) { animation-delay: 110ms; } .bento > :nth-child(4) { animation-delay: 160ms; }
-.bento > :nth-child(5) { animation-delay: 210ms; } .bento > :nth-child(n+6) { animation-delay: 260ms; }
-
 /* detail pages */
 .tile.hd { padding: 0; background: none; }
 .hd .ph-head { align-items: flex-end; }
@@ -345,11 +342,25 @@ button.tile.clickable:hover, a.tile.tone-card:hover, a.tile.tone-glow:hover { ba
 .skip:focus-visible { transform: none; }
 main:focus { outline: none; }
 
-/* grain: a fixed, non-interactive overlay that breaks up flat digital surfaces */
-body::after { content: ''; position: fixed; inset: 0; z-index: 300; pointer-events: none; opacity: .05; mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
-@media (prefers-reduced-transparency: reduce) { body::after { display: none; } }
 
-/* press feedback on pills and cards */
+/* press feedback on quick picks and linked tiles */
 .q:active, a.tile:active, button.tile.clickable:active { transform: scale(.985); }
+
+/* ---------- home: a log of the day with a margin of facts, not a hero and a card grid ---------- */
+.log-grid { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 300px); gap: 48px; align-items: start; }
+.now { grid-column: 1 / -1; display: flex; align-items: center; gap: 16px; padding: 12px 0; border-block: 1px solid var(--border); }
+.now .what { min-width: 0; flex: 1; }
+.now .what b { display: block; font-weight: 600; color: var(--ink); }
+.log-day { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 0 0 8px; border-bottom: 1px solid var(--border); }
+.log-row { display: grid; grid-template-columns: 56px 40px minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; padding: 8px 0; border-bottom: 1px solid var(--border); text-align: left; transition: background .15s var(--ease); }
+.log-row:hover { background: var(--row-hover); }
+.log-row time { font-size: 13px; color: var(--muted); }
+.log-row .t { font-weight: 500; color: var(--ink); }
+.log-row .s { font-size: 13px; color: var(--muted); }
+.log-row.active .t { color: var(--signal-t); }
+.log-note { padding: 10px 0 10px 68px; font-size: 13px; color: var(--muted); border-bottom: 1px solid var(--border); }
+.rail { position: sticky; top: calc(var(--top-h) + 8px); }
+.rail h2 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 8px; }
+.rail .facts dd { font-weight: 600; font-variant-numeric: tabular-nums; }
+@media (max-width: 1100px) { .log-grid { grid-template-columns: minmax(0, 1fr); gap: 24px; } .rail { position: static; order: -1; } }
