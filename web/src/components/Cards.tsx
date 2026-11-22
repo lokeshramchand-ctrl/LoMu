@@ -85,7 +85,7 @@ function CardStyle() {
       .it .t { font-weight: 700; font-size: 16px; color: var(--ink); line-height: 1.3; }
       .it .s { color: var(--muted); font-size: 14px; margin-top: 4px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
       .it .c { text-align: left; }
-      .it.active .t { color: var(--signal); }
+      .it.active .t { color: var(--signal-t); }
       .it .go { position: absolute; right: 8px; bottom: 8px; width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--signal); color: #000; box-shadow: 0 8px 8px rgba(0, 0, 0, .3); opacity: 0; transform: translateY(8px); transition: opacity .3s var(--ease), transform .3s var(--ease); }
       .it .go:hover { transform: scale(1.06); background: var(--signal-hi); }
       .it:hover .go, .it:focus-visible .go, .it.active .go { opacity: 1; transform: none; }
@@ -282,7 +282,7 @@ export function TrackRow({
         .trow:hover .idx .n { visibility: hidden; }
         .trow:hover .idx .p { display: grid; }
         .tt { font-weight: 400; font-size: 16px; color: var(--ink); }
-        .trow.active .tt { color: var(--signal); }
+        .trow.active .tt { color: var(--signal-t); }
         .ta { color: var(--muted); font-size: 14px; margin-top: 0; }
         .trow:hover .ta { color: var(--ink); }
         .ta :global(a:hover), .alb :global(a:hover) { color: var(--ink); text-decoration: underline; }
@@ -292,7 +292,7 @@ export function TrackRow({
         .dur { width: 44px; text-align: right; color: var(--muted); font-size: 14px; }
         .like, .more { opacity: 0; color: var(--muted); }
         .trow:hover .like, .like.on, .trow:focus-within .like, .trow:hover .more, .trow:focus-within .more { opacity: 1; }
-        .like.on { color: var(--signal); }
+        .like.on { color: var(--signal-t); }
         @media (max-width: 1100px) { .alb { display: none; } }
         @media (max-width: 900px) { .dur { display: none; } .like { display: none; } .more { opacity: 1; } .trow { gap: 12px; padding: 0 8px; } }
       `}</style>

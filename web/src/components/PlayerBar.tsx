@@ -199,7 +199,7 @@ export function PlayerBar() {
         .t { font-weight: 500; font-size: 14px; color: var(--ink); }
         .s { color: var(--muted); font-size: 12px; margin-top: 1px; }
         .s.bad { color: var(--red-t); }
-        .s.rem { color: var(--signal); font-weight: 700; }
+        .s.rem { color: var(--signal-t); font-weight: 700; }
         .center { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; max-width: 722px; width: 100%; justify-self: center; }
         .ctrls { display: flex; align-items: center; gap: 16px; }
         .play { width: 32px; height: 32px; border-radius: 50%; background: #fff; color: #000; display: grid; place-items: center; transition: transform .15s var(--ease); }
