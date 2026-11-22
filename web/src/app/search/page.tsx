@@ -191,7 +191,7 @@ function SearchInner() {
 
           {!data.songs.length && !data.albums.length && !data.artists.length && (
             <Tile span={12} tone="quiet" label="No results">
-              <div className="empty"><b>Nothing found for “{q}”</b><span>Try a different spelling, or search for the artist.</span></div>
+              <div className="empty"><b>Nothing found for "{q}"</b><span>Try a different spelling, or search for the artist.</span></div>
             </Tile>
           )}
         </>

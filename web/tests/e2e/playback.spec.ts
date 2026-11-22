@@ -49,10 +49,10 @@ test('sync: pushed docs come back, and old writes do not overwrite new ones', as
 test('UI: sign in, search, play a song and watch the clock pass the first MiB', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('lomu-welcomed', '1'));
   await page.goto('/');
-  await page.getByPlaceholder('Username').fill(USER);
-  await page.getByPlaceholder('Password').fill(PASS);
+  await page.getByLabel('Username', { exact: true }).fill(USER);
+  await page.getByLabel('Password', { exact: true }).fill(PASS);
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page.getByPlaceholder('Username')).toBeHidden({ timeout: 15_000 });
+  await expect(page.getByLabel('Username', { exact: true })).toBeHidden({ timeout: 15_000 });
 
   await page.goto('/search?q=despacito');
   const row = page.locator('[role="button"]').filter({ hasText: /Despacito/i }).first();
@@ -78,9 +78,9 @@ test('UI: sign in, search, play a song and watch the clock pass the first MiB', 
 test('UI: signing out returns to the login screen', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('lomu-welcomed', '1'));
   await page.goto('/settings');
-  await page.getByPlaceholder('Username').fill(USER);
-  await page.getByPlaceholder('Password').fill(PASS);
+  await page.getByLabel('Username', { exact: true }).fill(USER);
+  await page.getByLabel('Password', { exact: true }).fill(PASS);
   await page.getByRole('button', { name: 'Sign in' }).click();
   await page.getByRole('main').getByRole('button', { name: 'Sign out' }).click();
-  await expect(page.getByPlaceholder('Username')).toBeVisible();
+  await expect(page.getByLabel('Username', { exact: true })).toBeVisible();
 });

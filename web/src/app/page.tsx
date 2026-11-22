@@ -128,7 +128,7 @@ export default function Home() {
                   <div key={`${p.at}-${i}`}>
                     {i === noteAt && lastSleep && (
                       <p className="log-note">
-                        Probably asleep from {new Date(lastSleep.asleepFrom).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} during {lastSleep.lastAwake.title}; the queue kept going for about {formatSpan(lastSleep.asleepMs)}.
+                        You may have fallen asleep at {new Date(lastSleep.asleepFrom).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} during {lastSleep.lastAwake.title}. The queue kept going for {formatSpan(lastSleep.asleepMs)}.
                       </p>
                     )}
                     <button className={`log-row${cur === p.track.id && i === curRow ? ' active' : ''}`} onClick={() => usePlayer.getState().play(logTracks, i, { source: 'home-log' })} {...warmProps(p.track.id)}>
@@ -250,7 +250,7 @@ export default function Home() {
       <Sheet
         open={custom}
         onClose={() => setCustom(false)}
-        title="Customise home"
+        title="Customise Today"
         sub="Saved on this device."
         footer={
           <button className="btn" onClick={() => HOME_SECTIONS.forEach((s) => useSettings.getState().setHome(s.id, s.id !== 'youtube'))}>
@@ -301,7 +301,7 @@ function QuickPicks({ tracks, personal, loading }: { tracks: Track[]; personal: 
                   key={t.id}
                   className={`q${active ? ' active' : ''}`}
                   onClick={() => usePlayer.getState().play(tracks, i, { source: 'home-quick' })}
-                  title={`${t.title} - ${artistNames(t.artists)}`}
+                  title={`${t.title} by ${artistNames(t.artists)}`}
                   {...warmProps(t.id)}
                 >
                   <Cover src={t.thumb} size={72} radius={0} />
