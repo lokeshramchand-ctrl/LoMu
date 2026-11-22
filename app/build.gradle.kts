@@ -150,7 +150,6 @@ dependencies {
     implementation(libs.viewmodel.compose)
     implementation(libs.palette)
     implementation(libs.haze)
-    implementation(libs.haze.blur)
 
     implementation(libs.coil)
     implementation(libs.coil.network.okhttp)
