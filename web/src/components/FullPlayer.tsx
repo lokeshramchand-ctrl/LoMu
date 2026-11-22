@@ -219,7 +219,7 @@ function Queue() {
       </div>
       <div className="list" ref={listRef}>
         {queue.map((t, i) => (
-          <div key={`${t.id}-${i}`} className={`q${i === index ? ' cur' : ''}${i < index ? ' past' : ''}`} onClick={() => usePlayer.getState().jump(i)}>
+          <div key={`${t.id}-${i}`} className={`q${i === index ? ' cur' : ''}${i < index ? ' past' : ''}`} role="button" tabIndex={0} aria-label={`Play ${t.title}`} onClick={() => usePlayer.getState().jump(i)} onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); usePlayer.getState().jump(i); } }}>
             <Cover src={t.thumb} size={40} radius={8} />
             <div className="grow">
               <div className="clamp1" style={{ fontWeight: 500, fontSize: 13.5 }}>{t.title}</div>
@@ -245,7 +245,7 @@ function Queue() {
       <style jsx>{`
         .ph { display: flex; align-items: center; justify-content: space-between; padding: 12px 12px 10px 22px; border-bottom: 1px solid var(--border); }
         .list { flex: 1; overflow-y: auto; padding: 8px 10px 20px; }
-        .q { display: flex; align-items: center; gap: 12px; padding: 6px 10px; border-radius: 12px; cursor: pointer; transition: background .2s; }
+        .q { touch-action: manipulation; display: flex; align-items: center; gap: 12px; padding: 6px 10px; border-radius: 12px; cursor: pointer; transition: background .2s; }
         .q:hover { background: var(--surface-2); }
         .q.cur { background: var(--signal-soft); }
         .q.past { opacity: .5; }

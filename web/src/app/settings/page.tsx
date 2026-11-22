@@ -185,24 +185,25 @@ function HubGroup({ kicker }: { kicker: string }) {
           className="hubform"
           onSubmit={(e) => { e.preventDefault(); call('POST', { url, username: u, password: p, lan }); }}
         >
-          <input placeholder="Server address" value={url} onChange={(e) => setUrl(e.target.value)} />
-          <input placeholder="Username" autoComplete="username" value={u} onChange={(e) => setU(e.target.value)} />
-          <input type="password" placeholder="Password" autoComplete="current-password" value={p} onChange={(e) => setP(e.target.value)} />
-          <input placeholder="Home network address (optional, like 192.168.1.10; several allowed, comma separated)" inputMode="decimal" value={lan} onChange={(e) => setLan(e.target.value)} style={{ flexBasis: '100%' }} />
+          <input type="url" name="server" aria-label="Server address" spellCheck={false} autoComplete="url" placeholder="https://your-server.example…" value={url} onChange={(e) => setUrl(e.target.value)} />
+          <input name="username" aria-label="Username" spellCheck={false} autoComplete="username" placeholder="Username…" value={u} onChange={(e) => setU(e.target.value)} />
+          <input type="password" name="password" aria-label="Password" autoComplete="current-password" placeholder="Password…" value={p} onChange={(e) => setP(e.target.value)} />
+          <input name="lan" aria-label="Home network address" spellCheck={false} autoComplete="off" placeholder="Home network address (optional), like 192.168.1.10…" inputMode="decimal" value={lan} onChange={(e) => setLan(e.target.value)} style={{ flexBasis: '100%' }} />
           <button className="btn primary" disabled={busy || !u || !p || !url}>{busy ? 'Connecting…' : 'Connect'}</button>
           {err && <div className="err">{err}</div>}
         </form>
       )}
       {connected && (
         <form className="hubform" onSubmit={(e) => { e.preventDefault(); call('POST', { action: 'lan', lan }); }}>
-          <input placeholder={hub?.lan ? `Home network address: ${hub.lan}` : 'Home network address (for when the server name does not work at home)'} inputMode="decimal" value={lan} onChange={(e) => setLan(e.target.value)} />
+          <input name="lan" aria-label="Home network address" spellCheck={false} autoComplete="off" placeholder={hub?.lan ? `Home network address: ${hub.lan}` : 'Home network address, like 192.168.1.10…'} inputMode="decimal" value={lan} onChange={(e) => setLan(e.target.value)} />
           <button className="btn sm" disabled={busy}>{lan.trim() ? 'Save' : hub?.lan ? 'Clear' : 'Save'}</button>
           {err && <div className="err">{err}</div>}
         </form>
       )}
       <style jsx>{`
         .hubform { display: flex; flex-wrap: wrap; gap: 8px; padding: var(--sp-3) var(--sp-4); border-top: 1px solid rgba(255, 255, 255, .08); }
-        .hubform input { flex: 1 1 160px; height: 40px; padding: 0 12px; border-radius: 4px; border: 0; background: var(--surface-2); color: var(--ink); font: inherit; font-size: 14px; outline: none; }
+        .hubform input { flex: 1 1 160px; height: 40px; padding: 0 12px; border-radius: 4px; border: 0; background: var(--surface-2); color: var(--ink); font: inherit; font-size: 14px; }
+        .hubform input:focus-visible, .pwform input:focus-visible, .acform input:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
         .hubform input:focus { box-shadow: 0 0 0 2px var(--ink); }
         .err { flex-basis: 100%; color: var(--red-t); font-size: 13px; background: var(--red-soft); padding: 8px 10px; border-radius: 5px; }
       `}</style>
@@ -299,15 +300,16 @@ function PasswordRow() {
       </Row>
       {open && (
         <form className="pwform" onSubmit={(e) => { e.preventDefault(); save(); }}>
-          <input type="password" placeholder="Current password" autoComplete="current-password" value={cur} onChange={(e) => setCur(e.target.value)} />
-          <input type="password" placeholder="New password (8+ characters)" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} />
+          <input type="password" name="current-password" aria-label="Current password" placeholder="Current password…" autoComplete="current-password" value={cur} onChange={(e) => setCur(e.target.value)} />
+          <input type="password" name="new-password" aria-label="New password" placeholder="New password (8+ characters)…" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} />
           <button className="btn primary" disabled={busy || !cur || next.length < 8}>{busy ? 'Saving…' : 'Save'}</button>
           {err && <div className="err">{err}</div>}
         </form>
       )}
       <style jsx>{`
         .pwform { display: flex; flex-wrap: wrap; gap: 8px; padding: var(--sp-3) var(--sp-4); border-top: 1px solid rgba(255, 255, 255, .08); }
-        .pwform input { flex: 1 1 160px; height: 40px; padding: 0 12px; border-radius: 4px; border: 0; background: var(--surface-2); color: var(--ink); font: inherit; font-size: 14px; outline: none; }
+        .pwform input { flex: 1 1 160px; height: 40px; padding: 0 12px; border-radius: 4px; border: 0; background: var(--surface-2); color: var(--ink); font: inherit; font-size: 14px; }
+        .hubform input:focus-visible, .pwform input:focus-visible, .acform input:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
         .pwform input:focus { box-shadow: 0 0 0 2px var(--ink); }
         .err { flex-basis: 100%; color: var(--red-t); font-size: 13px; background: var(--red-soft); padding: 8px 10px; border-radius: 5px; }
       `}</style>
@@ -361,14 +363,15 @@ function AccountsGroup({ kicker }: { kicker: string }) {
         </Row>
       ))}
       <form className="acform" onSubmit={async (e) => { e.preventDefault(); if (await call('POST', { username: name, password: pw })) { setName(''); setPw(''); toast('Account added'); } }}>
-        <input placeholder="Username" autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} disabled={full} />
-        <input type="password" placeholder="Password (8+ characters)" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} disabled={full} />
+        <input name="new-username" aria-label="New account username" spellCheck={false} placeholder="Username…" autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} disabled={full} />
+        <input type="password" name="new-account-password" aria-label="New account password" placeholder="Password (8+ characters)…" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} disabled={full} />
         <button className="btn primary" disabled={busy || full || name.trim().length < 2 || pw.length < 8}>{full ? 'Full' : 'Add account'}</button>
         {err && <div className="err">{err}</div>}
       </form>
       <style jsx>{`
         .acform { display: flex; flex-wrap: wrap; gap: 8px; padding: var(--sp-3) var(--sp-4); border-top: 1px solid rgba(255, 255, 255, .08); }
-        .acform input { flex: 1 1 160px; height: 40px; padding: 0 12px; border-radius: 4px; border: 0; background: var(--surface-2); color: var(--ink); font: inherit; font-size: 14px; outline: none; }
+        .acform input { flex: 1 1 160px; height: 40px; padding: 0 12px; border-radius: 4px; border: 0; background: var(--surface-2); color: var(--ink); font: inherit; font-size: 14px; }
+        .hubform input:focus-visible, .pwform input:focus-visible, .acform input:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
         .acform input:focus { box-shadow: 0 0 0 2px var(--ink); }
         .err { flex-basis: 100%; color: var(--red-t); font-size: 13px; background: var(--red-soft); padding: 8px 10px; border-radius: 5px; }
       `}</style>
