@@ -24,7 +24,7 @@ export default function ExploreGate() {
   if (!enabled)
     return (
       <Bento>
-        <PageHeader eyebrow="Explore" title="Explore is off" sub="Trending songs, new releases and moods. Turn it on under Settings → Developer." />
+        <PageHeader  title="Explore is off" sub="Trending songs, new releases and moods. Turn it on under Settings → Developer." />
         <Tile span={12} tone="quiet" label="Explore is off">
           <div>
             <Link href="/settings" className="btn primary">
@@ -48,9 +48,7 @@ function Explore() {
 
   return (
     <Bento className="fade-in">
-      <PageHeader
-        eyebrow="Explore"
-        title="What's happening"
+      <PageHeader         title="What's happening"
         sub="Charts, fresh releases and moods from YouTube Music."
         actions={
           tab === 'trending' && trending.length > 0 ? (
@@ -89,13 +87,13 @@ function Explore() {
       {error && (
         <Tile span={12} tone="quiet" label="Explore error">
           <div className="callout err">
-            <Icon name="warn" size={16} /> Couldn&apos;t load Explore. {(error as Error).message}
+            <Icon name="warn" size={16} /> Explore did not load. Check your connection and try again.
           </div>
         </Tile>
       )}
 
       {tab === 'trending' && (
-        <Tile span={12} flush kicker="01" title="Trending" sub={`${trending.length} songs`} label="Trending">
+        <Tile span={12} flush title="Trending" sub={`${trending.length} songs`} label="Trending">
           <div className="cols list">
             {trending.map((t, i) => (
               <TrackRow key={t.id} track={t} index={i} list={trending} showIndex />
@@ -105,7 +103,7 @@ function Explore() {
       )}
 
       {tab === 'new' && (
-        <Tile span={12} kicker="01" title="New releases" sub={`${releases.length} albums and singles`} label="New releases">
+        <Tile span={12} title="New releases" sub={`${releases.length} albums and singles`} label="New releases">
           <div className="grid">
             {releases.map((a) => (
               <ItemCard key={a.id} item={a} />
@@ -117,7 +115,7 @@ function Explore() {
 
       {tab === 'moods' && (
         <>
-          <Tile span={12} kicker="01" title="Moods" sub="Pick a mood to see playlists for it" label="Moods">
+          <Tile span={12} title="Moods" sub="Pick a mood to see playlists for it" label="Moods">
             <div className="mood-grid">
               {(data?.moods ?? []).map((m) => {
                 const on = mood?.params === m.params;
@@ -141,7 +139,7 @@ function Explore() {
               <ShelfSkeleton title={false} />
             </Tile>
           )}
-          {mood && moodData.data?.map((s, i) => <ShelfTile key={s.title} shelf={s} kicker={String(i + 2).padStart(2, '0')} />)}
+          {mood && moodData.data?.map((s, i) => <ShelfTile key={s.title} shelf={s} />)}
         </>
       )}
 
