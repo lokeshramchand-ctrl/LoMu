@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
@@ -139,6 +140,10 @@ fun HomeScreen() {
     }
     val state by load("home") { YouTube.home() }
     val sleep = lastSleep()
+    // A soft wash of the playing song's colour behind the top of the page; it fades slowly when the song changes.
+    val nowArt = LocalPlayer.current?.let { pc -> val meta by pc.mediaMetadata.collectAsState(); meta?.thumbnailUrl }
+    val wash by animateColorAsState(rememberTint(nowArt)?.copy(alpha = 0.34f) ?: Color.Transparent, tween(900), label = "homeWash")
+    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to wash, 0.45f to Color.Transparent))) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = bottomPad())) {
         item { TitleBar("Home") }
         if (sleep != null) item { SleepCard(sleep) }
@@ -166,7 +171,7 @@ fun HomeScreen() {
         }
         val top = recs.firstOrNull()
         if (top != null) item {
-            Column {
+            Column(Modifier.appear(1)) {
                 CaptionedTitle("Top Picks for you", top.title)
                 LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(top.tracks.take(10)) { m ->
@@ -178,7 +183,7 @@ fun HomeScreen() {
             }
         }
         if (recent.isNotEmpty()) item {
-            Column {
+            Column(Modifier.appear(3)) {
                 SectionTitle("Recently Liked") { nav.push(Screen.Liked) }
                 LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     itemsIndexed(recent) { i, s ->
@@ -189,8 +194,8 @@ fun HomeScreen() {
                 }
             }
         }
-        items(recs.drop(1)) { shelf ->
-            Column {
+        itemsIndexed(recs.drop(1)) { i, shelf ->
+            Column(Modifier.appear(4 + i)) {
                 SectionTitle(shelf.title, chevron = false)
                 LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     items(shelf.tracks) { m ->
@@ -208,6 +213,7 @@ fun HomeScreen() {
             is Load.Err -> item { ErrorBox(st.message) }
             is Load.Ok -> items(st.value.sections.take(3)) { Shelf(it.title, it.items) }
         }
+    }
     }
 }
 
