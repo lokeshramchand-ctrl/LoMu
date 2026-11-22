@@ -81,7 +81,7 @@ fun RemoteMiniPlayer(d: Dev, onOpen: () -> Unit, modifier: Modifier = Modifier) 
 
 /** Full-screen controller for another device: artwork, seek, transport, shuffle / repeat, volume. */
 @Composable
-fun RemotePlayer(d: Dev, onClose: () -> Unit) = CompositionLocalProvider(LocalLo provides DarkLo) {
+fun RemotePlayer(d: Dev, onClose: () -> Unit) = CompositionLocalProvider(LocalLo provides LegacyDarkLo) {
     val lo = LocalLo.current
     val c = LocalConnect.current ?: return@CompositionLocalProvider
     val openDevices = LocalOpenDevices.current
@@ -111,7 +111,7 @@ fun RemotePlayer(d: Dev, onClose: () -> Unit) = CompositionLocalProvider(LocalLo
                 }
             }
             Spacer(Modifier.height(18.dp))
-            Text(m?.title ?: "Nothing playing", style = LoType.title.copy(fontSize = 21.sp, lineHeight = 26.sp), color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(m?.title ?: "Nothing playing", style = LoType.playerTitle.copy(fontSize = 21.sp, lineHeight = 26.sp), color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(d.artistLine(), style = LoType.body.copy(fontSize = 19.sp, lineHeight = 24.sp), color = lo.grey, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(10.dp))
 
@@ -191,7 +191,7 @@ fun DevicesSheet(onDismiss: () -> Unit) {
     SheetHost(sheet) {
             Box(Modifier.align(Alignment.CenterHorizontally).width(36.dp).height(5.dp).background(lo.grey.copy(alpha = 0.5f), RoundedCornerShape(3.dp)))
             Spacer(Modifier.height(14.dp))
-            Text("Connect to a device", style = LoType.title.copy(fontSize = 20.sp), color = lo.ink)
+            Text("Connect to a device", style = LoType.playerTitle.copy(fontSize = 20.sp), color = lo.ink)
             if (!state.online) Text("Offline", style = LoType.small, color = lo.grey, modifier = Modifier.padding(top = 4.dp))
             Spacer(Modifier.height(10.dp))
             DeviceRow(Icons.Rounded.PhoneAndroid, "This phone", if (localActive) "Playing here" else "Tap to play here", localActive, false) { c.transferTo(c.selfId); sheet.dismiss() }

@@ -104,7 +104,7 @@ fun MiniPlayer(onOpen: () -> Unit, modifier: Modifier = Modifier) {
 /** The player is always dark with white controls over the tinted artwork, in both themes. */
 @Composable
 // Secondary text is translucent white rather than grey, so it stays readable on a bright artwork wash too.
-fun FullPlayer(onClose: () -> Unit) = CompositionLocalProvider(LocalLo provides DarkLo.copy(grey = Color.White.copy(alpha = 0.72f))) { FullPlayerContent(onClose) }
+fun FullPlayer(onClose: () -> Unit) = CompositionLocalProvider(LocalLo provides LegacyDarkLo.copy(grey = Color.White.copy(alpha = 0.72f))) { FullPlayerContent(onClose) }
 
 @Composable
 private fun FullPlayerContent(onClose: () -> Unit) {
@@ -187,7 +187,7 @@ private fun FullPlayerContent(onClose: () -> Unit) {
                 Spacer(Modifier.height(18.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text(m?.title ?: "Nothing playing", style = LoType.title.copy(fontSize = 21.sp, lineHeight = 26.sp), color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(m?.title ?: "Nothing playing", style = LoType.playerTitle.copy(fontSize = 21.sp, lineHeight = 26.sp), color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(m?.artistLine().orEmpty(), style = LoType.body.copy(fontSize = 19.sp, lineHeight = 24.sp), color = sub, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     Box(Modifier.size(32.dp).background(sub.copy(alpha = 0.25f), CircleShape).a11y(if (liked) "Unlike" else "Like").pressable(CircleShape) { haptic(true); pc.toggleLike() }, Alignment.Center) {
@@ -367,7 +367,7 @@ private fun LyricsPanel(pc: PlayerConnection, m: MediaMetadata?) {
                     itemsIndexed(lines) { i, l ->
                         Text(
                             l.text.ifBlank { "♪" },
-                            style = LoType.title.copy(fontSize = 28.sp, lineHeight = 34.sp),
+                            style = LoType.playerTitle.copy(fontSize = 28.sp, lineHeight = 34.sp),
                             color = if (i == current) lo.ink else lo.grey.copy(alpha = 0.55f),
                             textAlign = TextAlign.Start,
                             modifier = Modifier.fillMaxWidth().pressable(RoundedCornerShape(10.dp)) { pc.seekTo(l.time) }.padding(vertical = 8.dp),

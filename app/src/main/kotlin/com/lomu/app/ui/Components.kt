@@ -143,7 +143,7 @@ fun IconBtn(
             .then(if (filled) Modifier.background(lo.signal, CircleShape) else Modifier)
             .then(if (bordered) Modifier.background(lo.surface2.copy(alpha = 0.85f), CircleShape) else Modifier),
         Alignment.Center,
-    ) { Ic(icon, iconSize, if (filled) Color.White else tint) }
+    ) { Ic(icon, iconSize, if (filled) lo.onSignal else tint) }
 }
 
 @Composable
@@ -153,7 +153,7 @@ fun IconBtnV(icon: ImageVector, onClick: () -> Unit, size: Dp = 40.dp, iconSize:
 
 /** Artwork: a hairline-edged rounded square with the placeholder grey behind it, like an Apple Music album cover. */
 @Composable
-fun Cover(url: String?, size: Dp, round: Boolean = false, modifier: Modifier = Modifier, radius: Dp = 10.dp, placeholderUrl: String? = null) {
+fun Cover(url: String?, size: Dp, round: Boolean = false, modifier: Modifier = Modifier, radius: Dp = 12.dp, placeholderUrl: String? = null) {
     val lo = LocalLo.current
     val shape = if (round) CircleShape else RoundedCornerShape(radius)
     AsyncImage(
@@ -217,9 +217,9 @@ fun Hairline(inset: Dp = 0.dp, modifier: Modifier = Modifier) {
 @Composable
 fun SectionTitle(text: String, modifier: Modifier = Modifier, action: String? = null, chevron: Boolean = true, onAction: (() -> Unit)? = null) {
     val lo = LocalLo.current
-    Row(modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 26.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 32.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         val hasAction = action != null && onAction != null
-        Text(text, style = LoType.section.copy(fontSize = 20.sp, lineHeight = 25.sp), color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = hasAction))
+        Text(text, style = LoType.section, color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = hasAction))
         if (action != null && onAction != null) {
             Text(action, style = LoType.body.copy(fontWeight = FontWeight.Normal), color = lo.signal, modifier = Modifier.pressable(CircleShape, onClick = onAction).padding(horizontal = 8.dp, vertical = 4.dp))
         } else if (chevron) {
@@ -394,8 +394,8 @@ fun TrackRow(song: SongItem, index: Int? = null, flat: Boolean = false, modifier
 fun ItemCard(item: YTItem, onClick: () -> Unit) {
     val lo = LocalLo.current
     val artist = item is ArtistItem
-    Column(Modifier.width(156.dp).pressable(RoundedCornerShape(10.dp), onClick = onClick), horizontalAlignment = if (artist) Alignment.CenterHorizontally else Alignment.Start) {
-        Cover(item.thumbnail, 156.dp, round = artist, radius = 10.dp)
+    Column(Modifier.width(160.dp).pressable(RoundedCornerShape(12.dp), onClick = onClick), horizontalAlignment = if (artist) Alignment.CenterHorizontally else Alignment.Start) {
+        Cover(item.thumbnail, 160.dp, round = artist, radius = 12.dp)
         Spacer(Modifier.height(8.dp))
         Text(item.title, style = LoType.body.copy(fontSize = 15.sp), color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = if (artist) TextAlign.Center else TextAlign.Start)
         Text(subtitle(item), style = LoType.small, color = lo.grey, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = if (artist) TextAlign.Center else TextAlign.Start)
@@ -406,8 +406,8 @@ fun ItemCard(item: YTItem, onClick: () -> Unit) {
 @Composable
 fun MediaCard(thumb: String?, title: String, line: String, active: Boolean = false, onClick: () -> Unit) {
     val lo = LocalLo.current
-    Column(Modifier.width(156.dp).pressable(RoundedCornerShape(10.dp), onClick = onClick)) {
-        Cover(thumb, 156.dp, radius = 10.dp)
+    Column(Modifier.width(160.dp).pressable(RoundedCornerShape(12.dp), onClick = onClick)) {
+        Cover(thumb, 160.dp, radius = 12.dp)
         Spacer(Modifier.height(8.dp))
         Text(title, style = LoType.body.copy(fontSize = 15.sp), color = if (active) lo.signal else lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(line, style = LoType.small, color = lo.grey, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -450,11 +450,11 @@ fun Shelf(title: String, items: List<YTItem>) {
 fun Pill(text: String, onClick: () -> Unit, filled: Boolean = true, icon: Ph? = null, modifier: Modifier = Modifier, iconV: ImageVector? = null, accent: Boolean = false) {
     val lo = LocalLo.current
     val bgc = if (accent) lo.signal else if (filled) lo.ink else lo.surface2
-    val fg = if (accent) Color.White else if (filled) lo.bg else lo.ink
+    val fg = if (accent) lo.onSignal else if (filled) lo.bg else lo.ink
     Row(
-        modifier.height(46.dp)
-            .background(bgc, CircleShape)
-            .pressable(CircleShape, onClick = onClick)
+        modifier.height(48.dp)
+            .background(bgc, RoundedCornerShape(12.dp))
+            .pressable(RoundedCornerShape(12.dp), onClick = onClick)
             .padding(horizontal = 22.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center,
     ) {
