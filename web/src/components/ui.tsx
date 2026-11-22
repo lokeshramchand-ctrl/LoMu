@@ -91,10 +91,10 @@ export function Toggle({ on, onChange, label, hint }: { on: boolean; onChange: (
         .tg:last-child { border-bottom: 0; }
         .l { font-weight: 500; font-size: 14px; }
         .h { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
-                .sw { width: 40px; height: 24px; border-radius: 999px; background: #7c7c7c; position: relative; flex: none; transition: background .2s var(--ease); }
-                .sw i { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #000; transition: transform .2s var(--ease); }
+                .sw { width: 40px; height: 24px; border-radius: 999px; background: #71717a; position: relative; flex: none; transition: background .2s var(--ease); }
+                .sw i { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #09090b; transition: transform .2s var(--ease); }
                 .sw.on { background: var(--signal); }
-                .sw.on i { transform: translateX(16px); background: #000; }
+                .sw.on i { transform: translateX(16px); background: #09090b; }
       `}</style>
     </div>
   );

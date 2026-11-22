@@ -37,7 +37,7 @@ export function Brand({ mini }: { mini?: boolean }) {
 }
 
 const THEMES: { id: Theme; label: string; dot: string }[] = [
-  { id: 'dark', label: 'Dark', dot: '#1ed760' },
+  { id: 'dark', label: 'Dark', dot: 'var(--signal)' },
   { id: 'light', label: 'Light', dot: '#d4d4d4' },
   { id: 'system', label: 'System', dot: '#b3b3b3' },
 ];
@@ -121,7 +121,7 @@ function LibArt({ it, size }: { it: LibItem; size: number }) {
       <span className="lk" style={{ width: size, height: size }}>
         <Icon name="heartFill" size={Math.round(size * 0.42)} />
         <style jsx>{`
-          .lk { display: grid; place-items: center; border-radius: 4px; flex: none; color: #fff; background: linear-gradient(135deg, #450af5, #8e8ee5 60%, #c4efd9); }
+          .lk { display: grid; place-items: center; border-radius: 4px; flex: none; color: #f4f4f5; background: linear-gradient(135deg, #450af5, #8e8ee5 60%, #c4efd9); }
         `}</style>
       </span>
     );
@@ -308,7 +308,7 @@ export function Topbar() {
         .top { position: sticky; top: 0; z-index: 30; height: var(--top-h); display: flex; align-items: center; gap: 8px; padding: 0 16px; background: transparent; transition: background .25s var(--ease); }
         .top.solid { background: color-mix(in srgb, var(--tint) 55%, var(--bg)); }
         .arrows { display: flex; gap: 8px; }
-        .round { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: rgba(0, 0, 0, .7); color: #fff; transition: transform .15s var(--ease); }
+        .round { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: rgba(0, 0, 0, .7); color: #f4f4f5; transition: transform .15s var(--ease); }
         .round:hover { transform: scale(1.06); }
         :global(.top .homebtn) { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); color: var(--ink); margin-left: 8px; transition: transform .15s var(--ease), background .15s; }
         :global(.top .homebtn:hover) { transform: scale(1.06); background: var(--card-hover); }
@@ -320,9 +320,9 @@ export function Topbar() {
         .search input::placeholder { color: var(--muted); }
         .clr { color: var(--muted); display: grid; place-items: center; }
         .clr:hover { color: var(--ink); }
-        :global(.top .avatar) { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: #000; color: #fff; font-weight: 700; font-size: 16px; transition: transform .15s var(--ease); }
+        :global(.top .avatar) { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: #09090b; color: #f4f4f5; font-weight: 700; font-size: 16px; transition: transform .15s var(--ease); }
         :global(.top .avatar:hover) { transform: scale(1.06); }
-        .avatar span { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: #535353; color: #fff; font-weight: 700; font-size: 14px; }
+        .avatar span { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: #3a3a42; color: #f4f4f5; font-weight: 700; font-size: 14px; }
         @media (max-width: 900px) { .top { display: none; } }
       `}</style>
     </header>
@@ -346,9 +346,9 @@ export function MobileTabs() {
       <style jsx>{`
         .tabs { display: none; }
         @media (max-width: 900px) {
-          .tabs { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; height: calc(56px + env(safe-area-inset-bottom)); padding: 0 8px env(safe-area-inset-bottom); background: linear-gradient(180deg, rgba(0, 0, 0, .75), #000 40%); }
+          .tabs { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; height: calc(56px + env(safe-area-inset-bottom)); padding: 0 8px env(safe-area-inset-bottom); background: linear-gradient(180deg, rgba(0, 0, 0, .75), #09090b 40%); }
           .tabs :global(a) { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--muted); font-size: 11px; font-weight: 500; transition: color .15s var(--ease); }
-          .tabs :global(a.on) { color: #fff; }
+          .tabs :global(a.on) { color: #f4f4f5; }
         }
       `}</style>
     </nav>
