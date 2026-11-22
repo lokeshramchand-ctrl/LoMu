@@ -29,9 +29,9 @@ function Bars({ values, labels, label, mark }: { values: number[]; labels: strin
       <style jsx>{`
         .bars { display: flex; align-items: flex-end; gap: 4px; height: 120px; }
         .col { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 6px; }
-        .col i { width: 100%; border-radius: 4px 4px 1px 1px; background: var(--card-hover, #333); transition: height .6s var(--ease-out); }
+        .col i { width: 100%; border-radius: 4px 4px 1px 1px; background: var(--card-hover); transition: height .6s var(--ease-out); }
         .col.hot i { background: var(--signal); }
-        .col span { font-size: 10px; color: var(--muted, #a7a7a7); white-space: nowrap; height: 12px; }
+        .col span { font-size: 10px; color: var(--muted); white-space: nowrap; height: 12px; }
       `}</style>
     </div>
   );
@@ -180,17 +180,17 @@ function SleepTile({ sessions }: { sessions: SleepSession[] }) {
       </div>
       <style jsx>{`
         .sess { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
-        .s { border-radius: 10px; background: var(--card, #17171b); }
+        .s { border-radius: var(--r); background: var(--surface); }
         .head { display: flex; align-items: center; gap: 14px; width: 100%; padding: 12px 14px; background: none; border: 0; color: inherit; cursor: pointer; font: inherit; text-align: left; }
         .when { width: 110px; font-weight: 600; }
         .dur { font-weight: 700; flex: 1; }
-        .conf { font-size: 11px; padding: 2px 8px; border-radius: 99px; background: var(--card-hover, #333); color: var(--muted, #a7a7a7); }
-        .conf.high { background: var(--signal); color: #09090b; }
+        .conf { font-size: 11px; padding: 2px 8px; border-radius: var(--r-sm); background: var(--card-hover); color: var(--muted); }
+        .conf.high { background: var(--signal); color: var(--on-signal); }
         .body { padding: 0 14px 14px; }
         .body ol { list-style: none; margin: 8px 0; padding: 0; max-height: 280px; overflow: auto; }
-        .body li { display: flex; gap: 10px; align-items: center; padding: 4px 6px; border-radius: 6px; }
+        .body li { display: flex; gap: 10px; align-items: center; padding: 4px 6px; border-radius: var(--r-sm); }
         .body li button { flex: 1; min-width: 0; text-align: left; background: none; border: 0; color: inherit; font: inherit; cursor: pointer; padding: 0; }
-        .body li:hover { background: var(--card-hover, #333); }
+        .body li:hover { background: var(--card-hover); }
         .body li.dim { opacity: .55; }
         .body li.mark { background: color-mix(in srgb, var(--signal) 18%, transparent); }
         .t { width: 64px; font-variant-numeric: tabular-nums; font-size: 12px; }

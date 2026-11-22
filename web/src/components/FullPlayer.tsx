@@ -109,23 +109,23 @@ export function FullPlayer() {
         .fp { overflow: hidden; position: fixed; inset: 0; z-index: 70; display: flex; flex-direction: column; background: var(--bg); transform: translateY(102%); transition: transform .5s var(--ease-out); visibility: hidden; }
         .fp.open { transform: none; visibility: visible; }
         .ambient { position: absolute; inset: -10%; z-index: 0; background-size: cover; background-position: center; filter: blur(90px) saturate(1.6); opacity: .55; transform: scale(1.1); pointer-events: none; transition: background-image .6s; }
-        .fp::after { content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none; background: linear-gradient(180deg, rgba(0, 0, 0, .15), rgba(0, 0, 0, .65)); }
+        .fp::after { content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none; background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 20%, transparent), color-mix(in srgb, var(--bg) 85%, transparent)); }
         .top, .body { position: relative; z-index: 1; }
         .top { display: flex; align-items: center; justify-content: space-between; padding: 14px var(--gutter); height: var(--top-h); }
         .body { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr; gap: 28px; padding: 28px var(--gutter) 32px; overflow-y: auto; }
         .body.with-panel { grid-template-columns: minmax(0, 1.2fr) minmax(320px, .9fr); }
         .stage { display: flex; align-items: center; justify-content: center; gap: 56px; min-height: 0; }
-        .art { width: min(46vh, 420px); aspect-ratio: 1; flex: none; box-shadow: 0 8px 40px rgba(0, 0, 0, .6); border-radius: 8px; }
+        .art { width: min(46vh, 420px); aspect-ratio: 1; flex: none; box-shadow: 0 0 0 1px var(--border), 0 32px 64px -24px rgba(0, 0, 0, .6); border-radius: var(--r-sm); }
         .info { width: min(480px, 100%); min-width: 0; }
-        .title { font-size: clamp(1.6rem, 3vw, 2.5rem); font-weight: 900; line-height: 1.1; letter-spacing: -.03em; }
+        .title { font-size: clamp(1.6rem, 3vw, 2.5rem); font-family: var(--font-display); font-weight: 400; line-height: 1.05; letter-spacing: -.025em; }
         .artists { margin-top: 8px; font-size: 16px; color: var(--muted); font-weight: 500; }
         .artists :global(a:hover) { color: var(--text); text-decoration: underline; }
         .controls { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; max-width: 420px; }
-        .on { color: var(--signal-t) !important; }
-        .playbig { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; background: #f4f4f5; color: #09090b; transition: transform .15s var(--ease); }
-        .playbig:hover { transform: scale(1.06); }
+        .icon-btn.on { color: var(--signal-t) !important; }
+        .playbig { width: 56px; height: 56px; border-radius: var(--r-lg); display: grid; place-items: center; background: var(--signal); color: var(--on-signal); transition: background .15s, transform .1s ease-out; }
+        .playbig:hover { background: var(--signal-hi); }
         .playbig:active { transform: scale(.93); }
-        .spinner { width: 22px; height: 22px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .3); border-top-color: #f4f4f5; animation: spin .8s linear infinite; }
+        .spinner { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border-2); border-top-color: var(--ink); animation: spin .8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .panel { min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
         .body.with-panel .stage { flex-direction: column; gap: 26px; }

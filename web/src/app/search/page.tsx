@@ -12,15 +12,15 @@ import { Icon } from '@/components/Icon';
 import { useLibrary } from '@/player/library';
 import { usePlayer } from '@/player/store';
 
-const CATS: [string, string, string][] = [
-  ['Top hits India', '#ff2d55', '#ff6b81'],
-  ['Lo-fi beats', '#5856d6', '#8e8cf0'],
-  ['Workout', '#ff9500', '#ffb84d'],
-  ['Arijit Singh', '#34c759', '#7be095'],
-  ['Anirudh', '#007aff', '#5aa9ff'],
-  ['Chill vibes', '#af52de', '#cb84ee'],
-  ['Punjabi', '#ff3b30', '#ff7a70'],
-  ['90s Bollywood', '#30b0c7', '#6fd0e0'],
+const CATS: [string, string][] = [
+  ['Top hits India', 'var(--signal)'],
+  ['Lo-fi beats', 'var(--blue)'],
+  ['Workout', 'var(--yellow)'],
+  ['Arijit Singh', 'var(--green)'],
+  ['Anirudh', 'var(--pink)'],
+  ['Chill vibes', 'var(--blue)'],
+  ['Punjabi', 'var(--red)'],
+  ['90s Bollywood', 'var(--signal)'],
 ];
 
 export default function SearchPage() {
@@ -250,8 +250,8 @@ function SearchInner() {
           )}
           <Tile span={12} kicker={recent.length > 0 ? '02' : '01'} title="Browse categories" label="Browse categories">
             <div className="cats">
-              {CATS.map(([label, from, to]) => (
-                <button key={label} className="cat" style={{ background: `linear-gradient(135deg, ${from}, ${to})` }} onClick={() => submit(label)}>
+              {CATS.map(([label, hue]) => (
+                <button key={label} className="cat" style={{ ['--hue' as string]: hue }} onClick={() => submit(label)}>
                   {label}
                 </button>
               ))}
@@ -261,13 +261,13 @@ function SearchInner() {
       )}
 
       <style jsx>{`
-        .cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 24px; }
-        .cat { position: relative; overflow: hidden; height: 190px; padding: 16px; border-radius: 8px; color: #f4f4f5; font-family: var(--font-display); font-size: 24px; font-weight: 700; letter-spacing: -.01em; text-align: left; vertical-align: top; filter: brightness(.84); text-shadow: 0 1px 4px rgba(0, 0, 0, .35); transition: transform .2s var(--ease), filter .2s; }
-        .cat::after { content: ''; position: absolute; right: -22px; bottom: -12px; width: 96px; height: 96px; border-radius: 6px; background: rgba(0, 0, 0, .22); transform: rotate(25deg); }
-        .cat:hover { filter: brightness(.95); transform: scale(1.02); }
+        .cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+        .cat { position: relative; display: flex; align-items: flex-end; height: 120px; padding: 16px; border-radius: var(--r); background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); color: var(--ink); font-family: var(--font-display); font-size: 1.5rem; letter-spacing: -.02em; line-height: 1.1; text-align: left; transition: background .15s, transform .1s ease-out; }
+        .cat::before { content: ''; position: absolute; left: 16px; top: 16px; width: 24px; height: 4px; border-radius: 1px; background: var(--hue); }
+        .cat:hover { background: var(--card-hover); }
         .cat:active { transform: scale(.98); }
-        @media (max-width: 900px) { .cats { grid-template-columns: 1fr 1fr; gap: 12px; } .cat { height: 100px; font-size: 18px; } }
-        .box { position: relative; display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 12px 0 16px; border-radius: 500px; background: var(--surface-2); color: var(--muted); transition: background .15s, box-shadow .15s; }
+        @media (max-width: 900px) { .cats { grid-template-columns: 1fr 1fr; gap: 12px; } .cat { height: 88px; font-size: 1.125rem; } }
+        .box { position: relative; display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 12px 0 16px; border-radius: var(--r); background: var(--surface-2); color: var(--muted); transition: background .15s, box-shadow .15s; }
         .box:hover { background: var(--card-hover); }
         .box:focus-within { background: var(--card-hover); box-shadow: 0 0 0 2px var(--ink); color: var(--text); }
         .box input { flex: 1; border: 0; outline: 0; background: transparent; font-size: 16px; font-weight: 400; color: var(--ink); min-width: 0; }
@@ -318,7 +318,7 @@ function TopResult({ item }: { item: Item }) {
         <div className="muted clamp1">{item.kind === 'song' ? artistNames(item.artists) : item.kind === 'album' ? artistNames(item.artists) : item.subtitle}</div>
       </div>
       <style jsx>{`
-        .tt { font-size: 32px; font-weight: 900; letter-spacing: -.02em; line-height: 1.15; margin: var(--sp-2) 0; color: var(--ink); }
+        .tt { font-family: var(--font-display); font-size: 2.25rem; font-weight: 400; letter-spacing: -.02em; line-height: 1.1; margin: var(--sp-2) 0; color: var(--ink); }
       `}</style>
     </>
   );
