@@ -38,23 +38,27 @@ data class Lo(
     val red: Color,         // destructive / error
     val dark: Boolean,
     val onSignal: Color = Color.White, // label or icon drawn on a filled accent surface
+    val feature: Color = Color(0xFF0B0B0B), // the black feature card on Home
+    val tiles: List<Color> = listOf(Color(0xFFF6EBE1), Color(0xFFE9EAF7), Color(0xFFE4F1EA), Color(0xFFF3EDDD)), // pastel card fills: peach, lavender, mint, sand
 )
 
 /**
- * Graphite and bone with one amber accent (the same identity as the web app). Every pair is checked for 4.5:1 or better:
- * text on the page, grey text, accent text on the page, and the label on a filled accent surface.
+ * White page, black ink and accent, soft pastel cards (peach, lavender, mint, sand) and one black feature card. Every pair is checked for 4.5:1 or better:
+ * text on the page, grey text, and the label on a filled accent surface.
  */
 val LightLo = Lo(
-    bg = Color(0xFFFAF7F2), card = Color(0xFFFFFFFF), surface2 = Color(0xFFEDE8DF),
-    grouped = Color(0xFFF3EFE8), cell = Color(0xFFFFFFFF),
-    ink = Color(0xFF1B1A17), grey = Color(0xFF645F57), line = Color(0xFFDDD6CA), border2 = Color(0xFFC9C1B2),
-    signal = Color(0xFF9A4A00), signalSoft = Color(0x1F9A4A00), red = Color(0xFFC21A1A), dark = false, onSignal = Color.White,
+    bg = Color(0xFFFFFFFF), card = Color(0xFFFFFFFF), surface2 = Color(0xFFF3F3F4),
+    grouped = Color(0xFFF5F5F6), cell = Color(0xFFFFFFFF),
+    ink = Color(0xFF0A0A0A), grey = Color(0xFF6B6B70), line = Color(0xFFE6E6E8), border2 = Color(0xFFD4D4D8),
+    signal = Color(0xFF0A0A0A), signalSoft = Color(0x140A0A0A), red = Color(0xFFC21A1A), dark = false, onSignal = Color.White,
 )
 val DarkLo = Lo(
-    bg = Color(0xFF0F0E0C), card = Color(0xFF1D1B18), surface2 = Color(0xFF2A2723),
-    grouped = Color(0xFF0F0E0C), cell = Color(0xFF1A1815),
-    ink = Color(0xFFF4EFE6), grey = Color(0xFFA39C90), line = Color(0xFF36322C), border2 = Color(0xFF4A453D),
-    signal = Color(0xFFFBBF24), signalSoft = Color(0x33FBBF24), red = Color(0xFFFF6B5E), dark = true, onSignal = Color(0xFF14110A),
+    bg = Color(0xFF0B0B0C), card = Color(0xFF161617), surface2 = Color(0xFF232325),
+    grouped = Color(0xFF0B0B0C), cell = Color(0xFF161617),
+    ink = Color(0xFFF5F5F6), grey = Color(0xFFA0A0A6), line = Color(0xFF2E2E31), border2 = Color(0xFF3F3F43),
+    signal = Color(0xFFF5F5F6), signalSoft = Color(0x33F5F5F6), red = Color(0xFFFF6B5E), dark = true, onSignal = Color(0xFF0A0A0A),
+    feature = Color(0xFF28282B),
+    tiles = listOf(Color(0xFF2A2420), Color(0xFF23242F), Color(0xFF1F2924), Color(0xFF29261E)),
 )
 
 /** The previous Apple-style palette. The player screens keep it so their look does not change. */
@@ -115,11 +119,11 @@ val LoFont: FontFamily by lazy {
 }
 
 /** Title family (Large Title, Title 2): SF Pro Display when SF Pro is chosen, otherwise the same as the body. */
-val LoDisplay: FontFamily by lazy { if (appFont == AppFont.SfPro) sfFamily(true) ?: LoFont else FontFamily.Serif }
+val LoDisplay: FontFamily by lazy { if (appFont == AppFont.SfPro) sfFamily(true) ?: LoFont else LoFont }
 
 /** Type scale after the iOS text styles: Large Title, Title 2, Headline, Body, Subhead, Footnote. */
 object LoType {
-    val hero = TextStyle(fontFamily = LoDisplay, fontWeight = FontWeight.SemiBold, fontSize = 36.sp, lineHeight = 42.sp, letterSpacing = (-0.4).sp)       // Large Title
+    val hero = TextStyle(fontFamily = LoDisplay, fontWeight = FontWeight.Bold, fontSize = 32.sp, lineHeight = 38.sp, letterSpacing = (-0.6).sp)       // Large Title
     val title = TextStyle(fontFamily = LoDisplay, fontWeight = FontWeight.SemiBold, fontSize = 24.sp, lineHeight = 30.sp, letterSpacing = (-0.2).sp)
     /** The player's own title style: the former Apple-style Title 2, so the player is unchanged. */
     val playerTitle = TextStyle(fontFamily = LoFont, fontWeight = FontWeight.Bold, fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = 0.35.sp)       // Title 2
