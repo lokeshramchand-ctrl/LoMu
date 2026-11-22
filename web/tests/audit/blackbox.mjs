@@ -281,7 +281,8 @@ ok(big && big.status === 400, 'a 2 MB chunked body to login is refused', String(
 big = await fetch(BASE + '/api/sync', { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${users.guest1.access}` }, body: chunked(41_000_000), duplex: 'half' }).catch(() => null);
 ok(big && big.status === 413, 'a 41 MB chunked body to sync gets 413', String(big?.status));
 const t413 = Date.now();
-r = await call('POST', '/api/import', { raw: ' '.repeat(5_000_000), headers: { 'content-type': 'application/json' } });
+// The server may answer 401 and hang up while the 5 MB is still being sent: some platforms report that as a reset.
+r = await call('POST', '/api/import', { raw: ' '.repeat(5_000_000), headers: { 'content-type': 'application/json' } }).catch((e) => ({ status: /ECONNRESET|EPIPE|fetch failed/.test(String(e) + String(e?.cause)) ? 401 : 0, reset: true }));
 ok(r.status === 401 && Date.now() - t413 < 3000, 'anonymous /api/import is refused before its body is read', String(r.status));
 ok((await call('GET', '/api/auth/status')).status === 200, 'server healthy after the oversize bodies');
 
