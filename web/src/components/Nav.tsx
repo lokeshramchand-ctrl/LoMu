@@ -79,12 +79,12 @@ export function ThemeSelect({ up = false }: { up?: boolean }) {
         .ts { position: relative; }
         .cur { display: flex; align-items: center; gap: 8px; width: 100%; height: 36px; padding: 0 12px 0 6px; border-radius: var(--r); background: var(--surface-2); color: var(--text); font-size: .875rem; font-weight: 500; transition: background .15s; }
         .cur:hover { background: var(--card-hover); }
-        .nm { flex: 1; text-align: left; }
+        .nm { flex: 1; text-align: start; }
         .aa { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 7px; border-radius: var(--r-sm); background: var(--bg); font-size: .75rem; font-weight: 600; color: var(--text); }
         .aa i { width: 6px; height: 6px; border-radius: 50%; box-shadow: 0 0 0 1px var(--border-2); }
-        .pop { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 90; padding: 4px; border-radius: var(--r); background: var(--card-hover); box-shadow: var(--lift-hi), 0 0 0 1px var(--border); animation: rise .15s var(--ease-out) both; }
+        .pop { position: absolute; inset-inline: 0; top: calc(100% + 4px); z-index: 90; padding: 4px; border-radius: var(--r); background: var(--card-hover); box-shadow: var(--lift-hi), 0 0 0 1px var(--border); animation: rise .15s var(--ease-out) both; }
         .pop.up { top: auto; bottom: calc(100% + 4px); }
-        .pop button { display: flex; align-items: center; gap: 8px; width: 100%; height: 36px; padding: 0 8px; border-radius: var(--r-sm); font-size: .875rem; color: var(--text); text-align: left; }
+        .pop button { display: flex; align-items: center; gap: 8px; width: 100%; height: 36px; padding: 0 8px; border-radius: var(--r-sm); font-size: .875rem; color: var(--text); text-align: start; }
         .pop button:hover, .pop button.on { background: var(--row-hover); }
       `}</style>
     </div>
@@ -173,14 +173,14 @@ export function Topbar() {
       <style jsx>{`
         .top { position: sticky; top: 0; z-index: 30; height: var(--top-h); display: flex; align-items: center; gap: 20px; padding: 0 var(--chrome-x); border-bottom: 1px solid transparent; transition: border-color .2s var(--ease); }
         .top.edge { border-bottom-color: var(--border); }
-        .links { display: flex; align-items: center; gap: 4px; }
-        :global(.top .lnk) { position: relative; display: inline-flex; align-items: center; height: 36px; padding: 0 12px; border-radius: var(--r); color: var(--muted); font-weight: 500; font-size: .9375rem; transition: color .15s, background .15s, transform .1s ease-out; }
+        .links { display: flex; align-items: center; gap: 4px; flex: none; }
+        :global(.top .lnk) { position: relative; display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: var(--r); white-space: nowrap; color: var(--muted); font-weight: 500; font-size: .9375rem; transition: color .15s, background .15s, transform .1s ease-out; }
         :global(.top .lnk:hover) { color: var(--text); background: var(--pill); }
         :global(.top .lnk:active) { transform: scale(.97); }
         :global(.top .lnk.on) { color: var(--ink); }
-        :global(.top .lnk.on)::after { content: ''; position: absolute; left: 12px; right: 12px; bottom: 1px; height: 2px; border-radius: 1px; background: var(--signal); }
-        .hist { display: flex; gap: 2px; }
-        .search { display: flex; align-items: center; gap: 10px; height: 36px; width: min(340px, 100%); padding: 0 12px; border-radius: var(--r); background: var(--pill); color: var(--muted); transition: background .15s, box-shadow .15s; }
+        :global(.top .lnk.on)::after { content: ''; position: absolute; inset-inline: 12px; bottom: 1px; height: 2px; border-radius: 1px; background: var(--signal); }
+        .hist { display: flex; gap: 8px; }
+        .search { display: flex; align-items: center; gap: 10px; min-height: 36px; flex: 0 1 340px; min-width: 120px; padding: 0 12px; border-radius: var(--r); background: var(--pill); color: var(--muted); transition: background .15s, box-shadow .15s; }
         .search.gone { display: none; } /* the Search page has its own field with live suggestions */
         .search:hover { background: var(--pill-hover); color: var(--text); }
         .search:focus-within { background: var(--pill-hover); color: var(--text); box-shadow: 0 0 0 2px var(--ink); }

@@ -60,8 +60,8 @@ export function Seek({ compact = false, remote }: { compact?: boolean; remote?: 
       <style jsx>{`
         .seek { display: flex; align-items: center; gap: 8px; width: 100%; }
         .time { font-family: var(--font-num); font-size: .75rem; color: var(--muted); width: 40px; }
-        .time.r { text-align: left; }
-        .time:first-child { text-align: right; }
+        .time.r { text-align: start; }
+        .time:first-child { text-align: end; }
         .track { position: relative; flex: 1; height: 4px; border-radius: 99px; background: var(--border-2); cursor: pointer; touch-action: none; }
         .track::before { content: ''; position: absolute; inset: -8px 0; }
         .fill { position: absolute; inset: 0 auto 0 0; border-radius: 99px; background: var(--ink); }
@@ -135,7 +135,7 @@ export function PlayerBar() {
       <div className="left">
         <button className="meta" onClick={() => !remote && P.setExpanded(true)} aria-label="Open player">
           <Cover src={shown.thumb} size={52} radius={4} />
-          <div className="grow" style={{ textAlign: 'left' }}>
+          <div className="grow" style={{ textAlign: 'start' }}>
             <div className="t clamp1">{shown.title}</div>
             {remote ? (
               <div className="s clamp1 rem">Playing on {remote.name}</div>
@@ -202,12 +202,12 @@ export function PlayerBar() {
         .s.bad { color: var(--red-t); }
         .s.rem { color: var(--signal-t); font-weight: 700; }
         .center { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; max-width: 722px; width: 100%; justify-self: center; }
-        .ctrls { display: flex; align-items: center; gap: 16px; }
+        .ctrls { display: flex; align-items: center; gap: 20px; }
         .play { width: 40px; height: 40px; border-radius: var(--r); background: var(--signal); color: var(--on-signal); display: grid; place-items: center; transition: background .15s, transform .1s ease-out; }
         .play:hover { background: var(--signal-hi); }
         .play:active { transform: scale(.94); }
         .seekrow { width: 100%; }
-        .right { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+        .right { display: flex; align-items: center; gap: 12px; justify-content: flex-end; }
         .mobile-progress { display: none; }
         @media (max-width: 900px) {
           .bar { bottom: calc(56px + env(safe-area-inset-bottom)); height: 56px; display: flex; gap: 4px; padding: 0 8px; }
@@ -215,7 +215,7 @@ export function PlayerBar() {
           .center { flex: none; width: auto; }
           .meta :global(.cover) { width: 40px !important; height: 40px !important; }
           :global(.hide-sm) { display: none !important; }
-          .mobile-progress { display: block; position: absolute; left: 8px; right: 8px; bottom: 0; }
+          .mobile-progress { display: block; position: absolute; inset-inline: 8px; bottom: 0; }
         }
       `}</style>
     </div>
