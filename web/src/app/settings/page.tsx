@@ -100,6 +100,8 @@ export default function SettingsPage() {
           </Row>
         </Group>
 
+        <AiGroup />
+
         <Group span={6} title="Developer">
           <Row label="Explore">
             <Switch on={dev.explore} label="Explore" onChange={(v) => setDev('explore', v)} />
@@ -214,6 +216,67 @@ function HomeToggle({ id, label, hint }: { id: (typeof HOME_SECTIONS)[number]['i
         .hp :global(.tg) { border-bottom: 0; }
       `}</style>
     </div>
+  );
+}
+
+type AiStatus = { configured: boolean; host: string | null; building: boolean; builtAt: number | null; title: string | null; songs: number; lastTry: number | null; lastError: string | null; shown: boolean };
+type AiResult = { ok: boolean; error?: string; ms?: number; report?: { title: string; proposed: number; found: number; kept: number; ms: number }; status?: AiStatus };
+
+/** The daily AI mix: is the model reachable, and what happened the last time it built a playlist. */
+function AiGroup() {
+  const [st, setSt] = useState<AiStatus | null>(null);
+  const [res, setRes] = useState<AiResult | null>(null);
+  const [busy, setBusy] = useState<'test' | 'build' | null>(null);
+
+  const load = () => fetch('/api/ai', { cache: 'no-store' }).then((r) => r.json()).then(setSt).catch(() => {});
+  useEffect(() => { load(); }, []);
+
+  const run = async (action: 'test' | 'build') => {
+    setBusy(action);
+    setRes(null);
+    try {
+      const r = await fetch('/api/ai', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action }) });
+      const j = (await r.json()) as AiResult;
+      setRes(r.ok ? j : { ok: false, error: (j as { error?: string }).error ?? 'Something went wrong' });
+      if (j.status) setSt(j.status);
+    } catch {
+      setRes({ ok: false, error: 'Could not reach the LoMu server.' });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const when = (t: number | null) => (t ? new Date(t).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : null);
+  const state = !st ? 'Checking…' : !st.configured ? 'Not set up' : st.building ? "Building today's mix…" : st.shown ? `Today's mix: ${st.title}` : st.lastError ? 'Not working' : 'Waiting for the first mix';
+  const hint = !st
+    ? ''
+    : !st.configured
+      ? 'Set LOMU_AI_URL (and LOMU_AI_KEY if the server needs one) on this server, then restart it. Without it, Home uses the normal mixes.'
+      : [`Model server ${st.host}`, st.builtAt ? `last built ${when(st.builtAt)} · ${st.songs} songs` : null, st.lastError && !st.shown ? st.lastError : null].filter(Boolean).join(' · ');
+
+  return (
+    <Group span={6} title="AI mix" sub="One playlist a day, written by your own model and checked against YouTube Music. If the model is off for a whole day, Home goes back to the normal mixes.">
+      <Row label={state} hint={hint}>
+        <span className="row" style={{ gap: 8 }}>
+          <button className="btn sm" disabled={!st?.configured || !!busy} onClick={() => run('test')}>{busy === 'test' ? 'Testing…' : 'Test connection'}</button>
+          <button className="btn sm" disabled={!st?.configured || !!busy || st.building} onClick={() => run('build')}>{busy === 'build' ? 'Building…' : 'Build now'}</button>
+        </span>
+      </Row>
+      {busy === 'build' && <div className="aires">Asking the model, then looking each song up. This can take a minute or two.</div>}
+      {res && (
+        <div className={`aires${res.ok ? '' : ' bad'}`} role="status">
+          {res.ok
+            ? res.report
+              ? `Built "${res.report.title}": the model proposed ${res.report.proposed} songs, ${res.report.found} exist on YouTube Music, ${res.report.kept} kept. ${(res.report.ms / 1000).toFixed(0)} s. It will show on Home within a few minutes.`
+              : `The model answered in ${((res.ms ?? 0) / 1000).toFixed(1)} s. The connection works.`
+            : res.error}
+        </div>
+      )}
+      <style jsx>{`
+        .aires { padding: 12px var(--sp-4); border-top: 1px solid var(--border); font-size: 13px; color: var(--muted); line-height: 1.45; }
+        .aires.bad { color: var(--red-t); background: var(--red-soft); }
+      `}</style>
+    </Group>
   );
 }
 
