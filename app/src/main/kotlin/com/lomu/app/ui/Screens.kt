@@ -706,3 +706,24 @@ fun SettingsScreen() {
         }
     }
 }
+
+/** "On Repeat" and other generated lists, laid out exactly like an album: pastel card, shuffle, plain rows with durations. */
+@Composable
+fun MixScreen() {
+    val player = LocalPlayer.current
+    val title = MixStore.title
+    val tracks = MixStore.tracks
+    val items = remember(tracks) { tracks.map { it.toMediaItem() } }
+    val now = playingId()
+    Detail(
+        tracks.firstOrNull()?.thumbnailUrl, title, "Made for you", "${tracks.size} songs", runTime(tracks.sumOf { it.duration.toLong() } * 1000),
+        actions = DetailActions({ player?.playMediaItems(title, items) }, { player?.playMediaItems(title, items.shuffled()) }),
+    ) {
+        if (tracks.isEmpty()) item { EmptyState(Ph.Playlist, "Nothing here yet") }
+        itemsIndexed(tracks) { i, m ->
+            MediaRow(m.title, m.artists.joinToString { it.name }, m.thumbnailUrl, trailing = formatTime(m.duration * 1000L), active = now == m.id, flat = true, showLine = false, modifier = Modifier.appear(i), menu = MenuTarget(m)) {
+                player?.playMediaItems(title, items, i)
+            }
+        }
+    }
+}
