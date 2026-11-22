@@ -1,3 +1,4 @@
+import { readJson } from '@/server/body';
 import { cookies } from 'next/headers';
 import { clearAuthCookies, currentUser, refreshOwner, revokeUser } from '@/server/auth';
 
@@ -7,7 +8,7 @@ export async function POST(req: Request) {
   if (uid === null) {
     let refresh: string | undefined;
     try {
-      refresh = (await req.json())?.refresh;
+      refresh = (await readJson(req))?.refresh;
     } catch {
       /* no body */
     }

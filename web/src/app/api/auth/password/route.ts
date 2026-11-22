@@ -1,3 +1,4 @@
+import { readJson } from '@/server/body';
 import { checkPassword, issueTokens, requireUser, setAuthCookies, setPassword } from '@/server/auth';
 import { limiter } from '@/server/ratelimit';
 
@@ -10,7 +11,7 @@ export async function POST(req: Request) {
   if (!me.username) return Response.json({ error: 'no account yet' }, { status: 400 });
   if (tries.blocked(String(me.id))) return Response.json({ error: 'too many attempts, try later' }, { status: 429 });
   try {
-    const { current, next } = await req.json();
+    const { current, next } = await readJson(req);
     if (!(await checkPassword(me.username, String(current ?? '')))) {
       tries.fail(String(me.id));
       return Response.json({ error: 'current password is wrong' }, { status: 401 });

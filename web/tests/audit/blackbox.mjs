@@ -273,6 +273,41 @@ ok(alive.status === 200, 'server still answers after the fuzz round');
 r = await call('POST', '/api/sync', { token: users.guest1.access, body: { docs: [{ kind: 'like', key: 'huge', value: { x: 'y'.repeat(300000) }, updated: 5 }] } });
 ok(r.status === 200 && r.json.applied === 0, 'an oversized document is skipped');
 
+// ---------------------------------------------------------------- body limits and live streams
+section('body limits and live streams of removed accounts');
+const chunked = (bytes) => new ReadableStream({ start(c) { for (let i = 0; i < bytes; i += 65536) c.enqueue(new Uint8Array(Math.min(65536, bytes - i)).fill(32)); c.close(); } });
+let big = await fetch(BASE + '/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: chunked(2_000_000), duplex: 'half' }).catch(() => null);
+ok(big && big.status === 400, 'a 2 MB chunked body to login is refused', String(big?.status));
+big = await fetch(BASE + '/api/sync', { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${users.guest1.access}` }, body: chunked(41_000_000), duplex: 'half' }).catch(() => null);
+ok(big && big.status === 413, 'a 41 MB chunked body to sync gets 413', String(big?.status));
+const t413 = Date.now();
+r = await call('POST', '/api/import', { raw: ' '.repeat(5_000_000), headers: { 'content-type': 'application/json' } });
+ok(r.status === 401 && Date.now() - t413 < 3000, 'anonymous /api/import is refused before its body is read', String(r.status));
+ok((await call('GET', '/api/auth/status')).status === 200, 'server healthy after the oversize bodies');
+
+const g3 = (await call('GET', '/api/users', { token: users.owner.access })).json.users.find((u) => u.username === 'guest3');
+if (g3) await call('DELETE', `/api/users?id=${g3.id}`, { token: users.owner.access }); // the 4 seats are full: free one
+const victim = (await call('POST', '/api/users', { token: users.owner.access, body: { username: 'streamvictim', password: PW } })).json;
+if (victim?.user) {
+  const vt = (await login('streamvictim')).json;
+  const vs = sse('/api/sync/events', vt.access);
+  const vc = sse('/api/connect/events?id=victim-device-1&name=V&kind=web', vt.access);
+  await wait(500);
+  ok(vs.events.length > 0 && vc.events.length > 0, 'victim has live sync and connect streams');
+  let ended = false;
+  vs.done.then(() => (ended = true));
+  let endedC = false;
+  vc.done.then(() => (endedC = true));
+  await call('DELETE', `/api/users?id=${victim.user.id}`, { token: users.owner.access });
+  const pingMs = Number(process.env.LOMU_PING_MS) || 25_000;
+  await wait(Math.min(pingMs * 2.5, 30_000));
+  ok(ended && endedC, 'streams of a deleted account are closed at the next keep-alive', `sync ended=${ended} connect ended=${endedC} (start the server with LOMU_PING_MS=1000)`);
+  vs.close();
+  vc.close();
+} else {
+  ok(false, 'could not create the stream-test account', JSON.stringify(victim));
+}
+
 // ---------------------------------------------------------------- pages and headers
 section('pages and headers');
 for (const p of ['/', '/search', '/library', '/explore', '/insights', '/settings', '/import', '/manifest.webmanifest']) {

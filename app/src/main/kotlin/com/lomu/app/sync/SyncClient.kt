@@ -60,7 +60,7 @@ class SyncClient @Inject constructor(
      * moves on when one does not connect; on the same subnet as the server the private address goes first. TLS still uses
      * the public name, so nothing about certificate checking is relaxed.
      */
-    private val lanAwareDns = object : Dns {
+    val lanAwareDns: Dns = object : Dns {
         override fun lookup(hostname: String): List<InetAddress> {
             val system = runCatching { Dns.SYSTEM.lookup(hostname) }.getOrDefault(emptyList())
             val lan = prefs.getString("lan", null)
@@ -118,6 +118,9 @@ class SyncClient @Inject constructor(
         prefs.getString("access", null)?.let { b.header("Authorization", "Bearer $it") }
         return http.newCall(b.build()).execute().use { r -> r.code to JSONObject(r.body?.string().orEmpty().ifBlank { "{}" }) }
     }
+
+    /** True for the LoMu server's own host name (the only one the LAN address applies to). */
+    fun isServerHost(hostname: String): Boolean = runCatching { java.net.URI(base()).host == hostname }.getOrDefault(false)
 
     private fun isPrivateIpv4(v: String): Boolean {
         val m = Regex("^(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})$").matchEntire(v.trim()) ?: return false
