@@ -194,7 +194,7 @@ function SleepTile({ sessions }: { sessions: SleepSession[] }) {
         .body li.dim { opacity: .55; }
         .body li.mark { background: color-mix(in srgb, var(--signal) 18%, transparent); }
         .t { width: 64px; font-variant-numeric: tabular-nums; font-size: 12px; }
-        .flag { font-size: 11px; color: var(--signal); font-weight: 700; }
+        .flag { font-size: 11px; color: var(--signal-t); font-weight: 700; }
         @media (max-width: 700px) { .hide-sm { display: none; } .when { width: 90px; } }
       `}</style>
     </Tile>

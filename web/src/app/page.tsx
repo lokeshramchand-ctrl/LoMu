@@ -283,7 +283,7 @@ function QuickPicks({ tracks, personal, loading }: { tracks: Track[]; personal: 
         .q :global(.cover) { border-radius: 4px 0 0 4px; box-shadow: 4px 0 8px rgba(0, 0, 0, .3); }
         .tx { min-width: 0; }
         .t { font-weight: 700; font-size: 16px; color: var(--ink); }
-        .q.active .t { color: var(--signal); }
+        .q.active .t { color: var(--signal-t); }
         .s { color: var(--muted); font-size: 13px; }
         .go { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--signal); color: #000; box-shadow: 0 8px 8px rgba(0, 0, 0, .3); opacity: 0; transform: translateY(4px); transition: opacity .3s var(--ease), transform .3s var(--ease); flex: none; }
         .q:hover .go, .q.active .go { opacity: 1; transform: none; }
