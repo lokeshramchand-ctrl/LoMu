@@ -12,5 +12,6 @@ export async function POST(req: Request) {
   const t = refresh ? rotate(refresh, req.headers.get('x-lomu-device') ?? 'web') : null;
   if (!t) return Response.json({ error: 'invalid refresh token' }, { status: 401 });
   await setAuthCookies(t);
-  return Response.json(t);
+  const { access, refresh: next, expiresIn } = t;
+  return Response.json({ access, refresh: next, expiresIn });
 }

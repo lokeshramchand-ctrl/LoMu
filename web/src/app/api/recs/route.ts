@@ -3,4 +3,4 @@ import { buildMixes } from '@/server/recs';
 
 export const dynamic = 'force-dynamic';
 
-export const GET = () => json(buildMixes);
+export const GET = () => json((u) => buildMixes(u.id));

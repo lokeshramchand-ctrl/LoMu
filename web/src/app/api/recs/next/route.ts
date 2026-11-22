@@ -5,5 +5,5 @@ export const dynamic = 'force-dynamic';
 
 export function GET(req: Request) {
   const q = new URL(req.url).searchParams;
-  return json(() => nextUp(q.get('seed') ?? '', (q.get('recent') ?? '').split(',').filter(Boolean)));
+  return json((u) => nextUp(u.id, q.get('seed') ?? '', (q.get('recent') ?? '').split(',').filter(Boolean)));
 }

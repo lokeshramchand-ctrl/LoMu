@@ -16,7 +16,7 @@ export default function SettingsPage() {
   const dev = useSettings((s) => s.dev);
   const setDev = useSettings((s) => s.setDev);
   const autoplay = usePlayer((s) => s.autoplay);
-  const { user, sync, lastSync, logout, local } = useAuth();
+  const { user, sync, lastSync, logout, local, admin } = useAuth();
   const [confirmClear, setConfirmClear] = useState(false);
   const exportLibrary = () => {
     const { liked, history, playlists, albums, artists, savedPlaylists, recentSearches } = useLibrary.getState();
@@ -39,7 +39,7 @@ export default function SettingsPage() {
     <Bento className="fade-in">
       <PageHeader eyebrow="Settings" title="Settings" sub="Account, appearance, playback and the things you can turn on or off." />
         {local && <HubGroup kicker={nk()} />}
-        {!local && <Group kicker={nk()} span={7} title="Account" sub="One owner account. It syncs likes, playlists and history to your other devices.">
+        {!local && <Group kicker={nk()} span={7} title="Account" sub="Your own library, history and recommendations. They sync to your other devices and are never shown to other accounts.">
           <Row
             icon="user"
             label={user ? `Signed in as ${user}` : 'Not signed in'}
@@ -49,7 +49,9 @@ export default function SettingsPage() {
               <Icon name="logout" size={16} /> Sign out
             </button>
           </Row>
+          <PasswordRow />
         </Group>}
+        {!local && admin && <AccountsGroup kicker={nk()} />}
 
         <Group kicker={nk()} span={5} title="Appearance">
           <Row icon="sun" label="Interface theme" hint="Select or customise your interface colour scheme.">
@@ -126,7 +128,7 @@ export default function SettingsPage() {
   );
 }
 
-type Hub = { local: boolean; url: string | null; user: string | null; state: 'off' | 'syncing' | 'online' | 'offline' | 'error'; lastSync: number | null; pending: number; error: string | null };
+type Hub = { local: boolean; url: string | null; user: string | null; state: 'off' | 'syncing' | 'online' | 'offline' | 'error'; lastSync: number | null; pending: number; error: string | null; lan: string | null; route: 'direct' | 'lan' | null };
 
 /** Desktop app: connection to the home server that keeps this PC, the phone and the browser in step. */
 function HubGroup({ kicker }: { kicker: string }) {
@@ -134,6 +136,7 @@ function HubGroup({ kicker }: { kicker: string }) {
   const [url, setUrl] = useState('https://lomu.deploy-ui.lokeshrc.me');
   const [u, setU] = useState('');
   const [p, setP] = useState('');
+  const [lan, setLan] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -164,7 +167,7 @@ function HubGroup({ kicker }: { kicker: string }) {
       ? `Everything is saved on this PC and will sync when ${new URL(hub!.url!).host} is back${hub!.pending ? ` (${hub!.pending} ${hub!.pending === 1 ? 'change' : 'changes'} waiting)` : ''}.`
       : hub!.state === 'error'
         ? hub!.error ?? 'Sync failed.'
-        : `${hub!.user} on ${new URL(hub!.url!).host}${hub!.lastSync ? ` · last sync ${new Date(hub!.lastSync).toLocaleTimeString()}` : ''}${hub!.pending ? ` · ${hub!.pending} waiting` : ''}`;
+        : `${hub!.user} on ${new URL(hub!.url!).host}${hub!.lastSync ? ` · last sync ${new Date(hub!.lastSync).toLocaleTimeString()}` : ''}${hub!.pending ? ` · ${hub!.pending} waiting` : ''}${hub!.route === 'lan' ? ' · via home network' : ''}`;
 
   return (
     <Group kicker={kicker} span={7} title="Home server" sub="Your library lives on this PC. The home server only keeps your devices in step, so a power cut there never stops the music.">
@@ -179,12 +182,20 @@ function HubGroup({ kicker }: { kicker: string }) {
       {(!connected || hub?.state === 'error') && (
         <form
           className="hubform"
-          onSubmit={(e) => { e.preventDefault(); call('POST', { url, username: u, password: p }); }}
+          onSubmit={(e) => { e.preventDefault(); call('POST', { url, username: u, password: p, lan }); }}
         >
           <input placeholder="Server address" value={url} onChange={(e) => setUrl(e.target.value)} />
           <input placeholder="Username" autoComplete="username" value={u} onChange={(e) => setU(e.target.value)} />
           <input type="password" placeholder="Password" autoComplete="current-password" value={p} onChange={(e) => setP(e.target.value)} />
+          <input placeholder="Home network address (optional, like 192.168.1.17)" inputMode="decimal" value={lan} onChange={(e) => setLan(e.target.value)} style={{ flexBasis: '100%' }} />
           <button className="btn primary" disabled={busy || !u || !p || !url}>{busy ? 'Connecting…' : 'Connect'}</button>
+          {err && <div className="err">{err}</div>}
+        </form>
+      )}
+      {connected && (
+        <form className="hubform" onSubmit={(e) => { e.preventDefault(); call('POST', { action: 'lan', lan }); }}>
+          <input placeholder={hub?.lan ? `Home network address: ${hub.lan}` : 'Home network address (for when the server name does not work at home)'} inputMode="decimal" value={lan} onChange={(e) => setLan(e.target.value)} />
+          <button className="btn sm" disabled={busy}>{lan.trim() ? 'Save' : hub?.lan ? 'Clear' : 'Save'}</button>
           {err && <div className="err">{err}</div>}
         </form>
       )}
@@ -256,5 +267,109 @@ function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
                 .sw.on i { transform: translateX(16px); background: #000; }
       `}</style>
     </button>
+  );
+}
+
+/** Change your own password. Every other device is signed out. */
+function PasswordRow() {
+  const [open, setOpen] = useState(false);
+  const [cur, setCur] = useState('');
+  const [next, setNext] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const save = async () => {
+    setBusy(true);
+    setErr(null);
+    try {
+      const r = await fetch('/api/auth/password', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ current: cur, next }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) return setErr(j.error ?? 'Could not change the password');
+      setOpen(false);
+      setCur('');
+      setNext('');
+      toast('Password changed. Your other devices are signed out.');
+    } finally { setBusy(false); }
+  };
+  return (
+    <>
+      <Row icon="user" label="Password" hint="Changing it signs out every other device.">
+        <button className="btn" onClick={() => setOpen((o) => !o)}>{open ? 'Cancel' : 'Change'}</button>
+      </Row>
+      {open && (
+        <form className="pwform" onSubmit={(e) => { e.preventDefault(); save(); }}>
+          <input type="password" placeholder="Current password" autoComplete="current-password" value={cur} onChange={(e) => setCur(e.target.value)} />
+          <input type="password" placeholder="New password (8+ characters)" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} />
+          <button className="btn primary" disabled={busy || !cur || next.length < 8}>{busy ? 'Saving…' : 'Save'}</button>
+          {err && <div className="err">{err}</div>}
+        </form>
+      )}
+      <style jsx>{`
+        .pwform { display: flex; flex-wrap: wrap; gap: 8px; padding: var(--sp-3) var(--sp-4); border-top: 1px solid rgba(255, 255, 255, .08); }
+        .pwform input { flex: 1 1 160px; height: 40px; padding: 0 12px; border-radius: 4px; border: 0; background: var(--surface-2); color: var(--ink); font: inherit; font-size: 14px; outline: none; }
+        .pwform input:focus { box-shadow: 0 0 0 2px var(--ink); }
+        .err { flex-basis: 100%; color: var(--red-t); font-size: 13px; background: var(--red-soft); padding: 8px 10px; border-radius: 5px; }
+      `}</style>
+    </>
+  );
+}
+
+type Acct = { id: number; username: string; role: 'admin' | 'user'; disabled: boolean; created: number; devices: number };
+
+/** Admin only: add, pause and remove accounts. Each account has its own library, history and recommendations. */
+function AccountsGroup({ kicker }: { kicker: string }) {
+  const me = useAuth((s) => s.user);
+  const [users, setUsers] = useState<Acct[]>([]);
+  const [max, setMax] = useState(4);
+  const [name, setName] = useState('');
+  const [pw, setPw] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<number | null>(null);
+
+  const load = () => fetch('/api/users', { cache: 'no-store' }).then((r) => r.json()).then((j) => { if (j.users) { setUsers(j.users); setMax(j.max); } }).catch(() => {});
+  useEffect(() => { load(); }, []);
+
+  const call = async (method: string, body?: unknown, query = '') => {
+    setBusy(true);
+    setErr(null);
+    try {
+      const r = await fetch('/api/users' + query, { method, headers: { 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) return setErr(j.error ?? 'Something went wrong');
+      await load();
+      return true;
+    } finally { setBusy(false); }
+  };
+
+  const full = users.length >= max;
+  return (
+    <Group kicker={kicker} span={7} title="Accounts" sub={`${users.length} of ${max} accounts. Everyone gets their own library, history and recommendations; nothing is shared.`}>
+      {users.map((a) => (
+        <Row key={a.id} icon="user" label={`${a.username}${a.username === me ? ' (you)' : ''}${a.role === 'admin' ? ' · admin' : ''}${a.disabled ? ' · paused' : ''}`} hint={`${a.devices} signed-in ${a.devices === 1 ? 'device' : 'devices'} · since ${new Date(a.created).toLocaleDateString()}`}>
+          {a.username !== me && (
+            <span className="row" style={{ gap: 8 }}>
+              <button className="btn sm" disabled={busy} onClick={() => call('PATCH', { id: a.id, disabled: !a.disabled })}>{a.disabled ? 'Resume' : 'Pause'}</button>
+              {confirm === a.id ? (
+                <button className="btn sm primary" disabled={busy} onClick={async () => { if (await call('DELETE', undefined, `?id=${a.id}`)) setConfirm(null); }}>Delete everything</button>
+              ) : (
+                <button className="btn sm" disabled={busy} onClick={() => setConfirm(a.id)}>Remove</button>
+              )}
+            </span>
+          )}
+        </Row>
+      ))}
+      <form className="acform" onSubmit={async (e) => { e.preventDefault(); if (await call('POST', { username: name, password: pw })) { setName(''); setPw(''); toast('Account added'); } }}>
+        <input placeholder="Username" autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} disabled={full} />
+        <input type="password" placeholder="Password (8+ characters)" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} disabled={full} />
+        <button className="btn primary" disabled={busy || full || name.trim().length < 2 || pw.length < 8}>{full ? 'Full' : 'Add account'}</button>
+        {err && <div className="err">{err}</div>}
+      </form>
+      <style jsx>{`
+        .acform { display: flex; flex-wrap: wrap; gap: 8px; padding: var(--sp-3) var(--sp-4); border-top: 1px solid rgba(255, 255, 255, .08); }
+        .acform input { flex: 1 1 160px; height: 40px; padding: 0 12px; border-radius: 4px; border: 0; background: var(--surface-2); color: var(--ink); font: inherit; font-size: 14px; outline: none; }
+        .acform input:focus { box-shadow: 0 0 0 2px var(--ink); }
+        .err { flex-basis: 100%; color: var(--red-t); font-size: 13px; background: var(--red-soft); padding: 8px 10px; border-radius: 5px; }
+      `}</style>
+    </Group>
   );
 }

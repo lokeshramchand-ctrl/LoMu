@@ -15,12 +15,17 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import okhttp3.Dns
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import java.net.Inet4Address
+import java.net.InetAddress
+import java.net.NetworkInterface
+import java.net.UnknownHostException
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -47,7 +52,31 @@ class SyncClient @Inject constructor(
     private val database: MusicDatabase,
 ) {
     private val prefs = context.getSharedPreferences("lomu_sync", Context.MODE_PRIVATE)
-    private val http = OkHttpClient.Builder().callTimeout(30, TimeUnit.SECONDS).build()
+    /**
+     * The server's public name does not work from inside the home network: many routers cannot loop a connection back in,
+     * and with Cloudflare WARP on, the connection is tunnelled out and has to come back in from the internet. The server is
+     * reachable on its private address though, and its certificate is for the public name, so for the server's own host this
+     * resolver adds that address (learned from the server, see [learnLan]) to the candidates. OkHttp tries them in order and
+     * moves on when one does not connect; on the same subnet as the server the private address goes first. TLS still uses
+     * the public name, so nothing about certificate checking is relaxed.
+     */
+    private val lanAwareDns = object : Dns {
+        override fun lookup(hostname: String): List<InetAddress> {
+            val system = runCatching { Dns.SYSTEM.lookup(hostname) }.getOrDefault(emptyList())
+            val lan = prefs.getString("lan", null)
+            val serverHost = runCatching { java.net.URI(base()).host }.getOrNull()
+            if (lan.isNullOrBlank() || !isPrivateIpv4(lan) || hostname != serverHost) {
+                if (system.isEmpty()) throw UnknownHostException(hostname)
+                return system
+            }
+            val local = runCatching { InetAddress.getByName(lan) }.getOrNull()
+            val all = if (local == null) system else if (onSameSubnet(local)) listOf(local) + system else system + local
+            if (all.isEmpty()) throw UnknownHostException(hostname)
+            return all.distinct()
+        }
+    }
+
+    private val http = OkHttpClient.Builder().dns(lanAwareDns).connectTimeout(7, TimeUnit.SECONDS).callTimeout(30, TimeUnit.SECONDS).build()
     private val json = "application/json".toMediaType()
     private val lock = Mutex()
 
@@ -88,6 +117,34 @@ class SyncClient @Inject constructor(
         val b = Request.Builder().url(base() + path).header("x-lomu-device", "android")
         prefs.getString("access", null)?.let { b.header("Authorization", "Bearer $it") }
         return http.newCall(b.build()).execute().use { r -> r.code to JSONObject(r.body?.string().orEmpty().ifBlank { "{}" }) }
+    }
+
+    private fun isPrivateIpv4(v: String): Boolean {
+        val m = Regex("^(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})$").matchEntire(v.trim()) ?: return false
+        val (a, b, c, d) = m.groupValues.drop(1).map { it.toInt() }
+        if (listOf(a, b, c, d).any { it > 255 }) return false
+        return a == 10 || (a == 172 && b in 16..31) || (a == 192 && b == 168) || (a == 100 && b in 64..127)
+    }
+
+    /** True when this phone has an address on the same IPv4 subnet as [other] (so it is at home, on the server's network). */
+    private fun onSameSubnet(other: InetAddress): Boolean = runCatching {
+        NetworkInterface.getNetworkInterfaces().asSequence().filter { it.isUp && !it.isLoopback }.flatMap { it.interfaceAddresses.asSequence() }.any { ia ->
+            val mine = ia.address as? Inet4Address ?: return@any false
+            val prefix = ia.networkPrefixLength.toInt().coerceIn(1, 32)
+            val mask = (-1 shl (32 - prefix))
+            fun v(a: InetAddress) = a.address.fold(0) { acc, x -> (acc shl 8) or (x.toInt() and 0xff) }
+            (v(mine) and mask) == (v(other) and mask)
+        }
+    }.getOrDefault(false)
+
+    /** Asks the server for its address on the home network (it advertises it to signed-in accounts) and remembers it. */
+    private fun learnLan() {
+        prefs.edit().putLong("lanTried", System.currentTimeMillis()).apply()
+        runCatching {
+            val (code, o) = get("/api/auth/status")
+            val lan = o.optString("lan", "")
+            if (code == 200 && lan.isNotBlank() && isPrivateIpv4(lan)) prefs.edit().putString("lan", lan).apply()
+        }
     }
 
     private fun saveTokens(o: JSONObject) {
@@ -169,8 +226,18 @@ class SyncClient @Inject constructor(
                 _state.value = _state.value.copy(busy = false, error = o.optString("error", "Sign-in failed ($code)"))
                 return@withContext
             }
+            // Another person's account signing in on this phone: what is stored here belongs to the previous one, and
+            // would be uploaded into the new account. That data is safe on the server under its own account.
+            val previous = prefs.getString("dataOwner", null)
+            if (previous != null && !previous.equals(user.trim(), ignoreCase = true)) {
+                database.delegate.clearAllTables()
+                prefs.edit().remove("liked").remove("lastEvent").remove("plSnap").remove("savedSnap").remove("queueJson").remove("queueAt")
+                    .remove("queuePushedAt").remove("queueSeenAt").remove("queueSig").remove("remoteQueue").remove("lan").apply()
+                _remoteQueue.value = null
+            }
             saveTokens(o)
-            prefs.edit().putString("user", user).putLong("seq", 0).apply()
+            prefs.edit().putString("user", user).putString("dataOwner", user.trim()).putLong("seq", 0).apply()
+            learnLan()
             _state.value = _state.value.copy(busy = false, user = user, status = "Signed in")
         } catch (e: Exception) {
             _state.value = _state.value.copy(busy = false, error = "Can't reach the server: ${e.message}")
@@ -189,6 +256,8 @@ class SyncClient @Inject constructor(
         withContext(Dispatchers.IO) {
             try {
                 _state.value = _state.value.copy(status = "Syncing…")
+                if (prefs.getString("dataOwner", null) == null) prefs.getString("user", null)?.let { prefs.edit().putString("dataOwner", it).apply() } // installs from before accounts were separate
+                if (prefs.getString("lan", null) == null && System.currentTimeMillis() - prefs.getLong("lanTried", 0) > 6 * 3600_000L) learnLan()
                 // One-time repair of plays that earlier versions inserted twice (they inflated this phone's totals).
                 if (!prefs.getBoolean("evDedupe1", false)) {
                     database.deleteDuplicateEvents()

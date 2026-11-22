@@ -1,11 +1,11 @@
 import 'server-only';
-import { gate } from './auth';
+import { requireUser, type User } from './auth';
 
-export async function json<T>(fn: () => Promise<T>, maxAge = 0): Promise<Response> {
-  const denied = await gate();
-  if (denied) return denied;
+export async function json<T>(fn: (user: User) => Promise<T>, maxAge = 0): Promise<Response> {
+  const user = await requireUser();
+  if (user instanceof Response) return user;
   try {
-    const data = await fn();
+    const data = await fn(user);
     return Response.json(data, {
       headers: { 'cache-control': maxAge ? `private, max-age=${maxAge}` : 'no-store' },
     });
