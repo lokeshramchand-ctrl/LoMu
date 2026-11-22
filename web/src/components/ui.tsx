@@ -40,7 +40,7 @@ export function Sheet({
   if (!open) return null;
   return (
     <div className="sheet-wrap">
-      <div className="scrim" onClick={onClose} />
+      <div className="scrim" aria-hidden onClick={onClose} />
       <aside className="sheet" role="dialog" aria-modal="true" aria-label={title}>
         <header>
           <div className="grow">
@@ -62,7 +62,7 @@ export function Sheet({
         header { display: flex; align-items: flex-start; gap: 12px; padding: 22px 22px 16px; }
         h2 { font-size: 24px; font-weight: 700; margin-top: 2px; }
         header p { margin-top: 6px; font-size: 13px; }
-        .body { flex: 1; overflow-y: auto; padding: 8px 22px 22px; }
+        .body { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 8px 22px 22px; }
         footer { padding: 14px 22px; display: flex; gap: 10px; justify-content: flex-end; }
         @keyframes fade { from { opacity: 0; } }
         @keyframes slide { from { transform: translateX(24px); opacity: 0; } }

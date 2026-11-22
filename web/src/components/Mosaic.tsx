@@ -9,7 +9,7 @@ export function Mosaic({ tracks, size = 168 }: { tracks: Track[]; size?: number 
     <div className="cover" style={{ width: size, height: size, display: 'grid', gridTemplateColumns: '1fr 1fr', borderRadius: 6 }}>
       {thumbs.map((t) => (
         // eslint-disable-next-line @next/next/no-img-element
-        <img key={t} src={t} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} referrerPolicy="no-referrer" />
+        <img key={t} src={t} alt="" width={size / 2} height={size / 2} loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} referrerPolicy="no-referrer" />
       ))}
     </div>
   );
