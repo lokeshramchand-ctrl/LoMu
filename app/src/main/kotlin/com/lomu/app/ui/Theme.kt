@@ -42,8 +42,9 @@ data class Lo(
 val LightLo = Lo(
     bg = Color(0xFFFFFFFF), card = Color(0xFFFAFAFA), surface2 = Color(0xFFEEEEF0),
     grouped = Color(0xFFF2F2F7), cell = Color(0xFFFFFFFF),
-    ink = Color(0xFF000000), grey = Color(0xFF8E8E93), line = Color(0xFFC6C6C8), border2 = Color(0xFFC6C6C8),
-    signal = Color(0xFF007AFF), signalSoft = Color(0x1F007AFF), red = Color(0xFFFF3B30), dark = false,
+    // Secondary text, accent and red darkened from the iOS defaults (3.3 / 4.0 / 3.6 : 1 on white) to 5.7 / 5.8 / 5.4 : 1 so small text is readable in daylight.
+    ink = Color(0xFF000000), grey = Color(0xFF666669), line = Color(0xFFC6C6C8), border2 = Color(0xFFC6C6C8),
+    signal = Color(0xFF0062CC), signalSoft = Color(0x1F0062CC), red = Color(0xFFD70015), dark = false,
 )
 val DarkLo = Lo(
     bg = Color(0xFF000000), card = Color(0xFF222222), surface2 = Color(0xFF2C2C2E),
@@ -107,7 +108,7 @@ object LoType {
     val small = TextStyle(fontFamily = LoFont, fontWeight = FontWeight.Normal, fontSize = 13.sp, lineHeight = 16.sp, letterSpacing = (-0.08).sp) // Footnote
     val eyebrow = TextStyle(fontFamily = LoFont, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, lineHeight = 16.sp, letterSpacing = (-0.08).sp)
     val sub = TextStyle(fontFamily = LoFont, fontWeight = FontWeight.Normal, fontSize = 15.sp, lineHeight = 20.sp, letterSpacing = (-0.24).sp)    // Subheadline
-    val caption = TextStyle(fontFamily = LoFont, fontWeight = FontWeight.Medium, fontSize = 10.sp, lineHeight = 12.sp, letterSpacing = 0.07.sp)   // Caption 3 (tab labels)
+    val caption = TextStyle(fontFamily = LoFont, fontWeight = FontWeight.Medium, fontSize = 11.sp, lineHeight = 13.sp, letterSpacing = 0.07.sp)   // Caption 3 (tab labels)
 }
 
 @Composable

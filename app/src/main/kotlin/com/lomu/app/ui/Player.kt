@@ -79,7 +79,7 @@ fun MiniPlayer(onOpen: () -> Unit, modifier: Modifier = Modifier) {
     val m = meta ?: return
     val shape = RoundedCornerShape(32.dp)
     Row(
-        modifier.fillMaxWidth().height(52.dp).glass(shape, lo).pressable(shape, onClick = onOpen).padding(start = 10.dp, end = 4.dp),
+        modifier.fillMaxWidth().height(52.dp).glass(shape, lo).a11y("Open player").pressable(shape, onClick = onOpen).padding(start = 10.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Cover(m.thumbnailUrl, 34.dp, radius = 8.dp)
@@ -139,7 +139,7 @@ private fun FullPlayerContent(onClose: () -> Unit) {
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp)) {
             // grabber
             // The bar at the top: tap or pull down to close. The hit area is much taller than the bar itself.
-            Box(Modifier.fillMaxWidth().height(52.dp).then(dragMod).pressable(RoundedCornerShape(4.dp), onClick = onClose), Alignment.Center) {
+            Box(Modifier.fillMaxWidth().height(52.dp).then(dragMod).a11y("Close player").pressable(RoundedCornerShape(4.dp), onClick = onClose), Alignment.Center) {
                 Box(Modifier.width(36.dp).height(5.dp).background(sub.copy(alpha = 0.6f), RoundedCornerShape(3.dp)))
             }
             Spacer(Modifier.height(4.dp))
@@ -154,9 +154,9 @@ private fun FullPlayerContent(onClose: () -> Unit) {
                 }
                 Row(Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("Playing Next", style = LoType.body.copy(fontWeight = FontWeight.SemiBold), color = lo.ink, modifier = Modifier.weight(1f))
-                    ToggleChip(Icons.Rounded.Shuffle, shuffle) { pc.player.shuffleModeEnabled = !pc.player.shuffleModeEnabled }
+                    ToggleChip(Icons.Rounded.Shuffle, shuffle, "Shuffle") { pc.player.shuffleModeEnabled = !pc.player.shuffleModeEnabled }
                     Spacer(Modifier.width(8.dp))
-                    ToggleChip(if (repeat == Player.REPEAT_MODE_ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat, repeat != Player.REPEAT_MODE_OFF) {
+                    ToggleChip(if (repeat == Player.REPEAT_MODE_ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat, repeat != Player.REPEAT_MODE_OFF, if (repeat == Player.REPEAT_MODE_ONE) "Repeat one" else "Repeat") {
                         pc.player.repeatMode = when (pc.player.repeatMode) {
                             Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
                             Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
@@ -190,12 +190,12 @@ private fun FullPlayerContent(onClose: () -> Unit) {
                         Text(m?.title ?: "Nothing playing", style = LoType.title.copy(fontSize = 21.sp, lineHeight = 26.sp), color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(m?.artistLine().orEmpty(), style = LoType.body.copy(fontSize = 19.sp, lineHeight = 24.sp), color = sub, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-                    Box(Modifier.size(32.dp).background(sub.copy(alpha = 0.25f), CircleShape).pressable(CircleShape) { haptic(true); pc.toggleLike() }, Alignment.Center) {
+                    Box(Modifier.size(32.dp).background(sub.copy(alpha = 0.25f), CircleShape).a11y(if (liked) "Unlike" else "Like").pressable(CircleShape) { haptic(true); pc.toggleLike() }, Alignment.Center) {
                         HeartPop(liked, 18.dp, on = lo.signal, off = lo.ink)
                     }
                     if (m != null) {
                         Spacer(Modifier.width(10.dp))
-                        Box(Modifier.size(32.dp).background(sub.copy(alpha = 0.25f), CircleShape).pressable(CircleShape) { openMenu(MenuTarget(m)) }, Alignment.Center) {
+                        Box(Modifier.size(32.dp).background(sub.copy(alpha = 0.25f), CircleShape).a11y("More options").pressable(CircleShape) { openMenu(MenuTarget(m)) }, Alignment.Center) {
                             Ic(Ph.More, 18.dp, lo.ink)
                         }
                     }
@@ -219,9 +219,9 @@ private fun FullPlayerContent(onClose: () -> Unit) {
 }
 
 @Composable
-private fun ToggleChip(icon: ImageVector, on: Boolean, onClick: () -> Unit) {
+private fun ToggleChip(icon: ImageVector, on: Boolean, label: String, onClick: () -> Unit) {
     val lo = LocalLo.current
-    Box(Modifier.size(width = 36.dp, height = 28.dp).background(if (on) lo.signal else lo.grey.copy(alpha = 0.25f), RoundedCornerShape(7.dp)).pressable(RoundedCornerShape(7.dp), onClick = onClick), Alignment.Center) {
+    Box(Modifier.size(width = 36.dp, height = 28.dp).background(if (on) lo.signal else lo.grey.copy(alpha = 0.25f), RoundedCornerShape(7.dp)).a11y(label, if (on) "On" else "Off").pressable(RoundedCornerShape(7.dp), onClick = onClick), Alignment.Center) {
         IcV(icon, 18.dp, if (on) Color.White else lo.ink)
     }
 }
