@@ -77,11 +77,15 @@ body {
   -webkit-font-smoothing: antialiased; overflow-x: hidden;
 }
 h1, h2, h3, h4, p { margin: 0; }
-h1, h2, h3 { font-family: var(--font-display); font-weight: 700; letter-spacing: -.01em; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 700; letter-spacing: -.01em; text-wrap: balance; scroll-margin-top: calc(var(--top-h) + 8px); }
 a { color: inherit; text-decoration: none; }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; letter-spacing: inherit; }
 button:disabled { cursor: not-allowed; opacity: .5; }
+a, button, summary, [role='button'], [role='slider'], input, select { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 input, select, textarea { font: inherit; color: inherit; }
+select { background-color: var(--surface-2); color: var(--text); }
+option { background-color: var(--surface-2); color: var(--text); }
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 img { display: block; max-width: 100%; }
 ::selection { background: var(--signal-soft); }
 :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 4px; }
@@ -163,7 +167,7 @@ code { font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace; 
 /* ---------- layout: black frame, three rounded panels (nav + library, main) and a full-width player bar ---------- */
 .app { display: grid; grid-template-columns: var(--side-w) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; gap: 8px; height: 100dvh; padding: 8px; background: var(--side-bg); }
 .col { min-width: 0; min-height: 0; grid-column: 2; grid-row: 1; }
-.col > .panel { position: relative; height: 100%; background: var(--bg); border-radius: var(--r-lg); overflow-x: hidden; overflow-y: auto; isolation: isolate; }
+.col > .panel { overscroll-behavior: contain; position: relative; height: 100%; background: var(--bg); border-radius: var(--r-lg); overflow-x: hidden; overflow-y: auto; isolation: isolate; }
 .col > .panel > .tint { position: absolute; inset: 0 0 auto 0; height: 332px; z-index: -1; pointer-events: none; background: linear-gradient(180deg, color-mix(in srgb, var(--tint) 62%, var(--bg)) 0%, var(--bg) 100%); transition: background .4s var(--ease); }
 .content { width: 100%; max-width: 1955px; margin: 0 auto; padding: 8px var(--gutter) 48px; display: flex; flex-direction: column; gap: 32px; }
 .page-head { position: relative; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding-top: 4px; }
