@@ -6,7 +6,7 @@ export type Theme = 'system' | 'light' | 'dark' | 'blue';
 
 /** Home page sections the owner can switch on and off. */
 export const HOME_SECTIONS = [
-  { id: 'quick', label: 'Quick picks', hint: 'Your most recent songs, one tap away' },
+  { id: 'quick', label: 'Featured mix', hint: 'The featured mix at the top' },
   { id: 'stats', label: 'Your week', hint: 'Minutes listened, streak, top artist' },
   { id: 'mixes', label: 'Made for you', hint: 'Mixes built from what you play and like' },
   { id: 'artists', label: 'Your artists', hint: 'The artists you play most' },
