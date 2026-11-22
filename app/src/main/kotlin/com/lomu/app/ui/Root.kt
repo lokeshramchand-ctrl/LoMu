@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.platform.LocalContext
+import dev.chrisbanes.haze.hazeSource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
@@ -98,7 +99,8 @@ fun LoMuRoot(seenWelcome: Boolean, onWelcomeDone: () -> Unit) {
     val landscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
     val insetBase by androidx.compose.animation.core.animateDpAsState(if (landscape) (if (hasPlayer) 112.dp else 62.dp) else if (hasPlayer) 138.dp else 82.dp, tween(380, easing = IosEase), label = "inset")
     val inset = insetBase + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    CompositionLocalProvider(LocalNav provides nav, LocalBottomInset provides inset, LocalOpenDevices provides { showDevices = true }, LocalTrackMenu provides { menu = it }) {
+    val haze = remember { dev.chrisbanes.haze.HazeState() }
+    CompositionLocalProvider(LocalHaze provides haze, LocalNav provides nav, LocalBottomInset provides inset, LocalOpenDevices provides { showDevices = true }, LocalTrackMenu provides { menu = it }) {
         Box(Modifier.fillMaxSize().background(lo.bg)) {
             AnimatedContent(
                 targetState = nav.current,
@@ -116,7 +118,7 @@ fun LoMuRoot(seenWelcome: Boolean, onWelcomeDone: () -> Unit) {
                     }
                 },
                 label = "screen",
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().hazeSource(haze),
             ) { screen ->
                 Box(Modifier.fillMaxSize().background(lo.bg)) {
                 when (screen) {
