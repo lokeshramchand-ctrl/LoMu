@@ -6,14 +6,15 @@ import { useLibrary } from '@/player/library';
 import { usePlayer } from '@/player/store';
 import type { Track } from '@/lib/types';
 import { TrackRow, ItemCard } from '@/components/Cards';
-import { Cover } from '@/components/Art';
+import { Avatar, Cover } from '@/components/Art';
 import { Mosaic } from '@/components/Mosaic';
 import { Icon } from '@/components/Icon';
 import { EmptyState, PageHeader } from '@/components/ui';
 import { Bento, Tile } from '@/components/Bento';
 
-type Tab = 'liked' | 'playlists' | 'albums' | 'artists' | 'history';
+type Tab = 'all' | 'liked' | 'playlists' | 'albums' | 'artists' | 'history';
 const TABS: { id: Tab; label: string }[] = [
+  { id: 'all', label: 'All' },
   { id: 'liked', label: 'Liked' },
   { id: 'playlists', label: 'Playlists' },
   { id: 'albums', label: 'Albums' },
@@ -23,7 +24,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 export default function Library() {
   const params = useSearchParams();
-  const [tab, setTab] = useState<Tab>('liked');
+  const [tab, setTab] = useState<Tab>('all');
   // the sidebar links here with ?tab=liked
   useEffect(() => {
     const t = params.get('tab') as Tab | null;
@@ -54,7 +55,7 @@ export default function Library() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const historyTracks: Track[] = useMemo(() => history.slice(0, 300).map((p) => p.track).filter(matches), [history, q]);
   const shownPlaylists = playlists.filter((p) => !q || p.name.toLowerCase().includes(q));
-  const counts: Record<Tab, number> = { liked: likedAll.length, playlists: playlists.length + savedCount, albums: Object.keys(albums).length, artists: Object.keys(artists).length, history: history.length };
+  const counts: Record<Tab, number> = { all: 0, liked: likedAll.length, playlists: playlists.length + savedCount, albums: Object.keys(albums).length, artists: Object.keys(artists).length, history: history.length };
   const pick = (t: Tab) => {
     setTab(t);
     setFilter('');
@@ -62,7 +63,7 @@ export default function Library() {
 
   return (
     <Bento className="fade-in">
-      <PageHeader title="Your library" actions={<Link href="/import" className="btn">Import</Link>} />
+      <PageHeader title="Collections" sub={`${playlists.length + savedCount} playlists   ${likedAll.length} liked songs`} actions={<Link href="/import" className="btn">Import</Link>} />
 
       <Tile span={12} className="bar-tile" label="Library controls">
       <div className="bar">
@@ -94,6 +95,51 @@ export default function Library() {
         )}
       </div>
       </Tile>
+
+      {tab === 'all' && (
+        <Tile span={12} flush label="All collections">
+          <div className="cgrid">
+            {likedAll.length > 0 && (
+              <button className="ccard" style={{ background: 'var(--tile-1)' }} onClick={() => pick('liked')}>
+                <span className="ca"><Cover src={likedAll[0]?.thumb} size="100%" radius={20} /></span>
+                <b className="clamp1">Liked songs</b>
+                <span className="muted clamp1">{likedAll.length} tracks</span>
+              </button>
+            )}
+            {playlists.map((p, i) => (
+              <Link key={p.id} href={`/library/playlist/${p.id}`} className="ccard" style={{ background: `var(--tile-${((i + 1) % 4) + 1})` }}>
+                <span className="ca"><Mosaic tracks={p.tracks} size="100%" /></span>
+                <b className="clamp1">{p.name}</b>
+                <span className="muted clamp1">{p.tracks.length} tracks</span>
+              </Link>
+            ))}
+            {Object.values(saved).sort((a, b) => b.at - a.at).map((x, i) => (
+              <Link key={`s${x.item.id}`} href={`/playlist/${x.item.id}`} className="ccard" style={{ background: `var(--tile-${(i % 4) + 1})` }}>
+                <span className="ca"><Cover src={x.item.thumb} size="100%" radius={20} /></span>
+                <b className="clamp1">{x.item.title}</b>
+                <span className="muted clamp1">Playlist</span>
+              </Link>
+            ))}
+            {Object.values(albums).sort((a, b) => b.at - a.at).map((x, i) => (
+              <Link key={`a${x.item.id}`} href={`/album/${x.item.id}`} className="ccard" style={{ background: `var(--tile-${((i + 2) % 4) + 1})` }}>
+                <span className="ca"><Cover src={x.item.thumb} size="100%" radius={20} /></span>
+                <b className="clamp1">{x.item.title}</b>
+                <span className="muted clamp1">Album</span>
+              </Link>
+            ))}
+            {Object.values(artists).sort((a, b) => b.at - a.at).map((x, i) => (
+              <Link key={`r${x.item.id}`} href={`/artist/${x.item.id}`} className="ccard" style={{ background: `var(--tile-${((i + 3) % 4) + 1})` }}>
+                <span className="ca"><Avatar src={x.item.thumb} size="100%" /></span>
+                <b className="clamp1">{x.item.title}</b>
+                <span className="muted clamp1">Artist</span>
+              </Link>
+            ))}
+            {likedAll.length === 0 && playlists.length === 0 && Object.keys(saved).length === 0 && Object.keys(albums).length === 0 && Object.keys(artists).length === 0 && (
+              <Empty title="Nothing here yet" text="Like songs, make a playlist on the Create tab, or import your YouTube Music library." />
+            )}
+          </div>
+        </Tile>
+      )}
 
       {tab === 'liked' && (
         <>
@@ -215,6 +261,13 @@ export default function Library() {
         .likeart { width: 140px; height: 140px; border-radius: 4px; display: grid; place-items: center; color: var(--on-signal); background: var(--liked); box-shadow: 0 0 0 1px var(--border); flex: none; }
         .ht { font-size: clamp(32px, 4.4vw, 64px); font-family: var(--font-display); font-weight: 400; letter-spacing: -.03em; line-height: 1; margin: 4px 0 8px; }
         :global(.likedhead) { background: linear-gradient(180deg, var(--signal-soft), transparent) !important; padding: var(--sp-5) !important; }
+        .cgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; padding: 4px; }
+        :global(.ccard) { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 16px 12px 14px; border-radius: 24px; text-align: center; color: var(--ink); min-width: 0; transition: transform .1s ease-out; }
+        :global(.ccard:active) { transform: scale(.98); }
+        :global(.ccard) .ca { width: 74%; aspect-ratio: 1; margin-bottom: 10px; display: block; }
+        :global(.ccard) .ca :global(.cover) { width: 100% !important; height: 100% !important; }
+        :global(.ccard) b { max-width: 100%; font-weight: 500; font-size: 1rem; }
+        :global(.ccard) .muted { max-width: 100%; font-size: .8125rem; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 16px; }
         .newpl { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 12px; aspect-ratio: 1; font-weight: 600; border-radius: var(--r); background: var(--surface); transition: background .3s var(--ease); }
         .newpl:hover { background: var(--card-hover); }
