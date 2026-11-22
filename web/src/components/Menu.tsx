@@ -135,7 +135,7 @@ export function TrackMenuHost() {
             close();
           }}
         >
-          <input autoFocus aria-label="Playlist name" placeholder="Playlist name" value={newName} maxLength={80} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && (e.stopPropagation(), setMode('playlists'))} />
+          <input autoFocus aria-label="Playlist name" placeholder="Playlist name…" autoComplete="off" value={newName} maxLength={80} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && (e.stopPropagation(), setMode('playlists'))} />
           <button type="submit" disabled={!newName.trim()}>Create</button>
         </form>
       ) : (
@@ -154,7 +154,8 @@ export function TrackMenuHost() {
         :global(.menu-item:hover) { background: var(--row-hover); }
         :global(.menu-item:hover svg) { color: var(--text); }
         .namebox { display: flex; gap: 6px; padding: 4px; }
-        .namebox input { flex: 1; min-width: 0; height: 28px; padding: 0 8px; border-radius: 4px; border: 1px solid var(--border-2); background: var(--surface); color: var(--text); font: inherit; font-size: 13px; outline: none; }
+        .namebox input { flex: 1; min-width: 0; height: 28px; padding: 0 8px; border-radius: 4px; border: 1px solid var(--border-2); background: var(--surface); color: var(--text); font: inherit; font-size: 13px; }
+        .namebox input:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
         .namebox input:focus { border-color: var(--signal); }
         .namebox button { height: 28px; padding: 0 10px; border-radius: 4px; border: 0; background: var(--signal); color: #fff; font: inherit; font-size: 13px; cursor: pointer; }
         .namebox button:disabled { opacity: .4; cursor: not-allowed; }

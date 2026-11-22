@@ -30,16 +30,18 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         <div className="mk"><span className="mark" /><b>LoMu</b></div>
         <h1>{mode === 'setup' ? 'Create your account' : 'Welcome back'}</h1>
         <p>{mode === 'setup' ? 'One account for you. It syncs this browser and your phone.' : 'Sign in to your LoMu.'}</p>
-        <input autoFocus placeholder="Username" autoComplete="username" value={u} onChange={(e) => setU(e.target.value)} />
+        <input autoFocus name="username" aria-label="Username" spellCheck={false} placeholder="Username…" autoComplete="username" value={u} onChange={(e) => setU(e.target.value)} />
         <input
           type="password"
-          placeholder={mode === 'setup' ? 'Password (8+ characters)' : 'Password'}
+          name="password"
+          aria-label="Password"
+          placeholder={mode === 'setup' ? 'Password (8+ characters)…' : 'Password…'}
           autoComplete={mode === 'setup' ? 'new-password' : 'current-password'}
           value={p}
           onChange={(e) => setP(e.target.value)}
         />
-        {mode === 'setup' && needsCode && <input placeholder="Setup code (from the server config)" value={code} onChange={(e) => setCode(e.target.value)} />}
-        {error && <div className="err">{error}</div>}
+        {mode === 'setup' && needsCode && <input name="setup-code" aria-label="Setup code" spellCheck={false} autoComplete="off" placeholder="Setup code from the server config…" value={code} onChange={(e) => setCode(e.target.value)} />}
+        {error && <div className="err" role="alert">{error}</div>}
         <button disabled={busy || !u || !p}>{mode === 'setup' ? 'Create account' : 'Sign in'}</button>
       </form>
       <style jsx>{`
@@ -50,9 +52,11 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         .mk b { font-size: 14px; font-weight: 600; letter-spacing: -.005em; color: var(--ink); }
         h1 { font-size: 20px; font-weight: 500; line-height: 1.3; margin: 0; letter-spacing: -.01em; }
         p { color: var(--muted); margin: 0 0 8px; }
-        input { height: 32px; padding: 0 10px; border-radius: 5px; font-size: 13px; border: 1px solid var(--border-2); background: var(--surface); color: var(--text); font: inherit; outline: none; transition: border-color .2s, box-shadow .2s; }
+        input { height: 32px; padding: 0 10px; border-radius: 5px; font-size: 13px; border: 1px solid var(--border-2); background: var(--surface); color: var(--text); font: inherit; transition: border-color .2s, box-shadow .2s; }
+        input:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
         input:focus { border-color: var(--signal); box-shadow: 0 0 0 2px var(--signal-soft); }
         button { height: 32px; border-radius: 5px; border: 0; background: var(--signal); color: #fff; font-size: 13px; font: inherit; font-weight: 500; cursor: pointer; margin-top: 4px; transition: transform .3s var(--spring); }
+        button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
         button:active { transform: scale(.97); }
         button:disabled { opacity: .4; cursor: not-allowed; }
         .err { color: var(--red-t); font-size: 13px; background: var(--red-soft); padding: 8px 10px; border-radius: 5px; }
