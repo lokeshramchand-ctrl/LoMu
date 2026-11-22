@@ -61,7 +61,7 @@ fun RemoteMiniPlayer(d: Dev, onOpen: () -> Unit, modifier: Modifier = Modifier) 
     val shape = RoundedCornerShape(32.dp)
     val m = d.track
     Row(
-        modifier.fillMaxWidth().height(52.dp).glass(shape, lo).pressable(shape, onClick = onOpen).padding(start = 10.dp, end = 4.dp),
+        modifier.fillMaxWidth().height(52.dp).glass(shape, lo).a11y("Open remote player").pressable(shape, onClick = onOpen).padding(start = 10.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Cover(m?.thumbnailUrl, 34.dp, radius = 8.dp)
@@ -95,7 +95,7 @@ fun RemotePlayer(d: Dev, onClose: () -> Unit) = CompositionLocalProvider(LocalLo
     Box(Modifier.fillMaxSize().graphicsLayer { translationY = dragY.value; alpha = 1f - (dragY.value / (size.height * 2f)).coerceIn(0f, 0.4f) }.background(lo.bg)) {
         Ambient(m?.thumbnailUrl, height = 900.dp, strength = 0.78f)
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp)) {
-            Box(Modifier.fillMaxWidth().height(52.dp).then(dragMod).pressable(RoundedCornerShape(4.dp), onClick = onClose), Alignment.Center) {
+            Box(Modifier.fillMaxWidth().height(52.dp).then(dragMod).a11y("Close player").pressable(RoundedCornerShape(4.dp), onClick = onClose), Alignment.Center) {
                 Box(Modifier.width(36.dp).height(5.dp).background(lo.grey.copy(alpha = 0.6f), RoundedCornerShape(3.dp)))
             }
             Spacer(Modifier.height(4.dp))
