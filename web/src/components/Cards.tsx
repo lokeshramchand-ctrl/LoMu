@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Item, Shelf, Track } from '@/lib/types';
 import { artistNames, fmtTime, hrefFor } from '@/lib/format';
 import { currentTrack, usePlayer } from '@/player/store';
@@ -190,6 +190,7 @@ export function TrackRow({
   list,
   showIndex,
   showArt = true,
+  showArtist = true,
   playlistId,
 }: {
   track: Track;
@@ -197,6 +198,7 @@ export function TrackRow({
   list: Track[];
   showIndex?: boolean;
   showArt?: boolean;
+  showArtist?: boolean;
   playlistId?: string;
 }) {
   const active = usePlayer((s) => currentTrack(s)?.id === track.id);
@@ -204,6 +206,11 @@ export function TrackRow({
   const liked = useLibrary((s) => !!s.liked[track.id]);
   const toggleLike = useLibrary((s) => s.toggleLike);
   const openMenu = (e: { clientX: number; clientY: number }) => useMenu.getState().open(track, e, playlistId ? { playlistId, playlistIndex: index } : undefined);
+  // A long press opens the same menu as a right click (the "..." button is gone).
+  const press = useRef<{ timer: number; x: number; y: number; fired: boolean } | null>(null);
+  const cancelPress = () => {
+    if (press.current) window.clearTimeout(press.current.timer);
+  };
   return (
     <div
       className={`trow${active ? ' active' : ''}${showIndex ? ' idxrow' : ''}`}
@@ -216,6 +223,20 @@ export function TrackRow({
         e.preventDefault();
         openMenu(e);
       }}
+      onTouchStart={(e) => {
+        const p = e.touches[0];
+        cancelPress();
+        press.current = { x: p.clientX, y: p.clientY, fired: false, timer: window.setTimeout(() => { if (press.current) { press.current.fired = true; openMenu({ clientX: p.clientX, clientY: p.clientY }); } }, 500) };
+      }}
+      onTouchMove={(e) => {
+        const p = e.touches[0];
+        if (press.current && Math.hypot(p.clientX - press.current.x, p.clientY - press.current.y) > 10) cancelPress();
+      }}
+      onTouchEnd={(e) => {
+        cancelPress();
+        if (press.current?.fired) e.preventDefault(); // the long press must not also play the song
+      }}
+      onTouchCancel={cancelPress}
     >
       {showIndex && (
         <span className="idx">
@@ -223,10 +244,10 @@ export function TrackRow({
           <span className="p"><Icon name={active && playing ? 'pause' : 'play'} size={14} /></span>
         </span>
       )}
-      {showArt && <Cover src={track.thumb} size={40} radius={4} />}
+      {showArt && <Cover src={track.thumb} size={showArtist ? 40 : 52} radius={showArtist ? 8 : 14} />}
       <div className="grow">
         <div className="tt clamp1">{track.title}</div>
-        <div className="ta clamp1">
+        {showArtist && <div className="ta clamp1">
           {track.explicit && <span className="e">E</span>}
           {track.artists.map((a, i) => (
             <span key={i}>
@@ -240,9 +261,9 @@ export function TrackRow({
               )}
             </span>
           ))}
-        </div>
+        </div>}
       </div>
-      {!showIndex && track.album?.name && (
+      {!showIndex && showArtist && track.album?.name && (
         <div className="alb clamp1">
           {track.album.id ? (
             <Link href={`/album/${track.album.id}`} onClick={(e) => e.stopPropagation()}>
@@ -264,18 +285,8 @@ export function TrackRow({
         <Icon name={liked ? 'heartFill' : 'heart'} size={18} />
       </button>
       <span className="dur">{track.duration ? fmtTime(track.duration) : ''}</span>
-      <button
-        className="icon-btn sm more"
-        aria-label="More"
-        onClick={(e) => {
-          e.stopPropagation();
-          openMenu(e);
-        }}
-      >
-        <Icon name="more" size={18} />
-      </button>
       <style jsx>{`
-        .trow { display: flex; align-items: center; gap: 16px; height: 56px; padding: 0 16px; border-radius: var(--r-sm); cursor: pointer; transition: background .12s ease-out, transform .1s ease-out; }
+        .trow { display: flex; align-items: center; gap: 16px; min-height: 56px; -webkit-touch-callout: none; user-select: none; padding: 0 16px; border-radius: var(--r-sm); cursor: pointer; transition: background .12s ease-out, transform .1s ease-out; }
         .trow:active { transform: scale(.995); }
         .trow:hover { background: var(--row-hover); }
         .trow.active { background: transparent; }
@@ -291,12 +302,12 @@ export function TrackRow({
         .e { display: inline-grid; place-items: center; width: 16px; height: 16px; font-size: 10px; font-weight: 700; border-radius: 2px; background: var(--muted); color: var(--bg); margin-inline-end: 6px; vertical-align: 1px; }
         .alb { flex: 0 0 28%; color: var(--muted); font-size: .8125rem; }
         .trow:hover .alb { color: var(--ink); }
-        .dur { width: 44px; text-align: end; color: var(--muted); font-family: var(--font-num); font-size: .75rem; }
-        .like, .more { opacity: 0; color: var(--muted); }
-        .trow:hover .like, .like.on, .trow:focus-within .like, .trow:hover .more, .trow:focus-within .more { opacity: 1; }
+        .dur { min-width: 44px; text-align: end; color: var(--ink); font-weight: 500; font-size: .875rem; }
+        .like { opacity: 0; color: var(--muted); }
+        .trow:hover .like, .like.on, .trow:focus-within .like { opacity: 1; }
         .like.on { color: var(--signal-t); }
         @media (max-width: 1100px) { .alb { display: none; } }
-        @media (max-width: 900px) { .dur { display: none; } .like { display: none; } .more { opacity: 1; } .trow { gap: 12px; padding: 0 8px; } }
+        @media (max-width: 900px) { .like { display: none; } .trow { gap: 12px; padding: 0 8px; } }
       `}</style>
     </div>
   );
