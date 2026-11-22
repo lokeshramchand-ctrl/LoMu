@@ -59,18 +59,18 @@ export function Seek({ compact = false, remote }: { compact?: boolean; remote?: 
       {!compact && <span className="time r">{fmtTime(duration)}</span>}
       <style jsx>{`
         .seek { display: flex; align-items: center; gap: 8px; width: 100%; }
-        .time { font-size: 12px; color: var(--muted); width: 40px; }
+        .time { font-family: var(--font-num); font-size: .75rem; color: var(--muted); width: 40px; }
         .time.r { text-align: left; }
         .time:first-child { text-align: right; }
-        .track { position: relative; flex: 1; height: 4px; border-radius: 99px; background: rgba(255, 255, 255, .3); cursor: pointer; touch-action: none; }
+        .track { position: relative; flex: 1; height: 4px; border-radius: 99px; background: var(--border-2); cursor: pointer; touch-action: none; }
         .track::before { content: ''; position: absolute; inset: -8px 0; }
-        .fill { position: absolute; inset: 0 auto 0 0; border-radius: 99px; background: #f4f4f5; }
+        .fill { position: absolute; inset: 0 auto 0 0; border-radius: 99px; background: var(--ink); }
         .track:hover .fill, .track:active .fill { background: var(--signal); }
-        .knob { position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%; background: #f4f4f5; transform: translate(-50%, -50%) scale(0); transition: transform .1s var(--ease); }
+        .knob { position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%; background: var(--ink); transform: translate(-50%, -50%) scale(0); transition: transform .1s var(--ease); }
         .track:hover .knob, .track:active .knob, .track:focus-visible .knob { transform: translate(-50%, -50%) scale(1); }
         .compact .knob { display: none; }
         .compact .track { height: 2px; }
-        .compact .fill, .compact .track:hover .fill { background: #f4f4f5; }
+        .compact .fill, .compact .track:hover .fill { background: var(--ink); }
       `}</style>
     </div>
   );
@@ -102,9 +102,9 @@ function Volume() {
       <input type="range" min={0} max={1} step={0.01} value={shown} aria-label="Volume" onChange={(e) => P.setVolume(Number(e.target.value))} style={{ ['--v' as string]: `${shown * 100}%` }} />
       <style jsx>{`
         .vol { display: flex; align-items: center; gap: 4px; width: 128px; }
-        input { flex: 1; min-width: 0; height: 4px; border-radius: 99px; appearance: none; -webkit-appearance: none; background: linear-gradient(to right, #f4f4f5 var(--v), rgba(255, 255, 255, .3) var(--v)); cursor: pointer; outline-offset: 6px; }
-        input:hover { background: linear-gradient(to right, var(--signal) var(--v), rgba(255, 255, 255, .3) var(--v)); }
-        input::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: #f4f4f5; opacity: 0; }
+        input { flex: 1; min-width: 0; height: 4px; border-radius: 99px; appearance: none; -webkit-appearance: none; background: linear-gradient(to right, var(--ink) var(--v), var(--border-2) var(--v)); cursor: pointer; outline-offset: 6px; }
+        input:hover { background: linear-gradient(to right, var(--signal) var(--v), var(--border-2) var(--v)); }
+        input::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--ink); opacity: 0; }
         input:hover::-webkit-slider-thumb, input:focus-visible::-webkit-slider-thumb { opacity: 1; }
       `}</style>
     </div>
@@ -134,7 +134,7 @@ export function PlayerBar() {
     <div className="bar">
       <div className="left">
         <button className="meta" onClick={() => !remote && P.setExpanded(true)} aria-label="Open player">
-          <Cover src={shown.thumb} size={56} radius={4} />
+          <Cover src={shown.thumb} size={52} radius={4} />
           <div className="grow" style={{ textAlign: 'left' }}>
             <div className="t clamp1">{shown.title}</div>
             {remote ? (
@@ -193,7 +193,8 @@ export function PlayerBar() {
       </div>
       <div className="mobile-progress">{seekCompact}</div>
       <style jsx>{`
-        .bar { grid-column: 1 / -1; grid-row: 2; height: var(--player-h); display: grid; grid-template-columns: minmax(180px, 30%) minmax(0, 40%) minmax(180px, 30%); align-items: center; gap: 16px; padding: 0 8px 0 4px; background: #09090b; animation: rise .3s var(--ease-out) both; }
+        .bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; border-top: 1px solid var(--border); height: var(--player-h); display: grid; grid-template-columns: minmax(180px, 30%) minmax(0, 40%) minmax(180px, 30%); align-items: center; gap: 16px; padding: 0 var(--chrome-x); background: var(--glass); -webkit-backdrop-filter: blur(24px) saturate(150%); backdrop-filter: blur(24px) saturate(150%); animation: rise .3s var(--ease-out) both; }
+        @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) { .bar { background: var(--bg); -webkit-backdrop-filter: none; backdrop-filter: none; } }
         .left { display: flex; align-items: center; gap: 12px; min-width: 0; }
         .meta { display: flex; align-items: center; gap: 14px; min-width: 0; }
         .t { font-weight: 500; font-size: 14px; color: var(--ink); }
@@ -202,14 +203,14 @@ export function PlayerBar() {
         .s.rem { color: var(--signal-t); font-weight: 700; }
         .center { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; max-width: 722px; width: 100%; justify-self: center; }
         .ctrls { display: flex; align-items: center; gap: 16px; }
-        .play { width: 32px; height: 32px; border-radius: 50%; background: #f4f4f5; color: #09090b; display: grid; place-items: center; transition: transform .15s var(--ease); }
-        .play:hover { transform: scale(1.06); }
-        .play:active { transform: scale(.96); }
+        .play { width: 40px; height: 40px; border-radius: var(--r); background: var(--signal); color: var(--on-signal); display: grid; place-items: center; transition: background .15s, transform .1s ease-out; }
+        .play:hover { background: var(--signal-hi); }
+        .play:active { transform: scale(.94); }
         .seekrow { width: 100%; }
         .right { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
         .mobile-progress { display: none; }
         @media (max-width: 900px) {
-          .bar { position: fixed; z-index: 50; left: 8px; right: 8px; bottom: calc(60px + env(safe-area-inset-bottom)); height: 56px; display: flex; gap: 4px; padding: 0 8px 0 4px; border-radius: 8px; background: #1e1e23; }
+          .bar { bottom: calc(56px + env(safe-area-inset-bottom)); height: 56px; display: flex; gap: 4px; padding: 0 8px; }
           .left { flex: 1; }
           .center { flex: none; width: auto; }
           .meta :global(.cover) { width: 40px !important; height: 40px !important; }

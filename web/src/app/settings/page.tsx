@@ -201,11 +201,11 @@ function HubGroup({ kicker }: { kicker: string }) {
         </form>
       )}
       <style jsx>{`
-        .hubform { display: flex; flex-wrap: wrap; gap: 8px; padding: var(--sp-3) var(--sp-4); border-top: 1px solid rgba(255, 255, 255, .08); }
+        .hubform { display: flex; flex-wrap: wrap; gap: 8px; padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--border); }
         .hubform input { flex: 1 1 160px; height: 40px; padding: 0 12px; border-radius: 4px; border: 0; background: var(--surface-2); color: var(--ink); font: inherit; font-size: 14px; }
         .hubform input:focus-visible, .pwform input:focus-visible, .acform input:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
         .hubform input:focus { box-shadow: 0 0 0 2px var(--ink); }
-        .err { flex-basis: 100%; color: var(--red-t); font-size: 13px; background: var(--red-soft); padding: 8px 10px; border-radius: 5px; }
+        .err { flex-basis: 100%; color: var(--red-t); font-size: 13px; background: var(--red-soft); padding: 8px 10px; border-radius: var(--r-sm); }
       `}</style>
     </Group>
   );
@@ -230,7 +230,7 @@ function Group({ title, sub, kicker, span = 6, tall, children }: { title: string
     <Tile span={span} md={12} flush tone="card" className={tall ? 'rs2' : undefined} kicker={kicker} title={title} sub={sub} label={title}>
       <div className="grp">{children}</div>
       <style jsx>{`
-        .grp { border-top: 1px solid rgba(255, 255, 255, .08); }
+        .grp { border-top: 1px solid var(--border); }
       `}</style>
     </Tile>
   );
@@ -249,7 +249,7 @@ function Row({ icon, label, hint, children }: { icon: IconName; label: string; h
       {children}
       <style jsx>{`
         .r { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); }
-        .r + .r { border-top: 1px solid rgba(255, 255, 255, .08); }
+        .r + .r { border-top: 1px solid var(--border); }
         .l { font-weight: 500; font-size: 15px; color: var(--ink); }
         .h { color: var(--muted); font-size: 13px; margin-top: 2px; line-height: 1.4; }
         @media (max-width: 600px) { .r { flex-wrap: wrap; } }
@@ -263,11 +263,11 @@ function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
     <button role="switch" aria-checked={on} aria-label={label} className={`sw${on ? ' on' : ''}`} onClick={() => onChange(!on)}>
       <i />
       <style jsx>{`
-                .sw { width: 40px; height: 24px; border-radius: 999px; background: #71717a; position: relative; flex: none; transition: background .2s var(--ease); }
+                .sw { width: 40px; height: 24px; border-radius: 999px; background: var(--border-2); position: relative; flex: none; transition: background .2s var(--ease); }
                 @media (pointer: coarse) { .sw::after { content: ''; position: absolute; inset: -10px -4px; } }
-                .sw i { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #09090b; transition: transform .2s var(--ease); }
+                .sw i { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--ink); transition: transform .2s var(--ease); }
                 .sw.on { background: var(--signal); }
-                .sw.on i { transform: translateX(16px); background: #09090b; }
+                .sw.on i { transform: translateX(16px); background: var(--on-signal); }
       `}</style>
     </button>
   );
@@ -307,11 +307,11 @@ function PasswordRow() {
         </form>
       )}
       <style jsx>{`
-        .pwform { display: flex; flex-wrap: wrap; gap: 8px; padding: var(--sp-3) var(--sp-4); border-top: 1px solid rgba(255, 255, 255, .08); }
+        .pwform { display: flex; flex-wrap: wrap; gap: 8px; padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--border); }
         .pwform input { flex: 1 1 160px; height: 40px; padding: 0 12px; border-radius: 4px; border: 0; background: var(--surface-2); color: var(--ink); font: inherit; font-size: 14px; }
         .hubform input:focus-visible, .pwform input:focus-visible, .acform input:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
         .pwform input:focus { box-shadow: 0 0 0 2px var(--ink); }
-        .err { flex-basis: 100%; color: var(--red-t); font-size: 13px; background: var(--red-soft); padding: 8px 10px; border-radius: 5px; }
+        .err { flex-basis: 100%; color: var(--red-t); font-size: 13px; background: var(--red-soft); padding: 8px 10px; border-radius: var(--r-sm); }
       `}</style>
     </>
   );
@@ -369,11 +369,11 @@ function AccountsGroup({ kicker }: { kicker: string }) {
         {err && <div className="err">{err}</div>}
       </form>
       <style jsx>{`
-        .acform { display: flex; flex-wrap: wrap; gap: 8px; padding: var(--sp-3) var(--sp-4); border-top: 1px solid rgba(255, 255, 255, .08); }
+        .acform { display: flex; flex-wrap: wrap; gap: 8px; padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--border); }
         .acform input { flex: 1 1 160px; height: 40px; padding: 0 12px; border-radius: 4px; border: 0; background: var(--surface-2); color: var(--ink); font: inherit; font-size: 14px; }
         .hubform input:focus-visible, .pwform input:focus-visible, .acform input:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
         .acform input:focus { box-shadow: 0 0 0 2px var(--ink); }
-        .err { flex-basis: 100%; color: var(--red-t); font-size: 13px; background: var(--red-soft); padding: 8px 10px; border-radius: 5px; }
+        .err { flex-basis: 100%; color: var(--red-t); font-size: 13px; background: var(--red-soft); padding: 8px 10px; border-radius: var(--r-sm); }
       `}</style>
     </Group>
   );

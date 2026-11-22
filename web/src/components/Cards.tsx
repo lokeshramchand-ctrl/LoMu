@@ -51,13 +51,13 @@ export function ItemCard({ item, siblings }: { item: Item; siblings?: Track[] })
   return (
     <Link href={href} className="it" title={item.title}>
       <div className="art">
-        {round ? <Avatar src={item.thumb} size="100%" /> : <Cover src={item.thumb} size="100%" radius={6} />}
+        {round ? <Avatar src={item.thumb} size="100%" /> : <Cover src={item.thumb} size="100%" radius={4} />}
         <span
           className="go"
           role="button"
           aria-label={`Play ${item.title}`}
           onClick={(e) => {
-            // The green button plays straight away (like Spotify); the rest of the card opens the page.
+            // The play button plays straight away; the rest of the card opens the page.
             e.preventDefault();
             e.stopPropagation();
             playItem(item);
@@ -78,19 +78,21 @@ export function ItemCard({ item, siblings }: { item: Item; siblings?: Track[] })
 function CardStyle() {
   return (
     <style jsx global>{`
-      .it { display: block; width: 100%; min-width: 0; text-align: left; border-radius: 8px; padding: 12px; background: var(--surface); transition: background .3s var(--ease); }
-      .it:hover { background: var(--card-hover); }
-      .it .art { position: relative; width: 100%; aspect-ratio: 1; margin-bottom: 16px; box-shadow: 0 8px 24px rgba(0, 0, 0, .5); border-radius: 6px; }
+      .it { display: block; width: 100%; min-width: 0; text-align: left; border-radius: var(--r-sm); transition: transform .1s ease-out; }
+      .it:active { transform: scale(.98); }
+      .it .art { position: relative; width: 100%; aspect-ratio: 1; margin-bottom: 12px; border-radius: var(--r-sm); box-shadow: 0 16px 32px -20px rgba(0, 0, 0, .6); }
       .it .art:has(.round) { border-radius: 50%; }
-      .it .t { font-weight: 700; font-size: 16px; color: var(--ink); line-height: 1.3; }
-      .it .s { color: var(--muted); font-size: 14px; margin-top: 4px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+      .it .t { font-weight: 600; font-size: .9375rem; color: var(--ink); line-height: 1.3; }
+      .it .s { color: var(--muted); font-size: .8125rem; margin-top: 2px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
       .it .c { text-align: left; }
       .it.active .t { color: var(--signal-t); }
-      .it .go { position: absolute; right: 8px; bottom: 8px; width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--signal); color: #09090b; box-shadow: 0 8px 8px rgba(0, 0, 0, .3); opacity: 0; transform: translateY(8px); transition: opacity .3s var(--ease), transform .3s var(--ease); }
-      .it .go:hover { transform: scale(1.06); background: var(--signal-hi); }
-      .it:hover .go, .it:focus-visible .go, .it.active .go { opacity: 1; transform: none; }
-      .it:hover .go:hover { transform: scale(1.06); }
-      @media (max-width: 900px) { .it { padding: 8px; } .it .t { font-size: 14px; } .it .s { font-size: 12px; } .it .go { width: 40px; height: 40px; } }
+      .it:hover .t { text-decoration: underline; text-decoration-color: var(--border-2); text-underline-offset: 3px; }
+      .it .go { position: absolute; right: 8px; bottom: 8px; width: 40px; height: 40px; border-radius: var(--r); display: grid; place-items: center; background: var(--signal); color: var(--on-signal); box-shadow: 0 8px 16px -6px rgba(0, 0, 0, .5); opacity: 0; transform: translateY(6px); transition: opacity .2s var(--ease), transform .2s var(--ease), background .15s; }
+      .it .go:hover { background: var(--signal-hi); }
+      .it:hover .go, .it:focus-visible .go, .it:focus-within .go, .it.active .go { opacity: 1; transform: none; }
+      /* touch has no hover: the play control is always there */
+      @media (hover: none) { .it .go { opacity: 1; transform: none; } }
+      @media (max-width: 900px) { .it .t { font-size: .875rem; } .it .s { font-size: .75rem; } .it .go { width: 36px; height: 36px; } }
     `}</style>
   );
 }
@@ -169,13 +171,13 @@ export function ShelfTile({ shelf, action, kicker, span = 12 }: { shelf: Shelf; 
 export function ShelfSkeleton({ title = true }: { title?: boolean }) {
   return (
     <section>
-      {title && <div className="skeleton" style={{ width: 160, height: 24, borderRadius: 6, marginBottom: 14 }} />}
+      {title && <div className="skeleton" style={{ width: 160, height: 28, borderRadius: 4, marginBottom: 14 }} />}
       <div className="hscroll">
         {Array.from({ length: 10 }).map((_, i) => (
-          <div key={i} style={{ padding: 12, borderRadius: 8, background: 'var(--surface)' }}>
-            <div className="skeleton" style={{ width: '100%', aspectRatio: '1', borderRadius: 6, marginBottom: 16 }} />
-            <div className="skeleton" style={{ width: '70%', height: 16, borderRadius: 5, marginBottom: 8 }} />
-            <div className="skeleton" style={{ width: '45%', height: 12, borderRadius: 5 }} />
+          <div key={i}>
+            <div className="skeleton" style={{ width: '100%', aspectRatio: '1', borderRadius: 4, marginBottom: 12 }} />
+            <div className="skeleton" style={{ width: '70%', height: 16, borderRadius: 4, marginBottom: 8 }} />
+            <div className="skeleton" style={{ width: '45%', height: 12, borderRadius: 4 }} />
           </div>
         ))}
       </div>
@@ -274,22 +276,23 @@ export function TrackRow({
         <Icon name="more" size={18} />
       </button>
       <style jsx>{`
-        .trow { display: flex; align-items: center; gap: 16px; height: 56px; padding: 0 16px; border-radius: 4px; cursor: pointer; }
+        .trow { display: flex; align-items: center; gap: 16px; height: 56px; padding: 0 16px; border-radius: var(--r-sm); cursor: pointer; transition: background .12s ease-out, transform .1s ease-out; }
+        .trow:active { transform: scale(.995); }
         .trow:hover { background: var(--row-hover); }
         .trow.active { background: transparent; }
-        .idx { position: relative; width: 20px; height: 20px; flex: none; display: grid; place-items: center; text-align: right; color: var(--muted); font-size: 16px; }
+        .idx { position: relative; width: 20px; height: 20px; flex: none; display: grid; place-items: center; text-align: right; color: var(--muted); font-family: var(--font-num); font-size: .8125rem; }
         .idx .p { position: absolute; inset: 0; display: none; place-items: center; color: var(--ink); }
         .trow:hover .idx .n { visibility: hidden; }
         .trow:hover .idx .p { display: grid; }
-        .tt { font-weight: 400; font-size: 16px; color: var(--ink); }
+        .tt { font-weight: 500; font-size: .9375rem; color: var(--ink); }
         .trow.active .tt { color: var(--signal-t); }
-        .ta { color: var(--muted); font-size: 14px; margin-top: 0; }
+        .ta { color: var(--muted); font-size: .8125rem; margin-top: 0; }
         .trow:hover .ta { color: var(--ink); }
         .ta :global(a:hover), .alb :global(a:hover) { color: var(--ink); text-decoration: underline; }
-        .e { display: inline-grid; place-items: center; width: 16px; height: 16px; font-size: 10px; font-weight: 700; border-radius: 2px; background: var(--muted); color: #09090b; margin-right: 6px; vertical-align: 1px; }
-        .alb { flex: 0 0 28%; color: var(--muted); font-size: 14px; }
+        .e { display: inline-grid; place-items: center; width: 16px; height: 16px; font-size: 10px; font-weight: 700; border-radius: 2px; background: var(--muted); color: var(--bg); margin-right: 6px; vertical-align: 1px; }
+        .alb { flex: 0 0 28%; color: var(--muted); font-size: .8125rem; }
         .trow:hover .alb { color: var(--ink); }
-        .dur { width: 44px; text-align: right; color: var(--muted); font-size: 14px; }
+        .dur { width: 44px; text-align: right; color: var(--muted); font-family: var(--font-num); font-size: .75rem; }
         .like, .more { opacity: 0; color: var(--muted); }
         .trow:hover .like, .like.on, .trow:focus-within .like, .trow:hover .more, .trow:focus-within .more { opacity: 1; }
         .like.on { color: var(--signal-t); }
@@ -306,7 +309,7 @@ export function Bars() {
       <i /><i /><i />
       <style jsx>{`
         .bars { display: inline-flex; gap: 2px; align-items: flex-end; height: 13px; }
-        .bars i { width: 3px; background: var(--signal); border-radius: 2px; animation: b .9s ease-in-out infinite; }
+        .bars i { width: 3px; background: var(--signal); border-radius: 1px; animation: b .9s ease-in-out infinite; }
         .bars i:nth-child(2) { animation-delay: -.3s; }
         .bars i:nth-child(3) { animation-delay: -.6s; }
         @keyframes b { 0%, 100% { height: 4px; } 50% { height: 13px; } }

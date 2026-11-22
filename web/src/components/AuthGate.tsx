@@ -46,20 +46,20 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       </form>
       <style jsx>{`
         .gate { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg); padding: 24px; z-index: 100; }
-        form { width: min(360px, 100%); display: flex; flex-direction: column; gap: 8px; padding: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--lift-hi); }
+        form { width: min(360px, 100%); display: flex; flex-direction: column; gap: 8px; padding: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--lift-hi); }
         .mk { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-        .mark { width: 24px; height: 24px; border-radius: 6px; background: linear-gradient(180deg, var(--signal-hi), var(--signal)); }
-        .mk b { font-size: 14px; font-weight: 600; letter-spacing: -.005em; color: var(--ink); }
-        h1 { font-size: 20px; font-weight: 500; line-height: 1.3; margin: 0; letter-spacing: -.01em; }
+        .mark { width: 24px; height: 24px; border-radius: var(--r-sm); background: var(--signal); }
+        .mk b { font-family: var(--font-display); font-size: 1.5rem; font-weight: 400; letter-spacing: -.02em; line-height: 1; color: var(--ink); }
+        h1 { font-size: 1.75rem; font-weight: 400; line-height: 1.1; margin: 0; letter-spacing: -.02em; }
         p { color: var(--muted); margin: 0 0 8px; }
-        input { height: 32px; padding: 0 10px; border-radius: 5px; font-size: 13px; border: 1px solid var(--border-2); background: var(--surface); color: var(--text); font: inherit; transition: border-color .2s, box-shadow .2s; }
+        input { height: 36px; padding: 0 12px; border-radius: var(--r-sm); font-size: 13px; border: 1px solid var(--border-2); background: var(--surface); color: var(--text); font: inherit; transition: border-color .2s, box-shadow .2s; }
         input:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
         input:focus { border-color: var(--signal); box-shadow: 0 0 0 2px var(--signal-soft); }
-        button { height: 32px; border-radius: 5px; border: 0; background: var(--signal); color: #f4f4f5; font-size: 13px; font: inherit; font-weight: 500; cursor: pointer; margin-top: 4px; transition: transform .3s var(--spring); }
+        button { height: 36px; border-radius: var(--r); border: 0; background: var(--signal); color: var(--on-signal); font: inherit; font-weight: 600; cursor: pointer; margin-top: 4px; transition: background .15s, transform .1s ease-out; }
         button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
         button:active { transform: scale(.97); }
         button:disabled { opacity: .4; cursor: not-allowed; }
-        .err { color: var(--red-t); font-size: 13px; background: var(--red-soft); padding: 8px 10px; border-radius: 5px; }
+        .err { color: var(--red-t); font-size: 13px; background: var(--red-soft); padding: 8px 10px; border-radius: var(--r-sm); }
       `}</style>
     </div>
   );

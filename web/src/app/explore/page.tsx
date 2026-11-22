@@ -150,7 +150,7 @@ function Explore() {
         .cols { columns: 2 420px; column-gap: 0; }
         .cols > :global(*) { break-inside: avoid; margin-bottom: 1px; }
         .mood-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--sp-2); }
-        .mood { position: relative; height: 56px; padding: 0 var(--sp-4); border-radius: 6px; text-align: left; font-weight: 600; font-size: 14px; letter-spacing: -.02em; border: 1px solid var(--border); background: linear-gradient(135deg, hsl(var(--h) 80% 60% / .16), hsl(var(--h) 80% 60% / .04)); transition: transform .3s var(--spring), box-shadow .25s var(--ease), border-color .2s; }
+        .mood { position: relative; height: 56px; padding: 0 var(--sp-4); border-radius: var(--r); text-align: left; font-weight: 600; font-size: 14px; letter-spacing: -.02em; border: 1px solid var(--border); background: linear-gradient(135deg, hsl(var(--h) 80% 60% / .16), hsl(var(--h) 80% 60% / .04)); transition: transform .3s var(--spring), box-shadow .25s var(--ease), border-color .2s; }
         .mood:hover { transform: translateY(-2px); box-shadow: var(--lift-hi); }
         .mood.on { border-color: var(--signal); box-shadow: 0 0 0 3px var(--signal-soft); }
       `}</style>
