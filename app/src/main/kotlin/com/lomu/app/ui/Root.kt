@@ -126,6 +126,7 @@ fun LoMuRoot(seenWelcome: Boolean, onWelcomeDone: () -> Unit) {
                     Screen.New -> NewScreen()
                     Screen.Search -> SearchScreen()
                     Screen.Library -> LibraryScreen()
+                    Screen.Create -> CreateScreen()
                     Screen.Settings -> SettingsScreen()
                     is Screen.Album -> AlbumScreen(screen.id)
                     is Screen.Artist -> ArtistScreen(screen.id)
@@ -147,9 +148,10 @@ fun LoMuRoot(seenWelcome: Boolean, onWelcomeDone: () -> Unit) {
                 Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(inset + 8.dp)
                     .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, lo.bg.copy(alpha = 0.92f), lo.bg))),
             )
-            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(horizontal = 14.dp).padding(bottom = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 AnimatedVisibility(
                     visible = hasPlayer,
+                    modifier = Modifier.padding(horizontal = 14.dp),
                     enter = slideInVertically(tween(450, easing = IosEase)) { it / 2 } + fadeIn(tween(250)) + scaleIn(spring(dampingRatio = 0.7f, stiffness = 300f), initialScale = 0.9f),
                     exit = slideOutVertically(tween(300, easing = IosEase)) { it / 2 } + fadeOut(tween(200)),
                 ) {
@@ -169,38 +171,37 @@ fun LoMuRoot(seenWelcome: Boolean, onWelcomeDone: () -> Unit) {
     }
 }
 
-private data class TabDef(val label: String, val on: ImageVector, val off: ImageVector, val screen: Screen)
+private data class TabDef(val label: String, val icon: ImageVector, val screen: Screen)
 
-/**
- * Floating glass capsule with the tabs. As in the reference, every glyph is a bold filled symbol,
- * the selected tab sits in a grey pill and turns blue, labels are 10pt bold.
- */
+/** A flat bar with rounded top corners: a simple glyph over a small label, the current tab in full ink and the rest grey. */
 @Composable
 private fun TabBar(nav: Nav) {
     val lo = LocalLo.current
     val tabs = listOfNotNull(
-        TabDef("Home", Lin.Focus.vector, Lin.Focus.vector, Screen.Home),
-        if (UiPrefs.showNew(LocalContext.current)) TabDef("New", Lin.Projects.vector, Lin.Projects.vector, Screen.New) else null,
-        TabDef("Search", Lin.Search.vector, Lin.Search.vector, Screen.Search),
-        TabDef("Library", Lin.Views.vector, Lin.Views.vector, Screen.Library),
+        TabDef("Home", Ph.Waveform.vector, Screen.Home),
+        TabDef("Search", Ph.Search.vector, Screen.Search),
+        TabDef("Media", Ph.Library.vector, Screen.Library),
+        TabDef("Create", Ph.Plus.vector, Screen.Create),
+        if (UiPrefs.showNew(LocalContext.current)) TabDef("New", Ph.Compass.vector, Screen.New) else null,
     )
-    val shape = RoundedCornerShape(22.dp)
+    val shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     val haptic = rememberHaptic()
     val landscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-    Row(Modifier.fillMaxWidth().height(if (landscape) 46.dp else 58.dp).glass(shape, lo).padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        Modifier.fillMaxWidth().background(lo.card, shape).navigationBarsPadding().height(if (landscape) 48.dp else 64.dp).padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         tabs.forEach { t ->
             val active = nav.stack.first() == t.screen
-            val tint by animateColorAsState(if (active) lo.signal else lo.ink, tween(220), label = "tabTint")
-            val bar by animateColorAsState(if (active) lo.signal else Color.Transparent, tween(220), label = "tabBar")
+            val tint by animateColorAsState(if (active) lo.ink else lo.grey, tween(220), label = "tabTint")
             Column(
                 Modifier.weight(1f).fillMaxHeight()
                     .semantics { selected = active }
-                    .pressable(RoundedCornerShape(30.dp), role = androidx.compose.ui.semantics.Role.Tab) { if (!active) haptic(false); nav.tab(t.screen) },
+                    .pressable(RoundedCornerShape(16.dp), role = androidx.compose.ui.semantics.Role.Tab) { if (!active) haptic(false); nav.tab(t.screen) },
                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
             ) {
-                Box(Modifier.padding(bottom = 3.dp).width(20.dp).height(3.dp).background(bar, RoundedCornerShape(2.dp)))
-                IcV(if (active) t.on else t.off, 24.dp, tint)
-                if (!landscape) Text(t.label, style = LoType.caption.copy(fontWeight = FontWeight.Bold, lineHeight = 12.sp), color = tint, modifier = Modifier.padding(top = 2.dp))
+                IcV(t.icon, 24.dp, tint)
+                if (!landscape) Text(t.label, style = LoType.caption.copy(fontWeight = if (active) FontWeight.Bold else FontWeight.Medium), color = tint, modifier = Modifier.padding(top = 3.dp))
             }
         }
     }

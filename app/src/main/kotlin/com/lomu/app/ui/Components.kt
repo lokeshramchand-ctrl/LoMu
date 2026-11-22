@@ -360,7 +360,7 @@ fun MediaRow(
                 }
             } else {
                 Box {
-                    Cover(thumb, if (flat) 46.dp else 52.dp, radius = if (flat) 5.dp else 6.dp)
+                    Cover(thumb, 52.dp, radius = if (flat) 12.dp else 8.dp)
                     if (active) Box(Modifier.size(if (flat) 46.dp else 52.dp).background(Color(0x73000000), RoundedCornerShape(6.dp)), Alignment.Center) { NowPlayingBars(Color.White) }
                 }
                 Spacer(Modifier.width(14.dp))
@@ -369,7 +369,7 @@ fun MediaRow(
                 Text(title, style = LoType.body, color = if (active) lo.signal else lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (line.isNotBlank()) Text(line, style = LoType.small, color = lo.grey, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            if (trailing != null && !flat) Text(trailing, style = LoType.small, color = lo.grey, modifier = Modifier.padding(start = 10.dp))
+            if (trailing != null) Text(trailing, style = LoType.small, color = lo.grey, modifier = Modifier.padding(start = 10.dp))
             if (menu != null) Box(Modifier.size(40.dp).a11y("More options").pressable(CircleShape) { haptic(true); openMenu(menu) }, Alignment.Center) { Ic(Ph.More, 22.dp, lo.grey) }
             else Spacer(Modifier.width(6.dp))
         }
@@ -532,7 +532,7 @@ fun Chips(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifie
             val on = i == selected
             Text(
                 options[i], style = LoType.small.copy(fontWeight = FontWeight.SemiBold),
-                color = if (on) Color.White else lo.ink,
+                color = if (on) lo.onSignal else lo.ink,
                 modifier = Modifier
                     .background(if (on) lo.signal else lo.surface2, CircleShape)
                     .pressable(CircleShape) { onSelect(i) }
