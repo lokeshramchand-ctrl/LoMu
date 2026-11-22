@@ -33,6 +33,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -79,7 +84,7 @@ fun IcV(icon: ImageVector, size: Dp = 22.dp, tint: Color = LocalLo.current.ink, 
 }
 
 /** Clickable with a soft spring "press" so every tap has feedback. */
-fun Modifier.pressable(shape: Shape = RoundedCornerShape(10.dp), enabled: Boolean = true, onClick: () -> Unit): Modifier = composed {
+fun Modifier.pressable(shape: Shape = RoundedCornerShape(10.dp), enabled: Boolean = true, role: Role = Role.Button, onClickLabel: String? = null, onClick: () -> Unit): Modifier = composed {
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) 0.97f else 1f, spring(dampingRatio = 0.65f, stiffness = 600f), label = "press")
@@ -87,7 +92,26 @@ fun Modifier.pressable(shape: Shape = RoundedCornerShape(10.dp), enabled: Boolea
     this
         .graphicsLayer { scaleX = scale; scaleY = scale; alpha = fade }
         .clip(shape)
-        .clickable(interactionSource = source, indication = null, enabled = enabled, onClick = onClick)
+        .clickable(interactionSource = source, indication = null, enabled = enabled, onClickLabel = onClickLabel, role = role, onClick = onClick)
+}
+
+/** What a screen reader says for a control that only shows an icon (and, optionally, its current state: "On", "Selected"). */
+fun Modifier.a11y(label: String, state: String? = null): Modifier = semantics {
+    contentDescription = label
+    if (state != null) stateDescription = state
+}
+
+/** A spoken name for an icon, from its name: "FastForward" is "Next", anything else is split into words ("RepeatOne" is "Repeat one"). */
+fun iconLabel(name: String): String = when (val key = name.substringAfterLast('.')) {
+    "FastForward" -> "Next"
+    "FastRewind" -> "Previous"
+    "KeyboardArrowDown" -> "Close"
+    "Close" -> "Clear"
+    "More", "MoreHoriz", "MoreVert" -> "More options"
+    "ChatBubbleOutline" -> "Lyrics"
+    "FormatListBulleted" -> "Queue"
+    "ArrowBack", "ArrowBackIosNew", "ChevronLeft" -> "Back"
+    else -> key.replace(Regex("([a-z0-9])([A-Z])"), "$1 $2").lowercase().replaceFirstChar { it.uppercase() }
 }
 
 /** A round glyph button. [filled] gives the solid accent button, [bordered] a translucent chip for floating over art. */
@@ -95,20 +119,22 @@ fun Modifier.pressable(shape: Shape = RoundedCornerShape(10.dp), enabled: Boolea
 fun IconBtn(
     icon: Ph, onClick: () -> Unit, size: Dp = 40.dp, iconSize: Dp = 20.dp,
     tint: Color = LocalLo.current.ink, bordered: Boolean = false, filled: Boolean = false, modifier: Modifier = Modifier,
+    label: String = iconLabel(icon.name),
 ) {
     val lo = LocalLo.current
     Box(
         modifier.size(size)
             .then(if (filled) Modifier.background(lo.signal, CircleShape) else Modifier)
             .then(if (bordered) Modifier.background(lo.surface2.copy(alpha = 0.85f), CircleShape) else Modifier)
+            .a11y(label)
             .pressable(CircleShape, onClick = onClick),
         Alignment.Center,
     ) { Ic(icon, iconSize, if (filled) Color.White else tint) }
 }
 
 @Composable
-fun IconBtnV(icon: ImageVector, onClick: () -> Unit, size: Dp = 40.dp, iconSize: Dp = 24.dp, tint: Color = LocalLo.current.ink, modifier: Modifier = Modifier) {
-    Box(modifier.size(size).pressable(CircleShape, onClick = onClick), Alignment.Center) { IcV(icon, iconSize, tint) }
+fun IconBtnV(icon: ImageVector, onClick: () -> Unit, size: Dp = 40.dp, iconSize: Dp = 24.dp, tint: Color = LocalLo.current.ink, modifier: Modifier = Modifier, label: String = iconLabel(icon.name)) {
+    Box(modifier.size(size).a11y(label).pressable(CircleShape, onClick = onClick), Alignment.Center) { IcV(icon, iconSize, tint) }
 }
 
 /** Artwork: a hairline-edged rounded square with the placeholder grey behind it, like an Apple Music album cover. */
@@ -327,7 +353,7 @@ fun MediaRow(
                 if (line.isNotBlank()) Text(line, style = LoType.small, color = lo.grey, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             if (trailing != null && !flat) Text(trailing, style = LoType.small, color = lo.grey, modifier = Modifier.padding(start = 10.dp))
-            if (menu != null) Box(Modifier.size(40.dp).pressable(CircleShape) { haptic(true); openMenu(menu) }, Alignment.Center) { Ic(Ph.More, 22.dp, lo.grey) }
+            if (menu != null) Box(Modifier.size(40.dp).a11y("More options").pressable(CircleShape) { haptic(true); openMenu(menu) }, Alignment.Center) { Ic(Ph.More, 22.dp, lo.grey) }
             else Spacer(Modifier.width(6.dp))
         }
         if (separator && !flat) Hairline(inset)
@@ -423,11 +449,12 @@ fun Pill(text: String, onClick: () -> Unit, filled: Boolean = true, icon: Ph? = 
 
 /** Frosted round control (back, add, more) that floats over artwork. */
 @Composable
-fun GlassCircle(icon: ImageVector, onClick: () -> Unit, size: Dp = 42.dp, tint: Color = LocalLo.current.ink, modifier: Modifier = Modifier) {
+fun GlassCircle(icon: ImageVector, onClick: () -> Unit, size: Dp = 42.dp, tint: Color = LocalLo.current.ink, modifier: Modifier = Modifier, label: String = iconLabel(icon.name)) {
     val lo = LocalLo.current
     Box(
         modifier.size(size).shadow(6.dp, CircleShape, clip = false, ambientColor = Color.Black.copy(alpha = 0.18f), spotColor = Color.Black.copy(alpha = 0.18f))
             .background(lo.card.copy(alpha = 0.92f), CircleShape).border(0.5.dp, lo.line.copy(alpha = 0.7f), CircleShape)
+            .a11y(label)
             .pressable(CircleShape, onClick = onClick),
         Alignment.Center,
     ) { IcV(icon, size * 0.5f, tint) }
@@ -437,7 +464,7 @@ fun GlassCircle(icon: ImageVector, onClick: () -> Unit, size: Dp = 42.dp, tint: 
 @Composable
 fun Avatar(initial: String, onClick: () -> Unit, size: Dp = 36.dp) {
     Box(
-        Modifier.size(size).background(Brush.linearGradient(listOf(Color(0xFFC3B1F5), Color(0xFF6F7BD9))), CircleShape).pressable(CircleShape, onClick = onClick),
+        Modifier.size(size).background(Brush.linearGradient(listOf(Color(0xFFC3B1F5), Color(0xFF6F7BD9))), CircleShape).a11y("Account and settings").pressable(CircleShape, onClick = onClick),
         Alignment.Center,
     ) { Text(initial.take(2).uppercase(), style = LoType.body.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold), color = Color.White) }
 }
