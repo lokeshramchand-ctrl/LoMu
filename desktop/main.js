@@ -63,6 +63,16 @@ function call(method, urlPath, body) {
   });
 }
 
+/** Optional %APPDATA%\LoMui.json: { "url": "https://llama.example.com", "key": "...", "model": "..." } turns on the daily AI mix. */
+function aiEnv() {
+  try {
+    const c = JSON.parse(fs.readFileSync(path.join(userData(), 'ai.json'), 'utf8'));
+    return { LOMU_AI_URL: c.url || '', LOMU_AI_KEY: c.key || '', LOMU_AI_MODEL: c.model || '' };
+  } catch {
+    return {};
+  }
+}
+
 async function startServer() {
   const entry = JSON.parse(fs.readFileSync(path.join(serverDir, 'entry.json'), 'utf8')).entry;
   const serverJs = path.join(serverDir, entry);
@@ -78,6 +88,7 @@ async function startServer() {
       ELECTRON_RUN_AS_NODE: '1', // run Electron's own Node, no separate install needed
       // Electron hides NODE_OPTIONS from the app, so extra Node flags for the server (diagnostics, tests) go through here.
       ...(process.env.LOMU_SERVER_NODE_OPTIONS ? { NODE_OPTIONS: process.env.LOMU_SERVER_NODE_OPTIONS } : {}),
+      ...aiEnv(),
       NODE_ENV: 'production',
       NEXT_TELEMETRY_DISABLED: '1',
       PORT: String(port),
