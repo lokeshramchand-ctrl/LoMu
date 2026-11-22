@@ -106,7 +106,7 @@ private fun sfFamily(display: Boolean): FontFamily? {
  * falls back to Inter without them) or [AppFont.Inter].
  */
 enum class AppFont { System, SfPro, Inter }
-const val APP_FONT_CHOICE = 0 // 0 = System, 1 = SF Pro, 2 = Inter
+const val APP_FONT_CHOICE = 1 // 0 = System, 1 = SF Pro, 2 = Inter
 private val appFont get() = AppFont.entries[APP_FONT_CHOICE]
 
 /** Body / label family. */
