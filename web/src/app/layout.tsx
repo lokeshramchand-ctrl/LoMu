@@ -9,7 +9,7 @@ const sans = Figtree({ subsets: ['latin'], variable: '--font-ui', display: 'swap
 
 export const metadata: Metadata = {
   title: { default: 'LoMu', template: '%s · LoMu' },
-  description: 'LoMu — your music, everywhere.',
+  description: 'LoMu: your music, everywhere.',
   applicationName: 'LoMu',
   manifest: '/manifest.webmanifest',
   icons: { icon: [{ url: '/favicon-48.png', sizes: '48x48' }, { url: '/icon-192.png', sizes: '192x192' }], apple: '/apple-icon.png' },

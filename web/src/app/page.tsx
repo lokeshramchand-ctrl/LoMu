@@ -105,7 +105,7 @@ export default function Home() {
           </Tile>
           <Tile span={4} md={6} sm={6} tone="card" title="Top artist" label="Top artist">
             <div className="big">
-              <span className="n clamp1 sm">{stats.topArtist?.name ?? '—'}</span>
+              <span className="n clamp1 sm">{stats.topArtist?.name ?? '-'}</span>
             </div>
             <div className="muted small">{stats.topArtist ? 'Most minutes' : 'Nothing yet'}</div>
           </Tile>
@@ -260,7 +260,7 @@ function QuickPicks({ tracks, personal, loading }: { tracks: Track[]; personal: 
                   onClick={() => usePlayer.getState().play(tracks, i, { source: 'home-quick' })}
                   onMouseEnter={() => tint(t.thumb)}
                   onMouseLeave={() => document.documentElement.style.setProperty('--tint', '#3b3b5c')}
-                  title={`${t.title} — ${artistNames(t.artists)}`}
+                  title={`${t.title} - ${artistNames(t.artists)}`}
                   {...warmProps(t.id)}
                 >
                   <Cover src={t.thumb} size={64} radius={0} />
