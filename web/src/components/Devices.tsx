@@ -63,7 +63,7 @@ export function DevicesButton({ className = 'icon-btn', down = false }: { classN
         .s { color: var(--muted); font-size: 12px; }
         .dev { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 6px 8px; border-radius: 4px; }
         .dev:hover { background: var(--row-hover); }
-        .dev.act { color: var(--signal); }
+        .dev.act { color: var(--signal-t); }
         .n { display: block; font-weight: 500; font-size: 14px; }
         .dev .s { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
       `}</style>
