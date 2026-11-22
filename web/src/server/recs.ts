@@ -34,27 +34,27 @@ async function candidatesFor(seeds: Track[]): Promise<{ map: Map<string, Track[]
  * asks the server). Today's seeds rotate through your top tracks, so each day explores a different corner of your taste.
  * If YouTube cannot be reached, today's mix is not stored, and yesterday's stays on screen.
  */
-async function dailyPlaylist(aff: Affinity, now: number, fallback: Track[]): Promise<Track[]> {
+async function dailyPlaylist(uid: number, aff: Affinity, now: number, fallback: Track[]): Promise<Track[]> {
   const day = dayKey(now);
-  const key = `recs:daily:${day}`;
+  const key = `recs:u${uid}:daily:${day}`;
   const kept = readStale<Track[]>(key);
   if (kept?.length) return kept;
   const seeds = dailySeeds(aff.topTracks, day, DAILY_SEEDS);
   const { map, ok } = await candidatesFor(seeds);
-  if (!ok && seeds.length) return readStale<Track[]>(`recs:daily:last`) ?? diversify(fallback, 2).slice(0, 30);
+  if (!ok && seeds.length) return readStale<Track[]>(`recs:u${uid}:daily:last`) ?? diversify(fallback, 2).slice(0, 30);
   const mix = dailyMix(aff, rankCandidates(seeds, map, aff), day, 40);
   if (mix.length >= 10) {
     writeStale(key, mix);
-    writeStale('recs:daily:last', mix);
+    writeStale(`recs:u${uid}:daily:last`, mix);
   }
   return mix;
 }
 
-export function buildMixes(): Promise<Shelf[]> {
+export function buildMixes(uid: number): Promise<Shelf[]> {
   // The play log changes slowly relative to how often the home page is opened.
-  return cached('recs:mixes', 3 * 60_000, async () => {
-    const plays = all('play', 3000).map((r) => r.value as PlayDoc);
-    const likes = all('like', 3000).map((r) => r.value as LikeDoc);
+  return cached(`recs:u${uid}:mixes`, 3 * 60_000, async () => {
+    const plays = all(uid, 'play', 3000).map((r) => r.value as PlayDoc);
+    const likes = all(uid, 'like', 3000).map((r) => r.value as LikeDoc);
     if (!plays.length && !likes.length) return [];
 
     const now = Date.now();
@@ -62,11 +62,11 @@ export function buildMixes(): Promise<Shelf[]> {
     const seeds = aff.topTracks.slice(0, SEEDS);
     const { map: cands, ok } = await candidatesFor(seeds);
     // Nothing reachable (offline): throw, so `cached` serves the last full set instead of a thin one.
-    if (!ok && seeds.length && readStale('recs:mixes')) throw new Error('YouTube unreachable');
+    if (!ok && seeds.length && readStale(`recs:u${uid}:mixes`)) throw new Error('YouTube unreachable');
     const ranked = rankCandidates(seeds, cands, aff);
 
     const shelves: Shelf[] = [];
-    const mix = await dailyPlaylist(aff, now, ranked);
+    const mix = await dailyPlaylist(uid, aff, now, ranked);
     if (mix.length) shelves.push({ title: 'Your Mix', subtitle: `Fresh every day · ${new Date(now).toLocaleDateString('en', { weekday: 'long' })}`, items: mix });
 
     if (aff.onRepeat.length) shelves.push({ title: 'On Repeat', subtitle: 'Your last 30 days', items: aff.onRepeat.slice(0, 15) });
@@ -87,9 +87,9 @@ export function buildMixes(): Promise<Shelf[]> {
 }
 
 /** Adaptive autoplay: what should follow `seedId`, skipping things you keep skipping. */
-export async function nextUp(seedId: string, recent: string[] = []): Promise<Track[]> {
-  const plays = all('play', 3000).map((r) => r.value as PlayDoc);
-  const likes = all('like', 3000).map((r) => r.value as LikeDoc);
+export async function nextUp(uid: number, seedId: string, recent: string[] = []): Promise<Track[]> {
+  const plays = all(uid, 'play', 3000).map((r) => r.value as PlayDoc);
+  const likes = all(uid, 'like', 3000).map((r) => r.value as LikeDoc);
   const aff = affinity(plays, likes, Date.now());
   const skip = new Set(recent);
   const list = (await radio(seedId)).filter((t) => t.id !== seedId && !skip.has(t.id) && !aff.skipped.has(t.id));

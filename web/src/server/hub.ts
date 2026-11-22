@@ -1,6 +1,10 @@
 import 'server-only';
 import { getSetting, setSetting } from './db';
+import { isLanAddress, isNetworkError, reach } from './lanfetch';
 import { applyRemote, currentSeq, onChange, pull, type Row } from './sync';
+
+// The desktop app belongs to one person: the first (and only) account in its own database.
+const LOCAL = 1;
 
 /* Hub sync, used by the Windows desktop app. The desktop app runs a full LoMu server of its own (its own
    SQLite file, its own YouTube access), so it works with no network at all. This worker mirrors that local
@@ -16,6 +20,8 @@ export type HubStatus = {
   lastSync: number | null;
   pending: number; // local changes not yet at the hub
   error: string | null;
+  lan: string | null; // the server's address on the home network, used when its public name cannot be reached from here
+  route: 'direct' | 'lan' | null; // which way the last request got through
 };
 
 type Runtime = {
@@ -27,10 +33,11 @@ type Runtime = {
   failures: number;
   started: boolean;
   refreshing: Promise<boolean> | null;
+  route: 'direct' | 'lan' | null;
 };
 type G = typeof globalThis & { __lomuHub?: Runtime };
 const rt: Runtime = ((globalThis as G).__lomuHub ??= {
-  state: 'off', lastSync: null, error: null, timer: null, running: false, failures: 0, started: false, refreshing: null,
+  state: 'off', lastSync: null, error: null, timer: null, running: false, failures: 0, started: false, refreshing: null, route: null,
 });
 
 const num = (k: string) => Number(getSetting(k) ?? 0) || 0;
@@ -45,27 +52,65 @@ export function hubStatus(): HubStatus {
     user: getSetting('hub_user') || null,
     state: url ? rt.state : 'off',
     lastSync: rt.lastSync,
-    pending: url ? Math.max(0, currentSeq() - num('hub_pushed')) : 0,
+    pending: url ? Math.max(0, currentSeq(LOCAL) - num('hub_pushed')) : 0,
     error: rt.error,
+    lan: getSetting('hub_lan') || null,
+    route: rt.route,
   };
 }
 
 const base = () => (getSetting('hub_url') ?? '').replace(/\/+$/, '');
 
+/** One request to the hub: the public name first, then the LAN address (or the reverse once the LAN has proved to be the way in). */
+async function transport(url: string, init: RequestInit, timeoutMs: number | null): Promise<Response> {
+  const lan = getSetting('hub_lan') || null;
+  const { res, route } = await reach(
+    url,
+    { ...init, signal: init.signal ?? (timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined) },
+    { lan, preferLan: rt.route === 'lan', attemptMs: 7000 },
+  );
+  rt.route = lan ? route : 'direct';
+  return res;
+}
+
 async function hubFetch(path: string, init: RequestInit = {}, auth = true, timeoutMs: number | null = 25_000): Promise<Response> {
   const go = () =>
-    fetch(base() + path, {
-      ...init,
-      headers: {
-        ...(init.headers as Record<string, string> | undefined),
-        'x-lomu-device': 'desktop',
-        ...(auth && getSetting('hub_access') ? { authorization: `Bearer ${getSetting('hub_access')}` } : {}),
+    transport(
+      base() + path,
+      {
+        ...init,
+        headers: {
+          ...(init.headers as Record<string, string> | undefined),
+          'x-lomu-device': 'desktop',
+          ...(auth && getSetting('hub_access') ? { authorization: `Bearer ${getSetting('hub_access')}` } : {}),
+        },
       },
-      signal: init.signal ?? (timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined),
-    });
+      timeoutMs,
+    );
   let r = await go();
   if (r.status === 401 && auth && (await refreshTokens())) r = await go();
   return r;
+}
+
+/** Asks the server for its LAN address (it advertises LOMU_LAN_ADDRESS) and remembers it, unless one was set by hand. */
+async function learnLan() {
+  try {
+    if (getSetting('hub_lan')) return;
+    const r = await hubFetch('/api/auth/status', {}, true, 10_000);
+    const j = (await r.json()) as { lan?: string | null };
+    if (j.lan && isLanAddress(j.lan)) setSetting('hub_lan', j.lan);
+  } catch {
+    /* optional */
+  }
+}
+
+/** Sets (or clears, with an empty string) the home-network address of the server. */
+export function setHubLan(address: string) {
+  const a = address.trim();
+  if (a && !isLanAddress(a)) throw new Error('Use the address of the server on your home network, like 192.168.1.20');
+  setSetting('hub_lan', a);
+  rt.route = null;
+  if (getSetting('hub_url') && !rt.running) kick(0);
 }
 
 /**
@@ -91,12 +136,11 @@ function refreshTokens(): Promise<boolean> {
     try {
       const refresh = getSetting('hub_refresh');
       if (!refresh) return false;
-      const r = await fetch(base() + '/api/auth/refresh', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-lomu-device': 'desktop' },
-        body: JSON.stringify({ refresh }),
-        signal: AbortSignal.timeout(20_000),
-      });
+      const r = await transport(
+        base() + '/api/auth/refresh',
+        { method: 'POST', headers: { 'content-type': 'application/json', 'x-lomu-device': 'desktop' }, body: JSON.stringify({ refresh }) },
+        20_000,
+      );
       if (!r.ok) return false;
       const t = (await r.json()) as { access: string; refresh: string };
       setSetting('hub_access', t.access);
@@ -112,20 +156,26 @@ function refreshTokens(): Promise<boolean> {
 }
 
 /** Signs in to the hub and starts syncing. Throws a message fit for the UI. */
-export async function connectHub(url: string, username: string, password: string): Promise<void> {
+export async function connectHub(url: string, username: string, password: string, lan = ''): Promise<void> {
   const u = url.trim().replace(/\/+$/, '');
   if (!/^https?:\/\//i.test(u)) throw new Error('Start the address with https://');
+  if (lan.trim() && !isLanAddress(lan)) throw new Error('The home network address should look like 192.168.1.20');
+  if (lan.trim()) setSetting('hub_lan', lan.trim());
+  rt.route = null;
   let r: Response;
   try {
-    r = await fetch(u + '/api/auth/login', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-lomu-device': 'desktop' },
-      body: JSON.stringify({ username, password }),
-      signal: AbortSignal.timeout(20_000),
-    });
+    r = await transport(
+      u + '/api/auth/login',
+      { method: 'POST', headers: { 'content-type': 'application/json', 'x-lomu-device': 'desktop' }, body: JSON.stringify({ username, password }) },
+      20_000,
+    );
   } catch (e) {
     console.error('[hub] could not reach', u, (e as { cause?: unknown }).cause ?? e);
-    throw new Error("Can't reach that server. Check the address and your internet connection.");
+    throw new Error(
+      getSetting('hub_lan')
+        ? "Can't reach that server, either by its name or at its home network address."
+        : "Can't reach that server. Check the address and your internet connection. If you are on the same network as the server, add its home network address (like 192.168.1.20).",
+    );
   }
   const j = (await r.json().catch(() => ({}))) as { access?: string; refresh?: string; error?: string };
   if (!r.ok || !j.access || !j.refresh) throw new Error(j.error ?? `The server answered ${r.status}. Is this the LoMu address?`);
@@ -135,6 +185,7 @@ export async function connectHub(url: string, username: string, password: string
   setSetting('hub_refresh', j.refresh);
   setSetting('hub_seq', '0'); // first sync pulls everything the hub has...
   setSetting('hub_pushed', '0'); // ...and offers everything this PC has
+  void learnLan();
   rt.error = null;
   rt.failures = 0;
   rt.state = 'syncing';
@@ -147,7 +198,7 @@ export function syncNow() {
 }
 
 export function disconnectHub() {
-  for (const k of ['hub_url', 'hub_user', 'hub_access', 'hub_refresh', 'hub_seq', 'hub_pushed']) setSetting(k, '');
+  for (const k of ['hub_url', 'hub_user', 'hub_access', 'hub_refresh', 'hub_seq', 'hub_pushed', 'hub_lan']) setSetting(k, '');
   if (rt.timer) clearTimeout(rt.timer);
   rt.timer = null;
   rt.state = 'off';
@@ -168,7 +219,7 @@ export async function syncHub(): Promise<void> {
       if (!r.ok) throw new Error(`hub answered ${r.status}`);
       const { seq, docs } = (await r.json()) as { seq: number; docs: Row[] };
       if (!docs.length) break;
-      const { before, after } = applyRemote(docs);
+      const { before, after } = applyRemote(LOCAL, docs);
       // What we just wrote came from the hub: do not send it straight back (unless local edits were already waiting).
       if (before === num('hub_pushed')) setSetting('hub_pushed', String(after));
       setSetting('hub_seq', String(seq));
@@ -177,7 +228,7 @@ export async function syncHub(): Promise<void> {
     // Push
     for (;;) {
       const from = num('hub_pushed');
-      const { docs } = pull(from, 1000);
+      const { docs } = pull(LOCAL, from, 1000);
       if (!docs.length) break;
       const r = await hubFetch('/api/sync', {
         method: 'POST',
@@ -201,7 +252,7 @@ export async function syncHub(): Promise<void> {
     if (e instanceof HubAuthError) {
       rt.state = 'error';
       rt.error = 'Signed out of the hub. Sign in again in Settings.';
-    } else if (e instanceof Error && (e.name === 'TimeoutError' || /fetch failed|ECONN|ENOTFOUND|EAI_AGAIN|network/i.test(e.message + String((e as { cause?: unknown }).cause ?? '')))) {
+    } else if (isNetworkError(e)) {
       rt.state = 'offline';
       rt.error = null;
     } else {
@@ -228,7 +279,7 @@ function kick(delay: number) {
 export function startHub() {
   if (rt.started) return;
   rt.started = true;
-  onChange(() => {
+  onChange(LOCAL, () => {
     if (getSetting('hub_url') && !rt.running && rt.state !== 'offline') kick(1500); // when offline the backoff timer (or syncNow) decides
   });
   if (getSetting('hub_url')) kick(2000);
