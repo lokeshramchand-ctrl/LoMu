@@ -8,7 +8,6 @@ import { deepStats } from '@/lib/insights';
 import { detectSleep, formatSpan, type SleepSession } from '@/lib/sleep';
 import { artistNames } from '@/lib/format';
 import { Bento, Tile } from '@/components/Bento';
-import { Icon } from '@/components/Icon';
 import { EmptyState, PageHeader } from '@/components/ui';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -62,30 +61,29 @@ export default function Insights() {
     return (
       <>
         <PageHeader  title="Your listening" />
-        <EmptyState icon="history" title="Nothing to analyse yet" hint="Play some songs and your listening habits will show up here." />
+        <EmptyState title="Nothing to analyse yet" hint="Play some songs and your listening habits will show up here." />
       </>
     );
   }
 
   return (
     <Bento className="fade-in">
-      <PageHeader  title="Your listening" sub="Built from your play history on every device." />
+      <PageHeader  title="Your listening" />
 
-      <Tile span={3} md={6} sm={6} tone="card" title="Time listened" sub="Awake, all time">
+      <Tile span={3} md={6} sm={6} tone="card" className="stat" title="Time listened" sub="Awake, all time">
         <Big value={formatSpan(stats.totalMs)} />
-        <div className="muted small">{asleepTotal > 60_000 ? `+ ${formatSpan(asleepTotal)} asleep with music on` : 'Across all your devices'}</div>
+        {asleepTotal > 60_000 && <div className="muted small">{`+ ${formatSpan(asleepTotal)} asleep with music on`}</div>}
       </Tile>
-      <Tile span={3} md={6} sm={6} tone="card" title="Last 30 days">
+      <Tile span={3} md={6} sm={6} tone="card" className="stat" title="Last 30 days">
         <Big value={formatSpan(stats.monthMs)} />
         <div className="muted small">{stats.newArtistsThisMonth} new {stats.newArtistsThisMonth === 1 ? 'artist' : 'artists'}</div>
       </Tile>
-      <Tile span={3} md={6} sm={6} tone="card" title="Daily average" sub="On days you listen">
+      <Tile span={3} md={6} sm={6} tone="card" className="stat" title="Daily average" sub="On days you listen">
         <Big value={formatSpan(stats.avgDayMs)} />
-        <div className="muted small">{stats.activeDays} days with music</div>
       </Tile>
-      <Tile span={3} md={6} sm={6} tone="card" title="Best streak">
+      <Tile span={3} md={6} sm={6} tone="card" className="stat" title="Best streak">
         <Big value={String(stats.longestStreak)} unit={stats.longestStreak === 1 ? 'day' : 'days'} />
-        <div className="muted small">{Math.round(stats.completionRate * 100)}% of songs finished · {Math.round(stats.skipRate * 100)}% skipped</div>
+        <div className="muted small">{Math.round(stats.completionRate * 100)}% of songs finished</div>
       </Tile>
 
       <Tile span={8} md={12} title="When you listen" sub={stats.peakHour != null ? `Busiest around ${hourLabel(stats.peakHour)}` : undefined}>
@@ -97,7 +95,7 @@ export default function Insights() {
 
       <SleepTile sessions={sessions} />
 
-      <Tile span={6} md={12} flush title="Top artists" sub="By time listened">
+      <Tile span={6} md={12} flush title="Top artists">
         <ol className="rank">
           {stats.topArtistsMs.slice(0, 8).map((a, i) => (
             <li key={a.name}>
@@ -108,7 +106,7 @@ export default function Insights() {
           ))}
         </ol>
       </Tile>
-      <Tile span={6} md={12} flush title="Top songs" sub="By time listened">
+      <Tile span={6} md={12} flush title="Top songs">
         <ol className="rank">
           {stats.topTracks.slice(0, 8).map((t, i) => (
             <li key={t.track.id}>
@@ -140,7 +138,7 @@ function SleepTile({ sessions }: { sessions: SleepSession[] }) {
   const { setAnchor, clearAnchor } = useSleep();
   const recent = sessions.slice(0, 7);
   return (
-    <Tile span={12} title={<span id="sleep"><Icon name="moon" size={18} /> Sleep with the queue on</span>} sub="Worked out from songs that kept playing on their own. An estimate: tell it the last song you remember and it adjusts.">
+    <Tile span={12} title={<span id="sleep">Sleep with the queue on</span>} sub="An estimate from songs that kept playing on their own. Tell it the last song you remember and it adjusts.">
       {!recent.length && <div className="muted small">No long runs of back-to-back songs yet. When you fall asleep with the queue playing, it shows up here the next morning.</div>}
       <div className="sess">
         {recent.map((s, i) => {

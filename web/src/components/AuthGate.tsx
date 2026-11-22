@@ -29,7 +29,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       >
         <div className="mk"><span className="mark" /><b>LoMu</b></div>
         <h1>{mode === 'setup' ? 'Create your account' : 'Welcome back'}</h1>
-        <p>{mode === 'setup' ? 'One account for you. It syncs this browser and your phone.' : 'Sign in to your LoMu.'}</p>
+        {mode === 'setup' && <p>One account for you. It syncs this browser and your phone.</p>}
         <input autoFocus name="username" aria-label="Username" spellCheck={false} placeholder="Username…" autoComplete="username" value={u} onChange={(e) => setU(e.target.value)} />
         <input
           type="password"

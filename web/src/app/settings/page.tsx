@@ -3,8 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useLibrary } from '@/player/library';
 import { usePlayer } from '@/player/store';
-import { HOME_SECTIONS, useSettings, type Theme } from '@/player/settings';
-import { Icon, type IconName } from '@/components/Icon';
+import { HOME_SECTIONS, useSettings } from '@/player/settings';
 import { PageHeader, Toggle } from '@/components/ui';
 import { ThemeSelect } from '@/components/Nav';
 import { Bento, Tile } from '@/components/Bento';
@@ -28,15 +27,10 @@ export default function SettingsPage() {
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     toast('Library exported');
   };
-  const themes: { id: Theme; icon: IconName; label: string }[] = [
-    { id: 'system', icon: 'system', label: 'System' },
-    { id: 'light', icon: 'sun', label: 'Light' },
-    { id: 'dark', icon: 'moon', label: 'Dark' },
-  ];
 
   return (
     <Bento className="fade-in">
-      <PageHeader  title="Settings" sub="Account, appearance, playback and the things you can turn on or off." />
+      <PageHeader  title="Settings" />
         {local && <HubGroup />}
         {!local && <Group span={7} title="Account" sub="Your own library, history and recommendations. They sync to your other devices and are never shown to other accounts.">
           <Row
@@ -44,21 +38,21 @@ export default function SettingsPage() {
             hint={`Sync: ${sync === 'live' ? 'up to date' : sync}${lastSync ? ` · ${new Date(lastSync).toLocaleTimeString()}` : ''}`}
           >
             <button className="btn" onClick={() => logout()}>
-              <Icon name="logout" size={16} /> Sign out
+              Sign out
             </button>
           </Row>
           <PasswordRow />
         </Group>}
 
         <Group span={5} title="Appearance">
-          <Row label="Interface theme" hint="Select or customise your interface colour scheme.">
+          <Row label="Interface theme">
             <div style={{ width: 168 }}><ThemeSelect /></div>
           </Row>
         </Group>
 
         {!local && admin && <AccountsGroup />}
 
-        <Group span={6} tall title="Home" sub="Pick what the home page shows. The Customise button on Home does the same.">
+        <Group span={6} tall title="Home">
           {HOME_SECTIONS.map((s) => (
             <HomeToggle key={s.id} id={s.id} label={s.label} hint={s.hint} />
           ))}
@@ -69,7 +63,6 @@ export default function SettingsPage() {
             <Switch on={autoplay} label="Autoplay" onChange={(v) => usePlayer.setState({ autoplay: v })} />
           </Row>
           <Row label="Audio quality" hint="Always the best stream YouTube offers without Premium: Opus around 160 kbps, AAC as a fallback.">
-            <span className="badge">Best</span>
           </Row>
         </Group>
 
@@ -79,7 +72,7 @@ export default function SettingsPage() {
               Export
             </button>
           </Row>
-          <Row label="Import from Google Takeout" hint="Bring in your YouTube Music playlists and likes from a Takeout export.">
+          <Row label="Import from Google Takeout">
             <Link href="/import" className="btn">Import</Link>
           </Row>
           <Row label="Clear listening history" hint="Recommendations start learning again from scratch.">
@@ -108,7 +101,7 @@ export default function SettingsPage() {
         </Group>
 
         <Group span={6} title="Developer">
-          <Row label="Explore" hint="Show the Explore tab (charts, new releases, moods).">
+          <Row label="Explore">
             <Switch on={dev.explore} label="Explore" onChange={(v) => setDev('explore', v)} />
           </Row>
           <Row label="Artist enrichment" hint="Sharper artist photos, banners and bios from TheAudioDB and Wikipedia.">
@@ -234,7 +227,7 @@ function Group({ title, sub, span = 6, tall, children }: { title: string; sub?: 
   );
 }
 
-function Row({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function Row({ label, hint, children }: { label: string; hint?: string; children?: React.ReactNode }) {
   return (
     <div className="r">
       <div className="grow">
