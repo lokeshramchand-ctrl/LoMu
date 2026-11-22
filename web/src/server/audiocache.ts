@@ -59,6 +59,7 @@ export function serveFile(f: string, codec: Codec, rangeHeader: string | null): 
  * later (skipping through a list does not count), download it in full in the background.
  */
 export function maybeFill(id: string, codec: Codec) {
+  if (!/^[\w-]{11}$/.test(id)) return;
   if (!audioCacheEnabled()) return;
   g.__lomuLastStream = id;
   const key = `${id}.${codec}`;

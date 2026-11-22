@@ -1,10 +1,11 @@
+import { readJson } from '@/server/body';
 import { cookies } from 'next/headers';
 import { rotate, setAuthCookies } from '@/server/auth';
 
 export async function POST(req: Request) {
   let refresh: string | undefined;
   try {
-    refresh = (await req.json())?.refresh;
+    refresh = (await readJson(req))?.refresh;
   } catch {
     /* cookie-based clients send no body */
   }
