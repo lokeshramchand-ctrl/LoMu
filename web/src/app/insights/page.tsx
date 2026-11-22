@@ -150,7 +150,7 @@ function SleepTile({ sessions }: { sessions: SleepSession[] }) {
               <button className="head" onClick={() => setOpen(on ? null : i)} aria-expanded={on}>
                 <span className="when">{dayName(s.start)}</span>
                 <span className="dur">~{formatSpan(s.asleepMs)} asleep</span>
-                <span className="muted small hide-sm">{clock(s.asleepFrom)} – {clock(s.end)} · {s.plays.length} songs</span>
+                <span className="muted small hide-sm">{clock(s.asleepFrom)} to {clock(s.end)} · {s.plays.length} songs</span>
                 <span className={`conf ${s.confidence}`}>{s.corrected ? 'set by you' : s.confidence === 'high' ? 'likely' : s.confidence === 'medium' ? 'maybe' : 'unsure'}</span>
               </button>
               {on && (
