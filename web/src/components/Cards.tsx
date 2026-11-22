@@ -33,7 +33,7 @@ export function ItemCard({ item, siblings }: { item: Item; siblings?: Track[] })
           e.preventDefault();
           useMenu.getState().open(item, e);
         }}
-        title={`${item.title} — ${artistNames(item.artists)}`}
+        title={`${item.title} - ${artistNames(item.artists)}`}
         {...warmProps(item.id)}
       >
         <div className="art">

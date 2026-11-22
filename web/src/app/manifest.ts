@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'LoMu',
     short_name: 'LoMu',
-    description: 'LoMu — your music, everywhere.',
+    description: 'LoMu: your music, everywhere.',
     start_url: '/',
     display: 'standalone',
     background_color: '#ffffff',
