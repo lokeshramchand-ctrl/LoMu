@@ -180,12 +180,12 @@ function SleepTile({ sessions }: { sessions: SleepSession[] }) {
       </div>
       <style jsx>{`
         .sess { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
-        .s { border-radius: 10px; background: var(--card, #181818); }
+        .s { border-radius: 10px; background: var(--card, #17171b); }
         .head { display: flex; align-items: center; gap: 14px; width: 100%; padding: 12px 14px; background: none; border: 0; color: inherit; cursor: pointer; font: inherit; text-align: left; }
         .when { width: 110px; font-weight: 600; }
         .dur { font-weight: 700; flex: 1; }
         .conf { font-size: 11px; padding: 2px 8px; border-radius: 99px; background: var(--card-hover, #333); color: var(--muted, #a7a7a7); }
-        .conf.high { background: var(--signal); color: #000; }
+        .conf.high { background: var(--signal); color: #09090b; }
         .body { padding: 0 14px 14px; }
         .body ol { list-style: none; margin: 8px 0; padding: 0; max-height: 280px; overflow: auto; }
         .body li { display: flex; gap: 10px; align-items: center; padding: 4px 6px; border-radius: 6px; }

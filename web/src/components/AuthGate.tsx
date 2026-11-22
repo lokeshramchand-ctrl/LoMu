@@ -55,7 +55,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         input { height: 32px; padding: 0 10px; border-radius: 5px; font-size: 13px; border: 1px solid var(--border-2); background: var(--surface); color: var(--text); font: inherit; transition: border-color .2s, box-shadow .2s; }
         input:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
         input:focus { border-color: var(--signal); box-shadow: 0 0 0 2px var(--signal-soft); }
-        button { height: 32px; border-radius: 5px; border: 0; background: var(--signal); color: #fff; font-size: 13px; font: inherit; font-weight: 500; cursor: pointer; margin-top: 4px; transition: transform .3s var(--spring); }
+        button { height: 32px; border-radius: 5px; border: 0; background: var(--signal); color: #f4f4f5; font-size: 13px; font: inherit; font-weight: 500; cursor: pointer; margin-top: 4px; transition: transform .3s var(--spring); }
         button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
         button:active { transform: scale(.97); }
         button:disabled { opacity: .4; cursor: not-allowed; }

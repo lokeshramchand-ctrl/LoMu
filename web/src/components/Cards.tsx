@@ -86,7 +86,7 @@ function CardStyle() {
       .it .s { color: var(--muted); font-size: 14px; margin-top: 4px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
       .it .c { text-align: left; }
       .it.active .t { color: var(--signal-t); }
-      .it .go { position: absolute; right: 8px; bottom: 8px; width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--signal); color: #000; box-shadow: 0 8px 8px rgba(0, 0, 0, .3); opacity: 0; transform: translateY(8px); transition: opacity .3s var(--ease), transform .3s var(--ease); }
+      .it .go { position: absolute; right: 8px; bottom: 8px; width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--signal); color: #09090b; box-shadow: 0 8px 8px rgba(0, 0, 0, .3); opacity: 0; transform: translateY(8px); transition: opacity .3s var(--ease), transform .3s var(--ease); }
       .it .go:hover { transform: scale(1.06); background: var(--signal-hi); }
       .it:hover .go, .it:focus-visible .go, .it.active .go { opacity: 1; transform: none; }
       .it:hover .go:hover { transform: scale(1.06); }
@@ -286,7 +286,7 @@ export function TrackRow({
         .ta { color: var(--muted); font-size: 14px; margin-top: 0; }
         .trow:hover .ta { color: var(--ink); }
         .ta :global(a:hover), .alb :global(a:hover) { color: var(--ink); text-decoration: underline; }
-        .e { display: inline-grid; place-items: center; width: 16px; height: 16px; font-size: 10px; font-weight: 700; border-radius: 2px; background: var(--muted); color: #000; margin-right: 6px; vertical-align: 1px; }
+        .e { display: inline-grid; place-items: center; width: 16px; height: 16px; font-size: 10px; font-weight: 700; border-radius: 2px; background: var(--muted); color: #09090b; margin-right: 6px; vertical-align: 1px; }
         .alb { flex: 0 0 28%; color: var(--muted); font-size: 14px; }
         .trow:hover .alb { color: var(--ink); }
         .dur { width: 44px; text-align: right; color: var(--muted); font-size: 14px; }

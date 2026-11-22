@@ -262,7 +262,7 @@ function SearchInner() {
 
       <style jsx>{`
         .cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 24px; }
-        .cat { position: relative; overflow: hidden; height: 190px; padding: 16px; border-radius: 8px; color: #fff; font-family: var(--font-display); font-size: 24px; font-weight: 700; letter-spacing: -.01em; text-align: left; vertical-align: top; filter: brightness(.84); text-shadow: 0 1px 4px rgba(0, 0, 0, .35); transition: transform .2s var(--ease), filter .2s; }
+        .cat { position: relative; overflow: hidden; height: 190px; padding: 16px; border-radius: 8px; color: #f4f4f5; font-family: var(--font-display); font-size: 24px; font-weight: 700; letter-spacing: -.01em; text-align: left; vertical-align: top; filter: brightness(.84); text-shadow: 0 1px 4px rgba(0, 0, 0, .35); transition: transform .2s var(--ease), filter .2s; }
         .cat::after { content: ''; position: absolute; right: -22px; bottom: -12px; width: 96px; height: 96px; border-radius: 6px; background: rgba(0, 0, 0, .22); transform: rotate(25deg); }
         .cat:hover { filter: brightness(.95); transform: scale(1.02); }
         .cat:active { transform: scale(.98); }

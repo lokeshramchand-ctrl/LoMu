@@ -23,7 +23,7 @@ export function ContinueBanner() {
         .txt b { font-weight: 500; }
         .txt span { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         button { height: 28px; padding: 0 10px; border-radius: 5px; border: 0; font: inherit; cursor: pointer; white-space: nowrap; }
-        .go { background: var(--signal); color: #fff; }
+        .go { background: var(--signal); color: #f4f4f5; }
         .no { background: transparent; color: var(--muted); }
         @media (max-width: 900px) { .cont { bottom: calc(var(--player-h) + 118px); } }
       `}</style>
