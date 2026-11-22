@@ -308,18 +308,20 @@ fun SkeletonDetail() {
 }
 
 @Composable
-fun EmptyState(icon: Ph, title: String, hint: String? = null, modifier: Modifier = Modifier) {
+fun EmptyState(icon: Ph, title: String, hint: String? = null, modifier: Modifier = Modifier, action: (@Composable () -> Unit)? = null) {
     val lo = LocalLo.current
     Column(modifier.fillMaxWidth().padding(horizontal = 36.dp, vertical = 40.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Ic(icon, 44.dp, lo.grey.copy(alpha = 0.7f))
         Spacer(Modifier.height(6.dp))
         Text(title, style = LoType.body.copy(fontWeight = FontWeight.SemiBold, fontSize = 19.sp, lineHeight = 24.sp), color = lo.ink, textAlign = TextAlign.Center)
         if (hint != null) Text(hint, style = LoType.small.copy(fontSize = 15.sp, lineHeight = 20.sp), color = lo.grey, textAlign = TextAlign.Center)
+        if (action != null) { Spacer(Modifier.height(10.dp)); action() }
     }
 }
 
 @Composable
-fun ErrorBox(message: String) = EmptyState(Ph.Warn, "Can't load this right now", message)
+fun ErrorBox(message: String, onRetry: (() -> Unit)? = null) =
+    EmptyState(Ph.Warn, "Can't load this right now", message, action = onRetry?.let { r -> { Pill("Try again", r, filled = false) } })
 
 fun artistLine(s: SongItem) = s.artists.joinToString(", ") { it.name }
 
