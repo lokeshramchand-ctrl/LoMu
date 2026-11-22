@@ -62,7 +62,7 @@ export default function UserPlaylistPage({ params }: { params: Promise<{ id: str
           </form>
         ) : undefined
       }
-      empty={<EmptyState title="This playlist is empty" hint={'Use the More button on any song and choose "Add to playlist".'} />}
+      empty={<EmptyState title="This playlist is empty" hint={'Right-click a song (long-press on a phone) and choose "Add to playlist".'} />}
       actions={
         <>
           <button
