@@ -17,11 +17,14 @@ import { currentTrack, usePlayer } from '@/player/store';
 import { HOME_SECTIONS, useSettings } from '@/player/settings';
 import { warm, warmProps } from '@/lib/warm';
 
+const LOG_SHOWN = 12;
+
 export default function Home() {
   const home = useSettings((s) => s.home);
   const history = useLibrary((s) => s.history);
   const liked = useLibrary((s) => s.liked);
   const [custom, setCustom] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
   const recs = useRecs();
   const explore = useExplore();
@@ -49,7 +52,7 @@ export default function Home() {
     const out: { label: string; rows: { p: (typeof sorted)[number]; i: number }[] }[] = [];
     const today = new Date().toDateString();
     const yday = new Date(Date.now() - 864e5).toDateString();
-    sorted.forEach((p, i) => {
+    sorted.slice(0, showAll ? sorted.length : LOG_SHOWN).forEach((p, i) => {
       const d = new Date(p.at);
       const ds = d.toDateString();
       const label = ds === today ? 'Today' : ds === yday ? 'Yesterday' : d.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'short' });
@@ -58,7 +61,7 @@ export default function Home() {
       g.rows.push({ p, i });
     });
     return out;
-  }, [sorted]);
+  }, [sorted, showAll]);
   // only the latest play of the current song is marked as current
   const curRow = sorted.findIndex((p) => p.track.id === cur);
   // where the sleep note belongs: before the first play that happened after the sleep began
@@ -120,7 +123,7 @@ export default function Home() {
         <div className="log-grid">
           <section aria-label="Listening log">
             {groups.map((g) => (
-              <div key={g.label} style={{ marginBottom: 24 }}>
+              <div key={g.label} className="log-group">
                 <h2 className="log-day">{g.label}</h2>
                 {g.rows.map(({ p, i }) => (
                   <div key={`${p.at}-${i}`}>
@@ -136,12 +139,20 @@ export default function Home() {
                         <div className="clamp1 t">{p.track.title}</div>
                         <div className="clamp1 s">{artistNames(p.track.artists)}</div>
                       </div>
-                      {!p.completed && <span className="muted small">partial</span>}
+                      <span className="end">
+                        {!p.completed && <span className="small">partial</span>}
+                        <Icon name="play" size={14} />
+                      </span>
                     </button>
                   </div>
                 ))}
               </div>
             ))}
+            {sorted.length > LOG_SHOWN && (
+              <button className="btn log-more" onClick={() => setShowAll(!showAll)}>
+                {showAll ? 'Show fewer' : `Show earlier (${sorted.length - LOG_SHOWN})`}
+              </button>
+            )}
           </section>
           {showStats && (
             <aside className="rail" aria-label="This week">
@@ -262,7 +273,7 @@ export default function Home() {
         .greet h1 { font-size: clamp(2.25rem, 4.4vw, 3.5rem); letter-spacing: -.03em; line-height: 1.02; padding-bottom: .05em; }
         .greet .gtext p { margin-top: 8px; max-width: 48ch; }
         .empty-row { display: flex; align-items: center; gap: var(--sp-3); color: var(--muted); }
-        @media (max-width: 700px) { .greet h1 { font-size: 2rem; } .greet .gtext { flex-basis: 100%; } .greet .grow { display: none; } .greet .btn.ghost { padding-left: 0; } }
+        @media (max-width: 700px) { .greet h1 { font-size: 2rem; } .greet .gtext { flex-basis: 100%; } .greet .grow { display: none; } .greet .btn.ghost { padding-inline-start: 0; } }
       `}</style>
     </Bento>
   );
@@ -313,7 +324,7 @@ function QuickPicks({ tracks, personal, loading }: { tracks: Track[]; personal: 
       <style jsx>{`
         .qwrap { grid-column: 1 / -1; }
         .qgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 16px; }
-        .q { position: relative; display: flex; align-items: center; gap: 16px; min-width: 0; width: 100%; height: 72px; padding: 0 16px 0 0; border-radius: var(--r); overflow: hidden; background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); text-align: left; transition: background .15s var(--ease), transform .1s ease-out; }
+        .q { position: relative; display: flex; align-items: center; gap: 16px; min-width: 0; width: 100%; min-height: 72px; padding-block: 0; padding-inline: 0 16px; border-radius: var(--r); overflow: hidden; background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); text-align: start; transition: background .15s var(--ease), transform .1s ease-out; }
         .q:hover { background: var(--card-hover); }
         .q:active { transform: scale(.985); }
         .q :global(.cover) { border-radius: var(--r-sm) 0 0 var(--r-sm); box-shadow: none; }
