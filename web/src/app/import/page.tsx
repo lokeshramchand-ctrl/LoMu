@@ -73,7 +73,7 @@ export default function ImportPage() {
 
   return (
     <>
-      <PageHeader eyebrow="Library" title="Import from Google Takeout" sub="Bring your YouTube and YouTube Music playlists and likes into LoMu without signing in to Google." />
+      <PageHeader  title="Import from Google Takeout" sub="Bring your YouTube and YouTube Music playlists and likes into LoMu without signing in to Google." />
       <div className="stack">
         <section className="card pad">
           <ol className="steps">

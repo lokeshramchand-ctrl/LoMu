@@ -34,14 +34,12 @@ export default function SettingsPage() {
     { id: 'dark', icon: 'moon', label: 'Dark' },
   ];
 
-  const nk = (() => { let i = 0; return () => String(++i).padStart(2, '0'); })();
   return (
     <Bento className="fade-in">
-      <PageHeader eyebrow="Settings" title="Settings" sub="Account, appearance, playback and the things you can turn on or off." />
-        {local && <HubGroup kicker={nk()} />}
-        {!local && <Group kicker={nk()} span={7} title="Account" sub="Your own library, history and recommendations. They sync to your other devices and are never shown to other accounts.">
+      <PageHeader  title="Settings" sub="Account, appearance, playback and the things you can turn on or off." />
+        {local && <HubGroup />}
+        {!local && <Group span={7} title="Account" sub="Your own library, history and recommendations. They sync to your other devices and are never shown to other accounts.">
           <Row
-            icon="user"
             label={user ? `Signed in as ${user}` : 'Not signed in'}
             hint={`Sync: ${sync === 'live' ? 'up to date' : sync}${lastSync ? ` · ${new Date(lastSync).toLocaleTimeString()}` : ''}`}
           >
@@ -52,39 +50,39 @@ export default function SettingsPage() {
           <PasswordRow />
         </Group>}
 
-        <Group kicker={nk()} span={5} title="Appearance">
-          <Row icon="sun" label="Interface theme" hint="Select or customise your interface colour scheme.">
+        <Group span={5} title="Appearance">
+          <Row label="Interface theme" hint="Select or customise your interface colour scheme.">
             <div style={{ width: 168 }}><ThemeSelect /></div>
           </Row>
         </Group>
 
-        {!local && admin && <AccountsGroup kicker={nk()} />}
+        {!local && admin && <AccountsGroup />}
 
-        <Group kicker={nk()} span={6} tall title="Home" sub="Pick what the home page shows. The Customise button on Home does the same.">
+        <Group span={6} tall title="Home" sub="Pick what the home page shows. The Customise button on Home does the same.">
           {HOME_SECTIONS.map((s) => (
             <HomeToggle key={s.id} id={s.id} label={s.label} hint={s.hint} />
           ))}
         </Group>
 
-        <Group kicker={nk()} span={6} title="Playback">
-          <Row icon="radio" label="Autoplay" hint="When the queue ends, keep going with songs picked for you.">
+        <Group span={6} title="Playback">
+          <Row label="Autoplay" hint="When the queue ends, keep going with songs picked for you.">
             <Switch on={autoplay} label="Autoplay" onChange={(v) => usePlayer.setState({ autoplay: v })} />
           </Row>
-          <Row icon="waveform" label="Audio quality" hint="Always the best stream YouTube offers without Premium: Opus around 160 kbps, AAC as a fallback.">
+          <Row label="Audio quality" hint="Always the best stream YouTube offers without Premium: Opus around 160 kbps, AAC as a fallback.">
             <span className="badge">Best</span>
           </Row>
         </Group>
 
-        <Group kicker={nk()} span={6} title="Library">
-          <Row icon="download" label="Export library" hint="Download your likes, playlists, saved albums, artists and history as a JSON file.">
+        <Group span={6} title="Library">
+          <Row label="Export library" hint="Download your likes, playlists, saved albums, artists and history as a JSON file.">
             <button className="btn" onClick={exportLibrary}>
               Export
             </button>
           </Row>
-          <Row icon="download" label="Import from Google Takeout" hint="Bring in your YouTube Music playlists and likes from a Takeout export.">
+          <Row label="Import from Google Takeout" hint="Bring in your YouTube Music playlists and likes from a Takeout export.">
             <Link href="/import" className="btn">Import</Link>
           </Row>
-          <Row icon="history" label="Clear listening history" hint="Recommendations start learning again from scratch.">
+          <Row label="Clear listening history" hint="Recommendations start learning again from scratch.">
             {confirmClear ? (
               <span className="row" style={{ gap: 8 }}>
                 <button className="btn sm" onClick={() => setConfirmClear(false)}>
@@ -109,19 +107,19 @@ export default function SettingsPage() {
           </Row>
         </Group>
 
-        <Group kicker={nk()} span={6} title="Developer">
-          <Row icon="compass" label="Explore" hint="Show the Explore tab (charts, new releases, moods).">
+        <Group span={6} title="Developer">
+          <Row label="Explore" hint="Show the Explore tab (charts, new releases, moods).">
             <Switch on={dev.explore} label="Explore" onChange={(v) => setDev('explore', v)} />
           </Row>
-          <Row icon="user" label="Artist enrichment" hint="Sharper artist photos, banners and bios from TheAudioDB and Wikipedia.">
+          <Row label="Artist enrichment" hint="Sharper artist photos, banners and bios from TheAudioDB and Wikipedia.">
             <Switch on={dev.artistEnrichment} label="Artist enrichment" onChange={(v) => setDev('artistEnrichment', v)} />
           </Row>
-          <Row icon="info" label="Stream info" hint="Show codec, bitrate and source client in the player.">
+          <Row label="Stream info" hint="Show codec, bitrate and source client in the player.">
             <Switch on={dev.streamInfo} label="Stream info" onChange={(v) => setDev('streamInfo', v)} />
           </Row>
         </Group>
-        <Group kicker={nk()} span={6} title="About">
-          <Row icon="info" label="LoMu web player" hint={`Connected to ${typeof window !== 'undefined' ? window.location.host : 'this server'}. Press / anywhere to search and Esc to close the full player.`}>
+        <Group span={6} title="About">
+          <Row label="LoMu web player" hint={`Connected to ${typeof window !== 'undefined' ? window.location.host : 'this server'}. Press / anywhere to search and Esc to close the full player.`}>
             <span className="badge">v1.0</span>
           </Row>
         </Group>
@@ -132,7 +130,7 @@ export default function SettingsPage() {
 type Hub = { local: boolean; url: string | null; user: string | null; state: 'off' | 'syncing' | 'online' | 'offline' | 'error'; lastSync: number | null; pending: number; error: string | null; lan: string | null; route: 'direct' | 'lan' | null };
 
 /** Desktop app: connection to the home server that keeps this PC, the phone and the browser in step. */
-function HubGroup({ kicker }: { kicker: string }) {
+function HubGroup() {
   const [hub, setHub] = useState<Hub | null>(null);
   const [url, setUrl] = useState('https://lomu.example.com');
   const [u, setU] = useState('');
@@ -171,8 +169,8 @@ function HubGroup({ kicker }: { kicker: string }) {
         : `${hub!.user} on ${new URL(hub!.url!).host}${hub!.lastSync ? ` · last sync ${new Date(hub!.lastSync).toLocaleTimeString()}` : ''}${hub!.pending ? ` · ${hub!.pending} waiting` : ''}${hub!.route === 'lan' ? ' · via home network' : ''}`;
 
   return (
-    <Group kicker={kicker} span={7} title="Home server" sub="Your library lives on this PC. The home server only keeps your devices in step, so a power cut there never stops the music.">
-      <Row icon="user" label={label} hint={hint}>
+    <Group span={7} title="Home server" sub="Your library lives on this PC. The home server only keeps your devices in step, so a power cut there never stops the music.">
+      <Row label={label} hint={hint}>
         {connected && (
           <span className="row" style={{ gap: 8 }}>
             <button className="btn sm" disabled={busy} onClick={() => call('POST', { action: 'sync' })}>Sync now</button>
@@ -225,9 +223,9 @@ function HomeToggle({ id, label, hint }: { id: (typeof HOME_SECTIONS)[number]['i
   );
 }
 
-function Group({ title, sub, kicker, span = 6, tall, children }: { title: string; sub?: string; kicker?: string; span?: number; tall?: boolean; children: React.ReactNode }) {
+function Group({ title, sub, span = 6, tall, children }: { title: string; sub?: string; span?: number; tall?: boolean; children: React.ReactNode }) {
   return (
-    <Tile span={span} md={12} flush tone="card" className={tall ? 'rs2' : undefined} kicker={kicker} title={title} sub={sub} label={title}>
+    <Tile span={span} md={12} flush tone="card" className={tall ? 'rs2' : undefined} title={title} sub={sub} label={title}>
       <div className="grp">{children}</div>
       <style jsx>{`
         .grp { border-top: 1px solid var(--border); }
@@ -236,12 +234,9 @@ function Group({ title, sub, kicker, span = 6, tall, children }: { title: string
   );
 }
 
-function Row({ icon, label, hint, children }: { icon: IconName; label: string; hint?: string; children: React.ReactNode }) {
+function Row({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="r">
-      <span className="chip-ic">
-        <Icon name={icon} size={16} />
-      </span>
       <div className="grow">
         <div className="l">{label}</div>
         {hint && <div className="h">{hint}</div>}
@@ -295,7 +290,7 @@ function PasswordRow() {
   };
   return (
     <>
-      <Row icon="user" label="Password" hint="Changing it signs out every other device.">
+      <Row label="Password" hint="Changing it signs out every other device.">
         <button className="btn" onClick={() => setOpen((o) => !o)}>{open ? 'Cancel' : 'Change'}</button>
       </Row>
       {open && (
@@ -320,7 +315,7 @@ function PasswordRow() {
 type Acct = { id: number; username: string; role: 'admin' | 'user'; disabled: boolean; created: number; devices: number };
 
 /** Admin only: add, pause and remove accounts. Each account has its own library, history and recommendations. */
-function AccountsGroup({ kicker }: { kicker: string }) {
+function AccountsGroup() {
   const me = useAuth((s) => s.user);
   const [users, setUsers] = useState<Acct[]>([]);
   const [max, setMax] = useState(4);
@@ -347,9 +342,9 @@ function AccountsGroup({ kicker }: { kicker: string }) {
 
   const full = users.length >= max;
   return (
-    <Group kicker={kicker} span={12} title="Accounts" sub={`${users.length} of ${max} accounts. Everyone gets their own library, history and recommendations; nothing is shared.`}>
+    <Group span={12} title="Accounts" sub={`${users.length} of ${max} accounts. Everyone gets their own library, history and recommendations; nothing is shared.`}>
       {users.map((a) => (
-        <Row key={a.id} icon="user" label={`${a.username}${a.username === me ? ' (you)' : ''}${a.role === 'admin' ? ' · admin' : ''}${a.disabled ? ' · paused' : ''}`} hint={`${a.devices} signed-in ${a.devices === 1 ? 'device' : 'devices'} · since ${new Date(a.created).toLocaleDateString()}`}>
+        <Row key={a.id} label={`${a.username}${a.username === me ? ' (you)' : ''}${a.role === 'admin' ? ' · admin' : ''}${a.disabled ? ' · paused' : ''}`} hint={`${a.devices} signed-in ${a.devices === 1 ? 'device' : 'devices'} · since ${new Date(a.created).toLocaleDateString()}`}>
           {a.username !== me && (
             <span className="row" style={{ gap: 8 }}>
               <button className="btn sm" disabled={busy} onClick={() => call('PATCH', { id: a.id, disabled: !a.disabled })}>{a.disabled ? 'Resume' : 'Pause'}</button>
