@@ -161,7 +161,7 @@ export function Sidebar() {
         {tabs.map((t) => {
           const on = isActive(path, t.href);
           return (
-            <Link key={t.href} href={t.href} className={`link${on ? ' active' : ''}`} title={t.label}>
+            <Link key={t.href} href={t.href} className={`link${on ? ' active' : ''}`} title={t.label} aria-current={on ? 'page' : undefined}>
               <Icon name={on ? t.active : t.icon} size={24} />
               <span className="lbl">{t.label}</span>
             </Link>
@@ -192,7 +192,7 @@ export function Sidebar() {
           {shown.map((it) => {
             const on = it.key === 'liked' ? path === '/library' : path === it.href;
             return (
-              <Link key={it.key} href={it.href} className={`item${on ? ' on' : ''}`} title={it.title}>
+              <Link key={it.key} href={it.href} className={`item${on ? ' on' : ''}`} title={it.title} aria-current={on ? 'page' : undefined}>
                 <LibArt it={it} size={48} />
                 <div className="tx hide-mini">
                   <div className="t clamp1">{it.title}</div>
@@ -337,7 +337,7 @@ export function MobileTabs() {
       {tabs.map((t) => {
         const on = isActive(path, t.href);
         return (
-          <Link key={t.href} href={t.href} className={on ? 'on' : ''} aria-label={t.label}>
+          <Link key={t.href} href={t.href} className={on ? 'on' : ''} aria-label={t.label} aria-current={on ? 'page' : undefined}>
             <Icon name={on ? t.active : t.icon} size={24} />
             <span>{t.label}</span>
           </Link>
