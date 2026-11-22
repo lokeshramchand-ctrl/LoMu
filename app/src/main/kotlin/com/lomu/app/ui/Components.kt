@@ -372,7 +372,7 @@ fun MediaRow(
                 Text(title, style = LoType.body, color = if (active) lo.signal else lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (showLine && line.isNotBlank()) Text(line, style = LoType.small, color = lo.grey, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            if (trailing != null) Text(trailing, style = LoType.small, color = lo.grey, modifier = Modifier.padding(start = 10.dp))
+            if (trailing != null) Text(trailing, style = LoType.small.copy(fontSize = 14.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium, letterSpacing = 0.sp), color = lo.ink, modifier = Modifier.padding(start = 10.dp))
         }
         if (separator && !flat) Hairline(inset)
     }
