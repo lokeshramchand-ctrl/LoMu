@@ -49,6 +49,13 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.blur.HazeColorEffect
+import dev.chrisbanes.haze.blur.hazeBlur
+import dev.chrisbanes.haze.blur.HazeBlurStyle
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.composed
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -477,9 +484,20 @@ fun Avatar(initial: String, onClick: () -> Unit, size: Dp = 36.dp) {
 }
 
 /** Floating glass surface used by the mini player and the tab bar. */
-fun Modifier.glass(shape: Shape, lo: Lo): Modifier =
-    shadow(14.dp, shape, clip = false, ambientColor = Color.Black.copy(alpha = 0.25f), spotColor = Color.Black.copy(alpha = 0.25f))
-        .background(lo.card, shape).border(0.5.dp, lo.line.copy(alpha = 0.8f), shape)
+fun Modifier.glass(shape: Shape, lo: Lo): Modifier = composed {
+    val haze = LocalHaze.current
+    val base = shadow(14.dp, shape, clip = false, ambientColor = Color.Black.copy(alpha = 0.25f), spotColor = Color.Black.copy(alpha = 0.25f))
+    // Real material: the page behind is blurred and tinted with the card colour. Without a haze state (or before Android 12) it is the plain card.
+    (if (haze != null) base.clip(shape).hazeBlur(dev.chrisbanes.haze.HazeInput.Sources(haze), HazeBlurStyle {
+        blurRadius(28.dp)
+        backgroundColor(lo.card)
+        colorEffects(listOf(HazeColorEffect.tint(lo.card.copy(alpha = 0.62f))))
+    }) else base.background(lo.card, shape))
+        .border(0.5.dp, lo.line.copy(alpha = 0.8f), shape)
+}
+
+/** The blurred-page state shared by the screens (source) and the floating bars (effect). */
+val LocalHaze = staticCompositionLocalOf<HazeState?> { null }
 
 /** iOS segmented control: a grey track with a raised white (or lifted grey) thumb under the selection. */
 @Composable
