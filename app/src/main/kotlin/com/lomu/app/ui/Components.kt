@@ -50,9 +50,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.blur.HazeColorEffect
-import dev.chrisbanes.haze.blur.hazeBlur
-import dev.chrisbanes.haze.blur.HazeBlurStyle
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
@@ -488,11 +487,11 @@ fun Modifier.glass(shape: Shape, lo: Lo): Modifier = composed {
     val haze = LocalHaze.current
     val base = shadow(14.dp, shape, clip = false, ambientColor = Color.Black.copy(alpha = 0.25f), spotColor = Color.Black.copy(alpha = 0.25f))
     // Real material: the page behind is blurred and tinted with the card colour. Without a haze state (or before Android 12) it is the plain card.
-    (if (haze != null) base.clip(shape).hazeBlur(dev.chrisbanes.haze.HazeInput.Sources(haze), HazeBlurStyle {
-        blurRadius(28.dp)
-        backgroundColor(lo.card)
-        colorEffects(listOf(HazeColorEffect.tint(lo.card.copy(alpha = 0.62f))))
-    }) else base.background(lo.card, shape))
+    (if (haze != null) base.clip(shape).hazeEffect(haze) {
+        blurRadius = 28.dp
+        backgroundColor = lo.card
+        tints = listOf(HazeTint(lo.card.copy(alpha = 0.62f)))
+    } else base.background(lo.card, shape))
         .border(0.5.dp, lo.line.copy(alpha = 0.8f), shape)
 }
 
