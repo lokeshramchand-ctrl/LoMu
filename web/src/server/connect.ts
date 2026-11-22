@@ -1,7 +1,7 @@
 import 'server-only';
 
 /* "Connect": the devices signed in to this account, what each one is playing, and a relay for
-   remote-control commands (the Spotify Connect idea, for a single-owner server).
+   remote-control commands (for a single-owner server).
 
    A device is present while it holds an open server-sent-events connection (/api/connect/events);
    it reports its player state with POST /api/connect/state, and any device can send a command to

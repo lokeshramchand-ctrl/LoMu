@@ -60,7 +60,7 @@ export function Sheet({
         .scrim { position: absolute; inset: 0; background: var(--scrim); animation: fade .25s var(--ease) both; }
         .sheet { position: absolute; top: 0; right: 0; bottom: 0; width: min(460px, 100%); display: flex; flex-direction: column; background: var(--card-hover); box-shadow: var(--shadow-lg); animation: slide .4s var(--ease-out) both; }
         header { display: flex; align-items: flex-start; gap: 12px; padding: 22px 22px 16px; }
-        h2 { font-size: 24px; font-weight: 700; margin-top: 2px; }
+        h2 { font-size: 1.75rem; font-weight: 400; margin-top: 2px; }
         header p { margin-top: 6px; font-size: 13px; }
         .body { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 8px 22px 22px; }
         footer { padding: 14px 22px; display: flex; gap: 10px; justify-content: flex-end; }
@@ -87,14 +87,14 @@ export function Toggle({ on, onChange, label, hint }: { on: boolean; onChange: (
         <i />
       </button>
       <style jsx>{`
-        .tg { display: flex; align-items: center; gap: var(--sp-4); padding: var(--sp-3) 0; border-bottom: 1px solid rgba(255, 255, 255, .08); }
+        .tg { display: flex; align-items: center; gap: var(--sp-4); padding: var(--sp-3) 0; border-bottom: 1px solid var(--border); }
         .tg:last-child { border-bottom: 0; }
         .l { font-weight: 500; font-size: 14px; }
         .h { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
-                .sw { width: 40px; height: 24px; border-radius: 999px; background: #71717a; position: relative; flex: none; transition: background .2s var(--ease); }
-                .sw i { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #09090b; transition: transform .2s var(--ease); }
+                .sw { width: 40px; height: 24px; border-radius: 999px; background: var(--border-2); position: relative; flex: none; transition: background .2s var(--ease); }
+                .sw i { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--ink); transition: transform .2s var(--ease); }
                 .sw.on { background: var(--signal); }
-                .sw.on i { transform: translateX(16px); background: #09090b; }
+                .sw.on i { transform: translateX(16px); background: var(--on-signal); }
       `}</style>
     </div>
   );

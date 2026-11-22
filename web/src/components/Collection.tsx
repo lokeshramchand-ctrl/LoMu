@@ -7,7 +7,6 @@ import { Cover } from './Art';
 import { Icon } from './Icon';
 import { Bento, Tile } from './Bento';
 import { TrackRow } from './Cards';
-import { useTint } from '@/lib/tint';
 
 /** Shared header + tracklist for albums and playlists. */
 export function Collection({
@@ -44,7 +43,6 @@ export function Collection({
   extra?: React.ReactNode;
 }) {
   const [more, setMore] = useState(false);
-  useTint(thumb ?? tracks[0]?.thumb);
   const rows: [string, React.ReactNode][] = [
     ['Type', kind],
     ['Songs', tracks.length],
