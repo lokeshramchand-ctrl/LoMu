@@ -41,6 +41,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import com.lomu.app.constants.PlaylistSortType
 import com.lomu.app.utils.rememberPreference
 import com.lomu.app.constants.SongSortType
@@ -104,12 +106,12 @@ private fun FeatureCard(thumb: String?, title: String, line: String, onClick: ()
         AsyncImage(model = thumb, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xD9000000))))
-                .padding(start = 14.dp, end = 14.dp, top = 56.dp, bottom = 16.dp),
+                .background(Brush.verticalGradient(0f to Color.Transparent, 0.35f to Color(0x99000000), 1f to Color(0xEB000000)))
+                .padding(start = 14.dp, end = 14.dp, top = 84.dp, bottom = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(title, style = LoType.sub.copy(fontWeight = FontWeight.SemiBold), color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(line, style = LoType.small, color = Color(0xCCFFFFFF), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(line, style = LoType.small, color = Color(0xE6FFFFFF), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -776,7 +778,7 @@ private fun CellField(value: String, onChange: (String) -> Unit, hint: String, p
             value = value, onValueChange = onChange, singleLine = true,
             textStyle = LoType.body.copy(color = lo.ink), cursorBrush = SolidColor(lo.signal),
             visualTransformation = if (password) androidx.compose.ui.text.input.PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = hint },
             decorationBox = { inner ->
                 if (value.isEmpty()) Text(hint, style = LoType.body, color = lo.grey)
                 inner()

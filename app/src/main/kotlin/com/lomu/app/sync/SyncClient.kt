@@ -285,7 +285,7 @@ class SyncClient @Inject constructor(
             learnLan()
             _state.value = _state.value.copy(busy = false, user = user, status = "Signed in")
         } catch (e: Exception) {
-            _state.value = _state.value.copy(busy = false, error = "Can't reach the server: ${e.message}")
+            _state.value = _state.value.copy(busy = false, error = friendlyError(e))
         }
     }
 
@@ -317,7 +317,7 @@ class SyncClient @Inject constructor(
                 }
                 _state.value = _state.value.copy(status = "Up to date · ${java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date())}", error = null)
             } catch (e: Exception) {
-                _state.value = _state.value.copy(status = "Sync failed", error = e.message)
+                _state.value = _state.value.copy(status = "Sync failed", error = friendlyError(e))
             }
         }
     }
@@ -773,4 +773,19 @@ class SyncClient @Inject constructor(
             album = t.optJSONObject("album")?.let { al -> al.optString("id").takeIf { it.isNotBlank() && it != "null" }?.let { MediaMetadata.Album(it, al.getString("name")) } },
         )
     }.getOrNull()
+}
+
+
+/** A message a person can act on, instead of the raw exception text (HTML error pages, TLS internals, stack-style messages). */
+fun friendlyError(e: Throwable?): String {
+    val raw = e?.message.orEmpty()
+    return when {
+        e is java.net.UnknownHostException -> "Can't find the server. Check your connection."
+        e is java.net.SocketTimeoutException || raw.contains("timeout", ignoreCase = true) -> "The server took too long to answer. Try again in a moment."
+        e is javax.net.ssl.SSLException || raw.contains("SSL", ignoreCase = true) -> "Couldn't make a secure connection to the server. Try again in a moment."
+        e is java.io.IOException -> "Can't reach the server. Check your connection."
+        raw.contains("<html", ignoreCase = true) || raw.contains("JSONObject") || raw.contains("JSONArray") -> "The server isn't answering properly right now. Try again in a moment."
+        raw.isBlank() -> "Something went wrong. Try again."
+        else -> raw.take(140)
+    }
 }

@@ -29,7 +29,7 @@ sealed interface Load<out T> {
 fun <T> load(key: Any?, block: suspend () -> Result<T>): State<Load<T>> =
     produceState<Load<T>>(Load.Loading, key) {
         value = Load.Loading
-        value = block().fold({ Load.Ok(it) }, { Load.Err(it.message ?: "Something went wrong") })
+        value = block().fold({ Load.Ok(it) }, { Load.Err(com.lomu.app.sync.friendlyError(it)) })
     }
 
 val LocalPlayer = staticCompositionLocalOf<PlayerConnection?> { null }
