@@ -95,14 +95,13 @@ fun HomeScreen() {
 
     val likedMeta = remember(liked) { liked.take(24).map { it.toMediaMetadata() } }
     val onRepeat = recs.firstOrNull { it.title.contains("repeat", true) }?.tracks ?: likedMeta.take(12)
-    // Everything that is not "On Repeat", flattened and de-duplicated: the feature card, the fresh-pick line and the pastel tiles come from here.
+    // Everything that is not "On Repeat", flattened and de-duplicated: the feature card and the pastel tiles come from here.
     val picks = remember(recs, likedMeta) {
         val fromRecs = recs.filter { !it.title.contains("repeat", true) }.flatMap { it.tracks }.distinctBy { it.id }
         if (fromRecs.size >= 3) fromRecs else (fromRecs + likedMeta).distinctBy { it.id }
     }
     val feature = picks.firstOrNull()
-    val fresh = picks.getOrNull(1)
-    val tiles = picks.drop(2).take(4)
+    val tiles = picks.drop(1).take(4)
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = bottomPad())) {
         item {
@@ -136,23 +135,17 @@ fun HomeScreen() {
                 Text("Dismiss", style = LoType.small, color = lo.grey, modifier = Modifier.padding(start = 20.dp, bottom = 4.dp).pressable { sync?.dismissRemoteQueue() })
             }
         }
-        if (fresh != null) item {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp).pressable(RoundedCornerShape(16.dp)) { player?.playRadio(fresh) }, verticalAlignment = Alignment.CenterVertically) {
-                Cover(fresh.thumbnailUrl, 52.dp, round = true)
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("Fresh pick", style = LoType.small.copy(fontSize = 14.sp), color = lo.grey)
-                    Text(fresh.title, style = LoType.body.copy(fontWeight = FontWeight.SemiBold), color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-            }
-        }
         if (feature != null) item { FeatureCard(feature) }
         if (onRepeat.isNotEmpty()) item {
             Column(Modifier.appear(2)) {
-                SoundSection("On Repeat")
+                Row(Modifier.fillMaxWidth().pressable(RoundedCornerShape(0.dp)) { MixStore.title = "On Repeat"; MixStore.tracks = onRepeat; nav.push(Screen.Mix) }, verticalAlignment = Alignment.CenterVertically) {
+                    SoundSection("On Repeat")
+                    Ic(Ph.Right, 18.dp, lo.grey)
+                }
                 LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(onRepeat.take(12), key = { it.id }) { m ->
-                        Column(Modifier.width(92.dp).pressable(RoundedCornerShape(4.dp)) { player?.playRadio(m) }) {
+                        val at = onRepeat.indexOf(m)
+                        Column(Modifier.width(92.dp).pressable(RoundedCornerShape(4.dp)) { player?.playMediaItems("On Repeat", onRepeat.map { it.toMediaItem() }, at) }) {
                             Cover(m.thumbnailUrl, 92.dp, radius = 18.dp)
                             Text(m.title, style = LoType.small.copy(fontSize = 13.sp), color = lo.ink, fontWeight = if (now == m.id) FontWeight.Bold else FontWeight.Normal, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp))
                         }
