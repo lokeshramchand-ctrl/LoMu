@@ -114,7 +114,7 @@ export default function Library() {
           </Tile>
           <Tile span={12} flush label="Liked songs">
             {likedAll.length === 0 && <EmptyState title="No liked songs yet" hint="Tap the heart on any song and it lands here." />}
-            {likedAll.length > 0 && likedTracks.length === 0 && <EmptyState title="No matches" hint={`Nothing in your liked songs matches “${filter}”.`} />}
+            {likedAll.length > 0 && likedTracks.length === 0 && <EmptyState title="No matches" hint={`Nothing in your liked songs matches "${filter}".`} />}
             <div className="list">
               {likedTracks.map((t, i) => (
                 <TrackRow key={t.id} track={t} index={i} list={likedTracks} />
@@ -193,7 +193,7 @@ export default function Library() {
 
       {tab === 'history' && (
         <Tile span={12} flush title="History" sub={`${historyTracks.length} plays`} label="History">
-          {historyTracks.length === 0 && <EmptyState title={q ? 'No matches' : 'Nothing played yet'} hint={q ? `Nothing in your history matches “${filter}”.` : 'Songs you play will appear here.'} />}
+          {historyTracks.length === 0 && <EmptyState title={q ? 'No matches' : 'Nothing played yet'} hint={q ? `Nothing in your history matches "${filter}".` : 'Songs you play will appear here.'} />}
           <div className="list">
             {historyTracks.map((t, i) => (
               <TrackRow key={`${t.id}-${i}`} track={t} index={i} list={historyTracks} />

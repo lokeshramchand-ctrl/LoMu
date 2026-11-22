@@ -11,7 +11,7 @@ const serif = Instrument_Serif({ subsets: ['latin'], weight: '400', variable: '-
 
 export const metadata: Metadata = {
   title: { default: 'LoMu', template: '%s · LoMu' },
-  description: 'LoMu: a listening log for your music, on every device.',
+  description: 'LoMu is a listening log for your music on every device.',
   applicationName: 'LoMu',
   manifest: '/manifest.webmanifest',
   icons: { icon: [{ url: '/favicon-48.png', sizes: '48x48' }, { url: '/icon-192.png', sizes: '192x192' }], apple: '/apple-icon.png' },

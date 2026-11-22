@@ -334,7 +334,8 @@ button.tile.clickable:hover, a.tile.tone-card:hover, a.tile.tone-glow:hover { ba
 .tile.clickable { text-align: start; cursor: pointer; font: inherit; color: inherit; }
 div.big { display: flex; align-items: baseline; gap: var(--sp-2); min-width: 0; }
 .big .n { font-family: var(--font-display); font-size: 2.5rem; letter-spacing: -.02em; line-height: 1.05; color: var(--ink); }
-.big .n.sm { font-size: 1.5rem; }
+.big.lead .n { font-size: clamp(3rem, 6vw, 4.5rem); }
+.big.compact .n { font-size: 1.75rem; }
 .big .u { color: var(--muted); font-size: .875rem; }
 .tile .foot { display: flex; align-items: center; gap: var(--sp-3); font-size: .75rem; margin-top: auto; }
 .tile.bar-tile { padding: 0; }
@@ -385,4 +386,7 @@ main:focus { outline: none; }
 .num, .log-row time, .facts dd { direction: ltr; unicode-bidi: isolate; }
 :dir(rtl) .facts dd { text-align: left; }
 :dir(rtl) .log-row time { text-align: right; }
-.tile.stat { align-self: stretch; }
+
+/* supporting figures: smaller, unframed, so one figure leads the page */
+.tile.stat { gap: var(--sp-2); }
+.tile.stat .tile-t h2 { font-family: var(--font-text); font-size: .875rem; font-weight: 500; letter-spacing: 0; color: var(--muted); }

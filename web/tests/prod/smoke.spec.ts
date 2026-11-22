@@ -15,10 +15,10 @@ function watch(page: Page) {
 async function login(page: Page) {
   await page.addInitScript(() => localStorage.setItem('lomu-welcomed', '1'));
   await page.goto('/');
-  await page.getByPlaceholder('Username').fill(USER, { timeout: 45_000 });
-  await page.getByPlaceholder('Password').fill(PASS);
+  await page.getByLabel('Username', { exact: true }).fill(USER, { timeout: 45_000 });
+  await page.getByLabel('Password', { exact: true }).fill(PASS);
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page.getByPlaceholder('Username')).toBeHidden({ timeout: 20_000 });
+  await expect(page.getByLabel('Username', { exact: true })).toBeHidden({ timeout: 20_000 });
 }
 
 test('walk every page, play, like, playlist, lyrics, queue', async ({ page }) => {
