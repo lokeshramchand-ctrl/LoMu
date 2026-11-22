@@ -1,3 +1,4 @@
+import { readJson } from '@/server/body';
 import { createOwner, issueTokens, setAuthCookies } from '@/server/auth';
 import { clientIp, limiter } from '@/server/ratelimit';
 
@@ -8,7 +9,7 @@ export async function POST(req: Request) {
   const wait = attempts.blocked(ip);
   if (wait) return Response.json({ error: 'too many attempts, try later' }, { status: 429, headers: { 'retry-after': String(wait) } });
   try {
-    const { username, password, code } = await req.json();
+    const { username, password, code } = await readJson(req);
     // Optional first-run guard: if LOMU_SETUP_CODE is set, only someone who knows it can claim the account.
     const need = process.env.LOMU_SETUP_CODE;
     if (need && String(code ?? '') !== need) {

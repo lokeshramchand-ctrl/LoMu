@@ -1,4 +1,4 @@
-import { requireUser } from '@/server/auth';
+import { getUser, requireUser } from '@/server/auth';
 import { currentSeq, onChange } from '@/server/sync';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +21,20 @@ export async function GET(req: Request) {
       };
       send(`event: seq\ndata: ${currentSeq(user.id)}\n\n`);
       off = onChange(user.id, (seq) => send(`event: seq\ndata: ${seq}\n\n`));
-      ping = setInterval(() => send(': ping\n\n'), 25_000);
+      ping = setInterval(() => {
+        // A paused or deleted account must not keep a live stream open.
+        if (user.username && !getUser(user.id)) {
+          off();
+          clearInterval(ping);
+          try {
+            c.close();
+          } catch {
+            /* already closed */
+          }
+          return;
+        }
+        send(': ping\n\n');
+      }, Number(process.env.LOMU_PING_MS) || 25_000);
       req.signal.addEventListener('abort', () => {
         off();
         clearInterval(ping);

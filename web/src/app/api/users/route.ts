@@ -1,3 +1,4 @@
+import { readJson } from '@/server/body';
 import { createUser, deleteUser, listUsers, maxUsers, requireAdmin, setDisabled, setPassword } from '@/server/auth';
 import { revokeDevices } from '@/server/connect';
 
@@ -16,7 +17,7 @@ export async function POST(req: Request) {
   const me = await requireAdmin();
   if (me instanceof Response) return me;
   try {
-    const { username, password } = await req.json();
+    const { username, password } = await readJson(req);
     const u = createUser(String(username ?? ''), String(password ?? ''));
     return Response.json({ user: u });
   } catch (e) {
@@ -29,7 +30,7 @@ export async function PATCH(req: Request) {
   const me = await requireAdmin();
   if (me instanceof Response) return me;
   try {
-    const b = await req.json();
+    const b = await readJson(req);
     const id = Number(b?.id);
     if (!Number.isInteger(id)) throw new Error('id required');
     if (typeof b.password === 'string') setPassword(id, b.password);
