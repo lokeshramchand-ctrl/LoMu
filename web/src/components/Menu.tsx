@@ -157,7 +157,7 @@ export function TrackMenuHost() {
         .namebox input { flex: 1; min-width: 0; height: 28px; padding: 0 8px; border-radius: 4px; border: 1px solid var(--border-2); background: var(--surface); color: var(--text); font: inherit; font-size: 13px; }
         .namebox input:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
         .namebox input:focus { border-color: var(--signal); }
-        .namebox button { height: 28px; padding: 0 10px; border-radius: 4px; border: 0; background: var(--signal); color: #fff; font: inherit; font-size: 13px; cursor: pointer; }
+        .namebox button { height: 28px; padding: 0 10px; border-radius: 4px; border: 0; background: var(--signal); color: #f4f4f5; font: inherit; font-size: 13px; cursor: pointer; }
         .namebox button:disabled { opacity: .4; cursor: not-allowed; }
       `}</style>
     </div>

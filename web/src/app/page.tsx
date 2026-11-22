@@ -54,7 +54,7 @@ export default function Home() {
   const trending = explore.data?.trending ?? [];
   const hasArtists = home.artists && artists.length > 0;
   const hasMoods = home.moods && (explore.data?.moods?.length ?? 0) > 0;
-  useTint(undefined, '#3b3b5c');
+  useTint(undefined, '#3a3a46');
 
   const artistShelf: Shelf = {
     title: 'Your artists',
@@ -65,10 +65,13 @@ export default function Home() {
   return (
     <Bento className="fade-in">
       <header className="greet">
-        <h1>
-          {g1} {g2}
-          {user ? <span className="muted">, {user}</span> : null}
-        </h1>
+        <div className="gtext">
+          <h1>
+            {g1} {g2}
+            {user ? <span className="muted">, {user}</span> : null}
+          </h1>
+          <p className="muted">{personal ? 'Pick up where you left off, or start a mix.' : 'Play a few songs and LoMu starts learning your taste.'}</p>
+        </div>
         <div className="grow" />
         <button className="btn primary" onClick={playMix} disabled={!mixTracks.length && !recent.length}>
           <Icon name="play" size={12} /> {mixTracks.length ? 'Play my mix' : 'Play recent'}
@@ -85,7 +88,7 @@ export default function Home() {
 
       {showStats && (
         <>
-          <Tile span={4} md={12} tone="card" title="Listened this week" sub="Last 7 days" label="Listened this week">
+          <Tile span={6} md={12} tone="accent" title="Listened this week" sub="Last 7 days" label="Listened this week">
             <div className="big">
               <span className="n">{m.value}</span>
               {m.unit && <span className="u">{m.unit}</span>}
@@ -96,14 +99,14 @@ export default function Home() {
               <SparkBars values={stats.daily} label="Minutes per day this week" />
             </div>
           </Tile>
-          <Tile span={4} md={6} sm={6} tone="card" title="Streak" label="Listening streak">
+          <Tile span={3} md={6} sm={6} tone="card" title="Streak" label="Listening streak">
             <div className="big">
               <span className="n">{stats.streak}</span>
               <span className="u">{stats.streak === 1 ? 'day' : 'days'}</span>
             </div>
             <div className="muted small">{stats.streak ? 'Keep it going' : 'Play something today'}</div>
           </Tile>
-          <Tile span={4} md={6} sm={6} tone="card" title="Top artist" label="Top artist">
+          <Tile span={3} md={6} sm={6} tone="card" title="Top artist" label="Top artist">
             <div className="big">
               <span className="n clamp1 sm">{stats.topArtist?.name ?? '-'}</span>
             </div>
@@ -213,15 +216,16 @@ export default function Home() {
       </Sheet>
 
       <style jsx global>{`
-        .greet { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 8px; }
-        .greet h1 { font-size: 32px; font-weight: 900; letter-spacing: -.02em; }
+        .greet { grid-column: 1 / -1; display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; padding: 16px 0 8px; }
+        .greet h1 { font-size: clamp(32px, 4.6vw, 56px); font-weight: 600; letter-spacing: -.04em; line-height: 1.05; padding-bottom: .05em; }
+        .greet .gtext p { margin-top: 8px; font-size: 15px; max-width: 48ch; }
         .big { display: flex; align-items: baseline; gap: var(--sp-2); min-width: 0; }
-        .big .n { font-size: 32px; font-weight: 900; letter-spacing: -.03em; line-height: 1.1; color: var(--ink); }
+        .big .n { font-size: 32px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; color: var(--ink); }
         .big .n.sm { font-size: 22px; }
         .big .u { color: var(--muted); font-size: 14px; }
         .tile .foot { display: flex; align-items: center; gap: var(--sp-3); font-size: 12px; margin-top: auto; }
         .empty-row { display: flex; align-items: center; gap: var(--sp-3); color: var(--muted); }
-        @media (max-width: 700px) { .greet h1 { font-size: 24px; } }
+        @media (max-width: 700px) { .greet h1 { font-size: 30px; } }
       `}</style>
     </Bento>
   );
@@ -250,7 +254,7 @@ function QuickPicks({ tracks, personal, loading }: { tracks: Track[]; personal: 
     <section className="qwrap" aria-label="Quick picks">
       <div className="qgrid">
         {loading
-          ? Array.from({ length: 8 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 64, borderRadius: 4 }} />)
+          ? Array.from({ length: 8 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 72, borderRadius: 12 }} />)
           : tracks.map((t, i) => {
               const active = cur === t.id;
               return (
@@ -259,11 +263,11 @@ function QuickPicks({ tracks, personal, loading }: { tracks: Track[]; personal: 
                   className={`q${active ? ' active' : ''}`}
                   onClick={() => usePlayer.getState().play(tracks, i, { source: 'home-quick' })}
                   onMouseEnter={() => tint(t.thumb)}
-                  onMouseLeave={() => document.documentElement.style.setProperty('--tint', '#3b3b5c')}
+                  onMouseLeave={() => document.documentElement.style.setProperty('--tint', '#3a3a46')}
                   title={`${t.title} - ${artistNames(t.artists)}`}
                   {...warmProps(t.id)}
                 >
-                  <Cover src={t.thumb} size={64} radius={0} />
+                  <Cover src={t.thumb} size={72} radius={0} />
                   <div className="grow tx">
                     <div className="clamp1 t">{t.title}</div>
                     {!personal && <div className="clamp1 s">{artistNames(t.artists)}</div>}
@@ -278,14 +282,15 @@ function QuickPicks({ tracks, personal, loading }: { tracks: Track[]; personal: 
       <style jsx>{`
         .qwrap { grid-column: 1 / -1; }
         .qgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 16px; }
-        .q { position: relative; display: flex; align-items: center; gap: 16px; min-width: 0; width: 100%; height: 64px; padding: 0 16px 0 0; border-radius: 4px; overflow: hidden; background: rgba(255, 255, 255, .1); text-align: left; transition: background .3s var(--ease); }
-        .q:hover { background: rgba(255, 255, 255, .2); }
-        .q :global(.cover) { border-radius: 4px 0 0 4px; box-shadow: 4px 0 8px rgba(0, 0, 0, .3); }
+        .q { position: relative; display: flex; align-items: center; gap: 16px; min-width: 0; width: 100%; height: 72px; padding: 0 16px 0 0; border-radius: 12px; overflow: hidden; background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); text-align: left; transition: background .25s var(--ease), transform .25s var(--ease); }
+        .q:hover { background: var(--card-hover); transform: translateY(-1px); }
+        .q:active { transform: scale(.985); }
+        .q :global(.cover) { border-radius: 12px 0 0 12px; }
         .tx { min-width: 0; }
-        .t { font-weight: 700; font-size: 16px; color: var(--ink); }
+        .t { font-weight: 600; font-size: 15px; color: var(--ink); }
         .q.active .t { color: var(--signal-t); }
         .s { color: var(--muted); font-size: 13px; }
-        .go { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--signal); color: #000; box-shadow: 0 8px 8px rgba(0, 0, 0, .3); opacity: 0; transform: translateY(4px); transition: opacity .3s var(--ease), transform .3s var(--ease); flex: none; }
+        .go { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--signal); color: #09090b; box-shadow: 0 8px 8px rgba(0, 0, 0, .3); opacity: 0; transform: translateY(4px); transition: opacity .3s var(--ease), transform .3s var(--ease); flex: none; }
         .q:hover .go, .q.active .go { opacity: 1; transform: none; }
         @media (max-width: 700px) { .qgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } .q { height: 56px; gap: 8px; } .q :global(.cover) { width: 56px !important; height: 56px !important; } .go { display: none; } .t { font-size: 13px; } }
       `}</style>

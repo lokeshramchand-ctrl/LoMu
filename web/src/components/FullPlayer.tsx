@@ -122,10 +122,10 @@ export function FullPlayer() {
         .artists :global(a:hover) { color: var(--text); text-decoration: underline; }
         .controls { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; max-width: 420px; }
         .on { color: var(--signal-t) !important; }
-        .playbig { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; background: #fff; color: #000; transition: transform .15s var(--ease); }
+        .playbig { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; background: #f4f4f5; color: #09090b; transition: transform .15s var(--ease); }
         .playbig:hover { transform: scale(1.06); }
         .playbig:active { transform: scale(.93); }
-        .spinner { width: 22px; height: 22px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .3); border-top-color: #fff; animation: spin .8s linear infinite; }
+        .spinner { width: 22px; height: 22px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .3); border-top-color: #f4f4f5; animation: spin .8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .panel { min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
         .body.with-panel .stage { flex-direction: column; gap: 26px; }
