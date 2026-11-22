@@ -37,7 +37,6 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
             <Avatar src={photo} size="100%" alt={data.name} />
           </div>
           <div className="ph-info">
-            <div className="ph-kind">Artist</div>
             <h1 className="ph-title clamp2">{data.name}</h1>
             {data.subscribers && <div className="ph-sub">{data.subscribers}</div>}
           </div>

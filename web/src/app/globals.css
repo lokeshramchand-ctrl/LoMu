@@ -156,9 +156,6 @@ html { scroll-behavior: smooth; }
   .showall::after { content: ''; position: absolute; inset: -12px -8px; }
 }
 
-/* small accent mark */
-.chip-ic { width: 20px; height: 20px; border-radius: var(--r-sm); display: grid; place-items: center; flex: none; background: var(--signal); color: var(--on-signal); }
-.chip-ic.lg { width: 28px; height: 28px; }
 
 /* ---------- badges, pills, chips ---------- */
 .badge { display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 8px; border-radius: var(--r-sm); font-size: .6875rem; font-weight: 600; background: var(--pill); color: var(--muted); }
@@ -232,7 +229,6 @@ html { scroll-behavior: smooth; }
 .ph-art.round { border-radius: 50%; }
 .ph-art > * { width: 100% !important; height: 100% !important; }
 .ph-info { flex: 1; min-width: 220px; }
-.ph-kind { font-family: var(--font-num); font-size: .75rem; color: var(--muted); }
 .ph-title { margin: 6px 0 0; font-size: clamp(2.5rem, 6vw, 5.5rem); line-height: 1; letter-spacing: -.03em; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; padding-bottom: .05em; overflow-wrap: anywhere; }
 .ph-sub { margin-top: 10px; font-size: .875rem; color: var(--text); }
 .ph-sub .dot { color: var(--muted); }
@@ -389,3 +385,4 @@ main:focus { outline: none; }
 .num, .log-row time, .facts dd { direction: ltr; unicode-bidi: isolate; }
 :dir(rtl) .facts dd { text-align: left; }
 :dir(rtl) .log-row time { text-align: right; }
+.tile.stat { align-self: stretch; }
