@@ -263,11 +263,11 @@ function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
     <button role="switch" aria-checked={on} aria-label={label} className={`sw${on ? ' on' : ''}`} onClick={() => onChange(!on)}>
       <i />
       <style jsx>{`
-                .sw { width: 40px; height: 24px; border-radius: 999px; background: #7c7c7c; position: relative; flex: none; transition: background .2s var(--ease); }
+                .sw { width: 40px; height: 24px; border-radius: 999px; background: #71717a; position: relative; flex: none; transition: background .2s var(--ease); }
                 @media (pointer: coarse) { .sw::after { content: ''; position: absolute; inset: -10px -4px; } }
-                .sw i { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #000; transition: transform .2s var(--ease); }
+                .sw i { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #09090b; transition: transform .2s var(--ease); }
                 .sw.on { background: var(--signal); }
-                .sw.on i { transform: translateX(16px); background: #000; }
+                .sw.on i { transform: translateX(16px); background: #09090b; }
       `}</style>
     </button>
   );

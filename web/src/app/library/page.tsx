@@ -215,7 +215,7 @@ export default function Library() {
         .nameinp { width: 100%; height: 40px; padding: 0 12px; border-radius: 4px; border: 0; background: var(--surface-2); color: var(--ink); outline: 0; font-size: 16px; }
         .nameinp:focus { box-shadow: 0 0 0 2px var(--ink); }
         .hero { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
-        .likeart { width: 140px; height: 140px; border-radius: 4px; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #450af5, #8e8ee5 60%, #c4efd9); box-shadow: 0 4px 60px rgba(0, 0, 0, .5); flex: none; }
+        .likeart { width: 140px; height: 140px; border-radius: 4px; display: grid; place-items: center; color: #f4f4f5; background: linear-gradient(135deg, #450af5, #8e8ee5 60%, #c4efd9); box-shadow: 0 4px 60px rgba(0, 0, 0, .5); flex: none; }
         .ht { font-size: clamp(32px, 4.4vw, 64px); font-weight: 900; letter-spacing: -.03em; line-height: 1.05; margin: 4px 0 8px; }
         :global(.likedhead) { background: linear-gradient(180deg, rgba(80, 56, 160, .55), transparent) !important; padding: var(--sp-5) !important; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 16px; }
