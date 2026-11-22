@@ -18,13 +18,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={qc}>
       <AuthGate>
+        <a href="#main" className="skip">Skip to content</a>
         <div className="app" style={mini ? ({ ['--side-w' as string]: '72px' } as React.CSSProperties) : undefined}>
           <Sidebar />
           <div className="col">
             <div className="panel">
               <div className="tint" aria-hidden />
               <Topbar />
-              <main className="content">{children}</main>
+              <main id="main" tabIndex={-1} className="content">{children}</main>
             </div>
           </div>
           <PlayerBar />
