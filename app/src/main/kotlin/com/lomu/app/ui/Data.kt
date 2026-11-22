@@ -2,6 +2,8 @@ package com.lomu.app.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.media3.common.MediaItem
@@ -21,16 +23,18 @@ import com.music.innertube.models.WatchEndpoint
 sealed interface Load<out T> {
     data object Loading : Load<Nothing>
     data class Ok<T>(val value: T) : Load<T>
-    data class Err(val message: String) : Load<Nothing>
+    data class Err(val message: String, val retry: () -> Unit = {}) : Load<Nothing>
 }
 
 /** Runs [block] when [key] changes and exposes the outcome as state. */
 @Composable
-fun <T> load(key: Any?, block: suspend () -> Result<T>): State<Load<T>> =
-    produceState<Load<T>>(Load.Loading, key) {
+fun <T> load(key: Any?, block: suspend () -> Result<T>): State<Load<T>> {
+    var attempt by androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    return produceState<Load<T>>(Load.Loading, key, attempt) {
         value = Load.Loading
-        value = block().fold({ Load.Ok(it) }, { Load.Err(com.lomu.app.sync.friendlyError(it)) })
+        value = block().fold({ Load.Ok(it) }, { Load.Err(com.lomu.app.sync.friendlyError(it)) { attempt++ } })
     }
+}
 
 val LocalPlayer = staticCompositionLocalOf<PlayerConnection?> { null }
 val LocalLyrics = staticCompositionLocalOf<LyricsHelper?> { null }

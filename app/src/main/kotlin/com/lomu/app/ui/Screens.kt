@@ -208,7 +208,7 @@ fun HomeScreen() {
         if (recs.isEmpty() && recent.isEmpty() && !recsLoaded) item { SkeletonShelves() }
         else if (recs.isEmpty() && recent.isEmpty()) when (val st = state) {
             is Load.Loading -> item { SkeletonShelves() }
-            is Load.Err -> item { ErrorBox(st.message) }
+            is Load.Err -> item { ErrorBox(st.message, st.retry) }
             is Load.Ok -> items(st.value.sections.take(3)) { Shelf(it.title, it.items) }
         }
     }
@@ -223,7 +223,7 @@ fun NewScreen() {
         item { TitleBar("New") }
         when (val st = state) {
             is Load.Loading -> item { SkeletonShelves(3) }
-            is Load.Err -> item { ErrorBox(st.message) }
+            is Load.Err -> item { ErrorBox(st.message, st.retry) }
             is Load.Ok -> items(st.value.sections) { Shelf(it.title, it.items) }
         }
     }
@@ -306,7 +306,7 @@ fun SearchScreen() {
                 }
             } else when (val r = result) {
                 is Load.Loading -> item { SkeletonRows() }
-                is Load.Err -> item { ErrorBox(r.message) }
+                is Load.Err -> item { ErrorBox(r.message, r.retry) }
                 is Load.Ok -> {
                     val sums = r.value?.summaries.orEmpty().let { all ->
                         // The top result should be a song: if the card is an artist/album, lead with the best song match.
@@ -409,7 +409,7 @@ fun LibraryScreen() {
                         row.forEach { (t, go) ->
                             Column(Modifier.weight(1f).pressable(RoundedCornerShape(12.dp)) { go() }) {
                                 BoxWithConstraints { Cover(t.third, maxWidth, radius = 14.dp) }
-                                Text(t.first, style = LoType.small.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium), color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 5.dp))
+                                Text(t.first, style = LoType.small.copy(fontWeight = FontWeight.Medium), color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 5.dp))
                             }
                         }
                         repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
@@ -556,7 +556,7 @@ private fun Detail(
                     Spacer(Modifier.height(22.dp))
                     Text(title, style = LoType.title.copy(fontSize = 22.sp, lineHeight = 27.sp, fontWeight = FontWeight.Bold), color = lo.ink, textAlign = TextAlign.Center, maxLines = 3, overflow = TextOverflow.Ellipsis)
                     if (!accent.isNullOrBlank()) Text(accent, style = LoType.body.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold), color = androidx.compose.ui.graphics.lerp(wash, lo.ink, 0.3f), textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 3.dp))
-                    if (caption.isNotBlank()) Text(caption, style = LoType.small.copy(fontSize = 12.sp), color = lo.grey, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 3.dp))
+                    if (caption.isNotBlank()) Text(caption, style = LoType.small, color = lo.grey, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 3.dp))
                 }
                 if (actions != null) Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically, content = actions)
                 else Spacer(Modifier.height(8.dp))
@@ -599,7 +599,7 @@ fun AlbumScreen(id: String) {
     val state by load(id) { YouTube.album(id) }
     when (val st = state) {
         is Load.Loading -> Box(Modifier.fillMaxSize()) { SkeletonDetail(); TopBar("", LocalNav.current::pop) }
-        is Load.Err -> Box(Modifier.fillMaxSize()) { ErrorBox(st.message); TopBar("", LocalNav.current::pop) }
+        is Load.Err -> Box(Modifier.fillMaxSize()) { ErrorBox(st.message, st.retry); TopBar("", LocalNav.current::pop) }
         is Load.Ok -> {
             val page = st.value
             val scope = rememberCoroutineScope()
@@ -634,7 +634,7 @@ fun PlaylistScreen(id: String) {
     val state by load(id) { YouTube.playlist(id) }
     when (val st = state) {
         is Load.Loading -> Box(Modifier.fillMaxSize()) { SkeletonDetail(); TopBar("", LocalNav.current::pop) }
-        is Load.Err -> Box(Modifier.fillMaxSize()) { ErrorBox(st.message); TopBar("", LocalNav.current::pop) }
+        is Load.Err -> Box(Modifier.fillMaxSize()) { ErrorBox(st.message, st.retry); TopBar("", LocalNav.current::pop) }
         is Load.Ok -> {
             val page = st.value
             val scope = rememberCoroutineScope()
@@ -671,7 +671,7 @@ fun ArtistScreen(id: String) {
     var bioOpen by remember { mutableStateOf(false) }
     when (val st = state) {
         is Load.Loading -> Box(Modifier.fillMaxSize()) { SkeletonDetail(); TopBar("", LocalNav.current::pop) }
-        is Load.Err -> Box(Modifier.fillMaxSize()) { ErrorBox(st.message); TopBar("", LocalNav.current::pop) }
+        is Load.Err -> Box(Modifier.fillMaxSize()) { ErrorBox(st.message, st.retry); TopBar("", LocalNav.current::pop) }
         is Load.Ok -> {
             val page = st.value
             val firstSongs = page.sections.map { it.items.filterIsInstance<SongItem>() }.firstOrNull { it.isNotEmpty() }.orEmpty()
@@ -825,7 +825,7 @@ fun SettingsScreen() {
                     }
                 }
                 Hairline(16.dp)
-                ActionCell(if (st.busy) "Syncing…" else "Sync Now", lo.signal) { scope.launch { sync?.sync() } }
+                ActionCell(if (st.busy) "Syncing…" else "Sync Now", lo.signal, enabled = !st.busy) { scope.launch { sync?.sync() } }
                 Hairline(16.dp)
                 ActionCell("Sign Out", lo.red) { sync?.signOut() }
             }
@@ -839,7 +839,7 @@ fun SettingsScreen() {
                 CellField(pass, { pass = it }, "Password", password = true)
             }
             Group(null) {
-                ActionCell(if (st.busy) "Working…" else "Sign In", lo.signal) { scope.launch { sync?.signIn(url, user, pass, false); sync?.sync() } }
+                ActionCell(if (st.busy) "Working…" else "Sign In", lo.signal, enabled = !st.busy) { scope.launch { sync?.signIn(url, user, pass, false); sync?.sync() } }
                 Hairline(16.dp)
                 ActionCell("Create Account", lo.signal) { scope.launch { sync?.signIn(url, user, pass, true); sync?.sync() } }
             }
