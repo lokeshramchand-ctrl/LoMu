@@ -51,13 +51,14 @@ export default function SettingsPage() {
           </Row>
           <PasswordRow />
         </Group>}
-        {!local && admin && <AccountsGroup kicker={nk()} />}
 
         <Group kicker={nk()} span={5} title="Appearance">
           <Row icon="sun" label="Interface theme" hint="Select or customise your interface colour scheme.">
             <div style={{ width: 168 }}><ThemeSelect /></div>
           </Row>
         </Group>
+
+        {!local && admin && <AccountsGroup kicker={nk()} />}
 
         <Group kicker={nk()} span={6} tall title="Home" sub="Pick what the home page shows. The Customise button on Home does the same.">
           {HOME_SECTIONS.map((s) => (
@@ -262,6 +263,7 @@ function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
       <i />
       <style jsx>{`
                 .sw { width: 40px; height: 24px; border-radius: 999px; background: #7c7c7c; position: relative; flex: none; transition: background .2s var(--ease); }
+                @media (pointer: coarse) { .sw::after { content: ''; position: absolute; inset: -10px -4px; } }
                 .sw i { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #000; transition: transform .2s var(--ease); }
                 .sw.on { background: var(--signal); }
                 .sw.on i { transform: translateX(16px); background: #000; }
@@ -343,7 +345,7 @@ function AccountsGroup({ kicker }: { kicker: string }) {
 
   const full = users.length >= max;
   return (
-    <Group kicker={kicker} span={7} title="Accounts" sub={`${users.length} of ${max} accounts. Everyone gets their own library, history and recommendations; nothing is shared.`}>
+    <Group kicker={kicker} span={12} title="Accounts" sub={`${users.length} of ${max} accounts. Everyone gets their own library, history and recommendations; nothing is shared.`}>
       {users.map((a) => (
         <Row key={a.id} icon="user" label={`${a.username}${a.username === me ? ' (you)' : ''}${a.role === 'admin' ? ' · admin' : ''}${a.disabled ? ' · paused' : ''}`} hint={`${a.devices} signed-in ${a.devices === 1 ? 'device' : 'devices'} · since ${new Date(a.created).toLocaleDateString()}`}>
           {a.username !== me && (

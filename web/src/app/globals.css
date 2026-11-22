@@ -4,6 +4,7 @@
 :root, [data-theme='dark'], [data-theme='blue'] {
   --side-bg: #000000; --bg: #121212; --surface: #181818; --surface-2: #1f1f1f; --hover: #1a1a1a; --active: #2a2a2a; --card-hover: #282828;
   --border: #2a2a2a; --border-2: #3e3e3e;
+  --signal-t: var(--signal); /* the brand green when it is used as text */
   --text: #ffffff; --ink: #ffffff; --muted: #b3b3b3; --faint: #7c7c7c; --on-ink: #000000;
   --signal: #1ed760; --signal-hi: #3be477; --signal-soft: rgba(30, 215, 96, .16); --on-signal: #000000;
   --yellow: #ffa42b; --blue: #539df5; --blue-soft: rgba(83, 157, 245, .18); --pink: #f573a0; --pink-soft: rgba(245, 115, 160, .18);
@@ -23,8 +24,9 @@
 :root[data-theme='light'] {
   --side-bg: #ededed; --bg: #ffffff; --surface: #f4f4f4; --surface-2: #ebebeb; --hover: #f2f2f2; --active: #e4e4e4; --card-hover: #e9e9e9;
   --border: #e3e3e3; --border-2: #d0d0d0;
-  --text: #121212; --ink: #000000; --muted: #6a6a6a; --faint: #8d8d8d; --on-ink: #ffffff;
+  --text: #121212; --ink: #000000; --muted: #616161; --faint: #8d8d8d; --on-ink: #ffffff;
   --signal: #1ed760; --signal-hi: #1fdf64; --signal-soft: rgba(30, 215, 96, .18); --on-signal: #000000;
+  --signal-t: #0a6b2e; /* bright green is unreadable as text on light surfaces (1.5:1); this is 6.4:1 on white, 4.9:1 on the active row */
   --yellow: #d98400; --blue: #2e77d0; --blue-soft: rgba(46, 119, 208, .12); --pink: #d6457e; --pink-soft: rgba(214, 69, 126, .12);
   --green: #169c46; --green-t: #169c46; --green-soft: rgba(22, 156, 70, .14);
   --red: #d94a4a; --red-t: #c23b3b; --red-soft: rgba(217, 74, 74, .1);
@@ -43,8 +45,8 @@
   :root:not([data-theme]) {
     --side-bg: #ededed; --bg: #ffffff; --surface: #f4f4f4; --surface-2: #ebebeb; --hover: #f2f2f2; --active: #e4e4e4; --card-hover: #e9e9e9;
     --border: #e3e3e3; --border-2: #d0d0d0;
-    --text: #121212; --ink: #000000; --muted: #6a6a6a; --faint: #8d8d8d; --on-ink: #ffffff;
-    --signal-soft: rgba(30, 215, 96, .18);
+    --text: #121212; --ink: #000000; --muted: #616161; --faint: #8d8d8d; --on-ink: #ffffff;
+    --signal-soft: rgba(30, 215, 96, .18); --signal-t: #0a6b2e;
     --yellow: #d98400; --blue: #2e77d0; --blue-soft: rgba(46, 119, 208, .12); --pink-soft: rgba(214, 69, 126, .12);
     --green: #169c46; --green-t: #169c46; --green-soft: rgba(22, 156, 70, .14);
     --red-t: #c23b3b; --peri-t: #169c46; --peri-soft: rgba(22, 156, 70, .14); --blue-t: #2e77d0;
@@ -128,9 +130,18 @@ code { font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace; 
 .icon-btn:hover { color: var(--text); transform: scale(1.06); }
 .icon-btn:active { transform: scale(.96); }
 .icon-btn.sm { width: 28px; height: 28px; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+/* Touch screens: keep the look, grow the area that reacts to a finger to 44 px. */
+@media (pointer: coarse) {
+  .icon-btn, .btn.sm, .showall { position: relative; }
+  .icon-btn.sm::after { content: ''; position: absolute; inset: -8px; }
+  .icon-btn:not(.sm):not(.big)::after { content: ''; position: absolute; inset: -6px; }
+  .btn.sm::after { content: ''; position: absolute; inset: -8px 0; }
+  .showall::after { content: ''; position: absolute; inset: -12px -8px; }
+}
 .icon-btn.bordered { background: var(--surface-2); }
 .icon-btn.bordered:hover { background: var(--card-hover); }
-.icon-btn.on { color: var(--signal); }
+.icon-btn.on { color: var(--signal-t); }
 
 /* neutral icon chip */
 .chip-ic { width: 20px; height: 20px; border-radius: 4px; display: grid; place-items: center; flex: none; background: var(--signal); color: #000; }
@@ -221,7 +232,7 @@ code { font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace; 
 .bigplay:disabled { opacity: .5; transform: none; }
 .icon-btn.big { width: 48px; height: 48px; }
 .actionbar { display: flex; align-items: center; gap: 24px; padding: 4px 0; }
-.actionbar .icon-btn.on { color: var(--signal); }
+.actionbar .icon-btn.on { color: var(--signal-t); }
 .thead { position: sticky; top: var(--top-h); z-index: 6; display: flex; align-items: center; gap: 16px; height: 36px; padding: 0 16px; margin-bottom: 8px; background: var(--bg); border-bottom: 1px solid rgba(255, 255, 255, .1); color: var(--muted); font-size: 14px; }
 .thead .i { width: 20px; text-align: center; flex: none; }
 .thead .g { flex: 1; min-width: 0; }

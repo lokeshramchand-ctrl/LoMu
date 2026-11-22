@@ -121,7 +121,7 @@ export function FullPlayer() {
         .artists { margin-top: 8px; font-size: 16px; color: var(--muted); font-weight: 500; }
         .artists :global(a:hover) { color: var(--text); text-decoration: underline; }
         .controls { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; max-width: 420px; }
-        .on { color: var(--signal) !important; }
+        .on { color: var(--signal-t) !important; }
         .playbig { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; background: #fff; color: #000; transition: transform .15s var(--ease); }
         .playbig:hover { transform: scale(1.06); }
         .playbig:active { transform: scale(.93); }

@@ -1,0 +1,54 @@
+# Builds the web app, starts it on a throwaway data directory and runs the black-box audit and stress test
+# (accounts, isolation between them, auth, body limits, live streams, security headers, concurrency).
+name: Web audit
+
+on:
+  push:
+    branches: [music, main]
+    paths: ['web/**', '.github/workflows/web-audit.yml']
+  pull_request:
+    paths: ['web/**', '.github/workflows/web-audit.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: web-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - run: npm ci
+        working-directory: web
+
+      - run: npm run build
+        working-directory: web
+
+      - name: Dependency audit (production)
+        run: npm audit --omit=dev --audit-level=high
+        working-directory: web
+
+      - name: Start the server on a throwaway data directory
+        run: |
+          mkdir -p "$RUNNER_TEMP/lomu"
+          LOMU_PING_MS=1000 LOMU_DATA_DIR="$RUNNER_TEMP/lomu/data" LOMU_CACHE_DIR="$RUNNER_TEMP/lomu/cache" LOMU_SETUP_CODE=sesame \
+            npx next start -p 4300 > "$RUNNER_TEMP/lomu/server.log" 2>&1 &
+          for i in $(seq 1 30); do curl -fs http://localhost:4300/api/health && break; sleep 1; done
+        working-directory: web
+
+      - name: Black-box audit and stress test
+        run: LOMU_PING_MS=1000 node tests/audit/blackbox.mjs http://localhost:4300 sesame
+        working-directory: web
+
+      - name: Server log (on failure)
+        if: failure()
+        run: tail -n 80 "$RUNNER_TEMP/lomu/server.log"
