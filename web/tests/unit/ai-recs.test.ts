@@ -44,3 +44,12 @@ describe('parsing and matching', () => {
     expect(matches(T('Maria También', 'Someone Else'), want)).toBe(false);
   });
 });
+
+import { explain } from '@/server/ai';
+describe('explain', () => {
+  it('turns status codes into plain advice', () => {
+    expect(explain(new Error('AI server answered 302'))).toMatch(/login page/);
+    expect(explain(new Error('AI server answered 502'))).toMatch(/not running/);
+    expect(explain(new Error('The operation was aborted due to timeout'))).toMatch(/Timed out/);
+  });
+});
