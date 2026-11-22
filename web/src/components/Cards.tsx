@@ -78,16 +78,16 @@ export function ItemCard({ item, siblings }: { item: Item; siblings?: Track[] })
 function CardStyle() {
   return (
     <style jsx global>{`
-      .it { display: block; width: 100%; min-width: 0; text-align: left; border-radius: var(--r-sm); transition: transform .1s ease-out; }
+      .it { display: block; width: 100%; min-width: 0; text-align: start; border-radius: var(--r-sm); transition: transform .1s ease-out; }
       .it:active { transform: scale(.98); }
       .it .art { position: relative; width: 100%; aspect-ratio: 1; margin-bottom: 12px; border-radius: var(--r-sm); box-shadow: 0 16px 32px -20px rgba(0, 0, 0, .6); }
       .it .art:has(.round) { border-radius: 50%; }
       .it .t { font-weight: 600; font-size: .9375rem; color: var(--ink); line-height: 1.3; }
       .it .s { color: var(--muted); font-size: .8125rem; margin-top: 2px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-      .it .c { text-align: left; }
+      .it .c { text-align: start; }
       .it.active .t { color: var(--signal-t); }
       .it:hover .t { text-decoration: underline; text-decoration-color: var(--border-2); text-underline-offset: 3px; }
-      .it .go { position: absolute; right: 8px; bottom: 8px; width: 40px; height: 40px; border-radius: var(--r); display: grid; place-items: center; background: var(--signal); color: var(--on-signal); box-shadow: 0 8px 16px -6px rgba(0, 0, 0, .5); opacity: 0; transform: translateY(6px); transition: opacity .2s var(--ease), transform .2s var(--ease), background .15s; }
+      .it .go { position: absolute; inset-inline-end: 8px; bottom: 8px; width: 40px; height: 40px; border-radius: var(--r); display: grid; place-items: center; background: var(--signal); color: var(--on-signal); box-shadow: 0 8px 16px -6px rgba(0, 0, 0, .5); opacity: 0; transform: translateY(6px); transition: opacity .2s var(--ease), transform .2s var(--ease), background .15s; }
       .it .go:hover { background: var(--signal-hi); }
       .it:hover .go, .it:focus-visible .go, .it:focus-within .go, .it.active .go { opacity: 1; transform: none; }
       /* touch has no hover: the play control is always there */
@@ -280,7 +280,7 @@ export function TrackRow({
         .trow:active { transform: scale(.995); }
         .trow:hover { background: var(--row-hover); }
         .trow.active { background: transparent; }
-        .idx { position: relative; width: 20px; height: 20px; flex: none; display: grid; place-items: center; text-align: right; color: var(--muted); font-family: var(--font-num); font-size: .8125rem; }
+        .idx { position: relative; width: 20px; height: 20px; flex: none; display: grid; place-items: center; text-align: end; color: var(--muted); font-family: var(--font-num); font-size: .8125rem; }
         .idx .p { position: absolute; inset: 0; display: none; place-items: center; color: var(--ink); }
         .trow:hover .idx .n { visibility: hidden; }
         .trow:hover .idx .p { display: grid; }
@@ -289,10 +289,10 @@ export function TrackRow({
         .ta { color: var(--muted); font-size: .8125rem; margin-top: 0; }
         .trow:hover .ta { color: var(--ink); }
         .ta :global(a:hover), .alb :global(a:hover) { color: var(--ink); text-decoration: underline; }
-        .e { display: inline-grid; place-items: center; width: 16px; height: 16px; font-size: 10px; font-weight: 700; border-radius: 2px; background: var(--muted); color: var(--bg); margin-right: 6px; vertical-align: 1px; }
+        .e { display: inline-grid; place-items: center; width: 16px; height: 16px; font-size: 10px; font-weight: 700; border-radius: 2px; background: var(--muted); color: var(--bg); margin-inline-end: 6px; vertical-align: 1px; }
         .alb { flex: 0 0 28%; color: var(--muted); font-size: .8125rem; }
         .trow:hover .alb { color: var(--ink); }
-        .dur { width: 44px; text-align: right; color: var(--muted); font-family: var(--font-num); font-size: .75rem; }
+        .dur { width: 44px; text-align: end; color: var(--muted); font-family: var(--font-num); font-size: .75rem; }
         .like, .more { opacity: 0; color: var(--muted); }
         .trow:hover .like, .like.on, .trow:focus-within .like, .trow:hover .more, .trow:focus-within .more { opacity: 1; }
         .like.on { color: var(--signal-t); }
