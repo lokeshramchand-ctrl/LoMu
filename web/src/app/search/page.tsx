@@ -12,16 +12,7 @@ import { Icon } from '@/components/Icon';
 import { useLibrary } from '@/player/library';
 import { usePlayer } from '@/player/store';
 
-const CATS: [string, string][] = [
-  ['Top hits India', 'var(--signal)'],
-  ['Lo-fi beats', 'var(--blue)'],
-  ['Workout', 'var(--yellow)'],
-  ['Arijit Singh', 'var(--green)'],
-  ['Anirudh', 'var(--pink)'],
-  ['Chill vibes', 'var(--blue)'],
-  ['Punjabi', 'var(--red)'],
-  ['90s Bollywood', 'var(--signal)'],
-];
+const CATS = ['Top hits India', 'Lo-fi beats', 'Workout', 'Arijit Singh', 'Anirudh', 'Chill vibes', 'Punjabi', '90s Bollywood'];
 
 export default function SearchPage() {
   return (
@@ -230,8 +221,8 @@ function SearchInner() {
           )}
           <Tile span={12} title="Browse categories" label="Browse categories">
             <div className="cats">
-              {CATS.map(([label, hue]) => (
-                <button key={label} className="cat" style={{ ['--hue' as string]: hue }} onClick={() => submit(label)}>
+              {CATS.map((label) => (
+                <button key={label} className="cat" onClick={() => submit(label)}>
                   {label}
                 </button>
               ))}
@@ -243,7 +234,6 @@ function SearchInner() {
       <style jsx>{`
         .cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
         .cat { position: relative; display: flex; align-items: flex-end; height: 120px; padding: 16px; border-radius: var(--r); background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); color: var(--ink); font-family: var(--font-display); font-size: 1.5rem; letter-spacing: -.02em; line-height: 1.1; text-align: left; transition: background .15s, transform .1s ease-out; }
-        .cat::before { content: ''; position: absolute; left: 16px; top: 16px; width: 24px; height: 4px; border-radius: 1px; background: var(--hue); }
         .cat:hover { background: var(--card-hover); }
         .cat:active { transform: scale(.98); }
         @media (max-width: 900px) { .cats { grid-template-columns: 1fr 1fr; gap: 12px; } .cat { height: 88px; font-size: 1.125rem; } }
@@ -294,7 +284,6 @@ function TopResult({ item }: { item: Item }) {
     <>
       {item.kind === 'artist' ? <Avatar src={item.thumb} size={92} /> : <Cover src={item.thumb} size={92} radius={4} />}
       <div>
-        <div className="eyebrow">Top result · {item.kind === 'song' ? 'Song' : item.kind}</div>
         <div className="tt clamp2">{item.title}</div>
         <div className="muted clamp1">{item.kind === 'song' ? artistNames(item.artists) : item.kind === 'album' ? artistNames(item.artists) : item.subtitle}</div>
       </div>
