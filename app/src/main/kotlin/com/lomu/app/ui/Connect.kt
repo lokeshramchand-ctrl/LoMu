@@ -71,7 +71,7 @@ fun RemoteMiniPlayer(d: Dev, onOpen: () -> Unit, modifier: Modifier = Modifier) 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IcV(deviceIcon(d), 12.dp, lo.signal)
                 Spacer(Modifier.width(4.dp))
-                Text(d.name, style = LoType.small.copy(fontSize = 11.sp, lineHeight = 13.sp, fontWeight = FontWeight.Medium), color = lo.signal, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(d.name, style = LoType.small.copy(fontSize = 12.sp, lineHeight = 14.sp, fontWeight = FontWeight.Medium), color = lo.signal, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
         PlayPauseBtn(d.playing, { c.send(d.id, "toggle") }, size = 44.dp, iconSize = 28.dp)
@@ -133,8 +133,8 @@ fun RemotePlayer(d: Dev, onClose: () -> Unit) = CompositionLocalProvider(LocalLo
                 Box(Modifier.offset(x = (maxWidth - 10.dp) * frac).size(10.dp).background(lo.ink, CircleShape))
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(formatTime(((drag?.let { it * dur } ?: pos) * 1000).toLong()), style = LoType.caption.copy(fontSize = 11.sp), color = lo.grey)
-                Text("-" + formatTime(((dur - pos).coerceAtLeast(0.0) * 1000).toLong()), style = LoType.caption.copy(fontSize = 11.sp), color = lo.grey)
+                Text(formatTime(((drag?.let { it * dur } ?: pos) * 1000).toLong()), style = LoType.caption, color = lo.grey)
+                Text("-" + formatTime(((dur - pos).coerceAtLeast(0.0) * 1000).toLong()), style = LoType.caption, color = lo.grey)
             }
 
             Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {

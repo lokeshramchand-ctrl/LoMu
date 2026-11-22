@@ -108,7 +108,7 @@ object LoType {
     val small = TextStyle(fontFamily = LoFont, fontWeight = FontWeight.Normal, fontSize = 13.sp, lineHeight = 16.sp, letterSpacing = (-0.08).sp) // Footnote
     val eyebrow = TextStyle(fontFamily = LoFont, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, lineHeight = 16.sp, letterSpacing = (-0.08).sp)
     val sub = TextStyle(fontFamily = LoFont, fontWeight = FontWeight.Normal, fontSize = 15.sp, lineHeight = 20.sp, letterSpacing = (-0.24).sp)    // Subheadline
-    val caption = TextStyle(fontFamily = LoFont, fontWeight = FontWeight.Medium, fontSize = 11.sp, lineHeight = 13.sp, letterSpacing = 0.07.sp)   // Caption 3 (tab labels)
+    val caption = TextStyle(fontFamily = LoFont, fontWeight = FontWeight.Medium, fontSize = 12.sp, lineHeight = 14.sp, letterSpacing = 0.07.sp)   // Caption 3 (tab labels)
 }
 
 @Composable
