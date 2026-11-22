@@ -6,13 +6,14 @@ import Link from 'next/link';
 import { formatMinutes, topArtists, weekStats } from '@/lib/insights';
 import type { ArtistCard, Item, Shelf, Track } from '@/lib/types';
 import { ItemCard, ShelfSkeleton, ShelfTile } from '@/components/Cards';
-import { Mosaic } from '@/components/Mosaic';
+import { Avatar, Cover } from '@/components/Art';
 import { Bento, Tile } from '@/components/Bento';
 import { Icon } from '@/components/Icon';
 import { Sheet, Toggle } from '@/components/ui';
 import { useLibrary } from '@/player/library';
 import { currentTrack, usePlayer } from '@/player/store';
 import { HOME_SECTIONS, useSettings } from '@/player/settings';
+import { warmProps } from '@/lib/warm';
 
 export default function Home() {
   const home = useSettings((s) => s.home);
@@ -31,18 +32,26 @@ export default function Home() {
   const mixes: Shelf[] = recs.data ?? [];
   const songsOf = (s?: Shelf) => (s?.items.filter((i): i is Track => i.kind === 'song') ?? []) as Track[];
   const trending = explore.data?.trending ?? [];
-  // The featured card is your first mix; before any mix exists it is what is trending.
-  const heroShelf: Shelf | undefined = mixes[0] ?? (trending.length ? { title: 'Trending now', items: trending } : undefined);
-  const heroTracks = songsOf(heroShelf);
-  const otherMixes = mixes.slice(1).filter((s) => songsOf(s).length > 0);
+  // On Repeat is its own row and page; everything else feeds the black feature card and the pastel picks.
+  const onRepeatShelf = mixes.find((s) => /repeat/i.test(s.title));
+  const onRepeat = songsOf(onRepeatShelf);
+  const pickPool = useMemo(() => {
+    const fromMixes = mixes.filter((s) => s !== onRepeatShelf).flatMap(songsOf);
+    const base = fromMixes.length >= 3 ? fromMixes : [...fromMixes, ...(trending.filter((i): i is Track => i.kind === 'song') as Track[])];
+    const seen = new Set<string>();
+    return base.filter((t) => !seen.has(t.id) && !!seen.add(t.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recs.data, explore.data]);
+  const feature = pickPool[0];
+  const picks = pickPool.slice(1, 5);
+  const featureLiked = useLibrary((s) => (feature ? !!s.liked[feature.id] : false));
   const hour = new Date().getHours();
   const greeting = hour < 5 ? 'Late night' : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
   const cur = usePlayer((s) => currentTrack(s)?.id);
   const playing = usePlayer((s) => s.playing);
-  const heroActive = !!cur && heroTracks.some((t) => t.id === cur);
-  const playList = (list: Track[], source: string) => {
-    if (list.length) usePlayer.getState().play(list, 0, { source });
+  const playList = (list: Track[], source: string, at = 0) => {
+    if (list.length) usePlayer.getState().play(list, at, { source });
   };
 
   const showStats = home.stats && history.length > 0;
@@ -59,9 +68,9 @@ export default function Home() {
     <Bento className="fade-in">
       <header className="greet">
         <div className="gtext">
-          <h1 suppressHydrationWarning>{greeting}</h1>
+          <h1>My LoMu</h1>
           <p className="muted" suppressHydrationWarning>
-            {personal ? new Date().toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' }) : 'Play a few songs and LoMu starts learning your taste.'}
+            {personal ? `${greeting}. ${new Date().toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })}` : 'Play a few songs and LoMu starts learning your taste.'}
           </p>
         </div>
         <div className="grow" />
@@ -73,45 +82,58 @@ export default function Home() {
         </button>
       </header>
 
-      {home.quick && (heroShelf || recs.isLoading || explore.isLoading) && (
-        <section className="feature" aria-label="Start here">
-          {heroShelf ? (
-            <div className="hero">
-              <div className="hero-art">
-                <Mosaic tracks={heroTracks} size={220} />
-              </div>
-              <div className="hero-text">
-                <span className="kick">{mixes[0] ? 'Made for you' : 'Trending'}</span>
-                <h2>{heroShelf.title}</h2>
-                <p className="hero-sub clamp2">{heroShelf.subtitle ?? heroTracks.slice(0, 3).map((t) => artistNames(t.artists)).join(', ')}</p>
-                <div className="hero-act">
-                  <button className="btn primary" onClick={() => (heroActive ? usePlayer.getState().toggle() : playList(heroTracks, 'home-mix'))}>
-                    <Icon name={heroActive && playing ? 'pause' : 'play'} size={12} /> {heroActive ? (playing ? 'Pause' : 'Resume') : 'Play'}
-                  </button>
-                  <button className="btn" onClick={() => playList([...heroTracks].sort(() => Math.random() - 0.5), 'home-mix')}>
-                    Shuffle
-                  </button>
-                </div>
-              </div>
+      {home.quick && feature && (
+        <section className="fcard" aria-label="Featured song">
+          <button className="fart" aria-label={`Play ${feature.title}`} onClick={() => usePlayer.getState().playRadio(feature)}>
+            <Cover src={feature.thumb} size="100%" radius={18} />
+          </button>
+          <div className="ftext">
+            <div>
+              <div className="ft clamp2">{feature.title}</div>
+              <div className="fs clamp1">{artistNames(feature.artists)}</div>
             </div>
-          ) : (
-            <div className="skeleton" style={{ height: 220, borderRadius: 12 }} />
-          )}
-          {otherMixes.length > 0 && (
-            <div className="side">
-              <h3>More mixes</h3>
-              {otherMixes.slice(0, 5).map((s) => (
-                <button key={s.title} className="mix-row" onClick={() => playList(songsOf(s), 'home-mix')}>
-                  <Mosaic tracks={songsOf(s)} size={56} />
-                  <div>
-                    <div className="clamp1 t">{s.title}</div>
-                    <div className="clamp1 s">{songsOf(s).length} songs</div>
-                  </div>
-                  <Icon name="play" size={14} />
-                </button>
-              ))}
+            <div className="fact">
+              <button className="fheart" aria-label={featureLiked ? 'Remove from liked songs' : 'Like'} onClick={() => useLibrary.getState().toggleLike(feature)}>
+                <Icon name={featureLiked ? 'heartFill' : 'heart'} size={24} />
+              </button>
+              <button className="fplay" aria-label={cur === feature.id && playing ? 'Pause' : 'Play'} onClick={() => (cur === feature.id ? usePlayer.getState().toggle() : usePlayer.getState().playRadio(feature))}>
+                <Icon name={cur === feature.id && playing ? 'pause' : 'play'} size={22} />
+              </button>
             </div>
-          )}
+          </div>
+        </section>
+      )}
+      {home.quick && !feature && (recs.isLoading || explore.isLoading) && <div className="skeleton" style={{ gridColumn: '1 / -1', height: 164, borderRadius: 28 }} />}
+
+      {home.quick && onRepeat.length > 0 && (
+        <section className="onrep" aria-label="On Repeat">
+          <Link href="/mix?name=On%20Repeat" className="oh">
+            <h2>On Repeat</h2>
+            <Icon name="right" size={18} />
+          </Link>
+          <div className="orow">
+            {onRepeat.slice(0, 16).map((t, i) => (
+              <button key={t.id} className={`oi${cur === t.id ? ' on' : ''}`} onClick={() => playList(onRepeat, 'home-onrepeat', i)} title={`${t.title} by ${artistNames(t.artists)}`} {...warmProps(t.id)}>
+                <Cover src={t.thumb} size="100%" radius={18} />
+                <span className="clamp1">{t.title}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {home.quick && picks.length > 0 && (
+        <section className="picked" aria-label="Picked for you">
+          <h2>Picked For You</h2>
+          <div className="pgrid">
+            {picks.map((t, i) => (
+              <button key={t.id} className="pick" style={{ background: `var(--tile-${(i % 4) + 1})` }} onClick={() => usePlayer.getState().playRadio(t)} {...warmProps(t.id)}>
+                <span className="pa"><Avatar src={t.thumb} size="100%" /></span>
+                <b className="clamp1">{t.title}</b>
+                <span className="clamp1 muted">{artistNames(t.artists)}</span>
+              </button>
+            ))}
+          </div>
         </section>
       )}
 
@@ -141,7 +163,7 @@ export default function Home() {
               <ShelfSkeleton title={false} />
             </Tile>
           )}
-          {mixes.slice(home.quick ? 1 + Math.min(5, otherMixes.length) : 0).map((s) => (
+          {mixes.filter((s) => s !== onRepeatShelf || !home.quick).map((s) => (
             <ShelfTile
               key={`rec-${s.title}`}
               shelf={s}
