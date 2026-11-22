@@ -3,6 +3,7 @@ import type { Shelf, Track } from '@/lib/types';
 import { all } from './sync';
 import { radio } from './catalog';
 import { cached, readStale, writeStale } from './yt';
+import { aiShelf, refreshAiMix } from './ai-recs';
 import { affinity, dailyMix, dailySeeds, dayKey, diversify, rankCandidates, type Affinity, type PlayDoc, type LikeDoc } from './recs-core';
 
 /* Server-side recommendations, shared by the web player and the phone. Signals come from the
@@ -66,6 +67,9 @@ export function buildMixes(uid: number): Promise<Shelf[]> {
     const ranked = rankCandidates(seeds, cands, aff);
 
     const shelves: Shelf[] = [];
+    refreshAiMix(uid, aff, now); // at most once a day, in the background
+    const ai = aiShelf(uid, now);
+    if (ai) shelves.push(ai);
     const mix = await dailyPlaylist(uid, aff, now, ranked);
     if (mix.length) shelves.push({ title: 'Your Mix', subtitle: `Fresh every day · ${new Date(now).toLocaleDateString('en', { weekday: 'long' })}`, items: mix });
 
