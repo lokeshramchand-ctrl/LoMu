@@ -786,7 +786,7 @@ private fun IconTile(icon: Ph, color: Color, size: Dp = 30.dp) {
 
 @Composable
 private fun ActionCell(label: String, color: Color, enabled: Boolean = true, onClick: () -> Unit) {
-    Cell(Modifier.pressable(RoundedCornerShape(0.dp), enabled, onClick)) { Text(label, style = LoType.body, color = color) }
+    Cell(Modifier.pressable(RoundedCornerShape(0.dp), enabled, onClick = onClick)) { Text(label, style = LoType.body, color = color) }
 }
 
 @Composable
