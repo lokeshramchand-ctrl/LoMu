@@ -129,11 +129,11 @@ export default function Home() {
             {dailyShelves.map((sh, i) => {
               const list = songsOf(sh);
               return (
-                <button key={sh.title} className="pick" style={{ background: `var(--tile-${(i % 4) + 1})` }} onClick={() => playList(list, 'home-mix')} {...warmProps(list[0]?.id)}>
+                <Link key={sh.title} href={`/mix?name=${encodeURIComponent(sh.title)}`} className="pick" style={{ background: `var(--tile-${(i % 4) + 1})` }} {...warmProps(list[0]?.id)}>
                   <span className="pa"><Avatar src={list[0]?.thumb} size="100%" /></span>
                   <b className="clamp1">{sh.title}</b>
                   <span className="clamp2 muted">{sh.subtitle}</span>
-                </button>
+                </Link>
               );
             })}
           </div>
