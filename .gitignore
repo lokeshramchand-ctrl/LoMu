@@ -158,3 +158,6 @@ app/src/main/assets/fonts/
 # Personal data exports (Google Takeout), never commit
 YouTube and YouTube Music/
 Takeout/
+
+# Personal Spotify data export (never commit)
+Spotify/
