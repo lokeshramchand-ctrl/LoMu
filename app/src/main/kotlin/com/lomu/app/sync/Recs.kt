@@ -77,7 +77,7 @@ fun affinity(plays: List<PlayDoc>, likes: List<LikeDoc>, now: Long): Affinity {
         if (top.size >= 12) break
     }
 
-    val onRepeat = monthPlays.entries.sortedByDescending { it.value }.take(20).mapNotNull { byId[it.key] }
+    val onRepeat = monthPlays.entries.sortedByDescending { it.value }.take(50).mapNotNull { byId[it.key] }
 
     val favorites = ranked.take(80).mapNotNull { byId[it.key] }
 
