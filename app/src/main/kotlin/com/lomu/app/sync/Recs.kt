@@ -61,7 +61,9 @@ fun affinity(plays: List<PlayDoc>, likes: List<LikeDoc>, now: Long, blocked: Set
         when {
             p.completed -> {
                 // A slow second clock keeps long-time favourites alive: months on repeat is taste, not a phase.
-                add(p.track, d + 0.25 * decay(age, 150.0))
+                // A third, very slow clock (about two years) lets years-old history, such as an imported Spotify archive, still
+                // say who you are, without outweighing what is played now.
+                add(p.track, d + 0.25 * decay(age, 150.0) + 0.1 * decay(age, 700.0))
                 completions.merge(p.track.id, 1) { x, y -> x + y }
                 if (age < 30 * DAY) monthPlays.merge(p.track.id, 1) { x, y -> x + y }
             }

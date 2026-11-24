@@ -50,7 +50,9 @@ export function affinity(plays: PlayDoc[], likes: LikeDoc[], now: number, blocke
     if (p.completed) {
       // Finishing a song is the strongest implicit "yes". A slow second clock keeps long-time favourites alive: a song
       // played on repeat for months is taste, not a phase, even if it has been quiet for a few weeks.
-      add(p.track, d + 0.25 * decay(age, 150));
+      // A third, very slow clock (about two years) lets years-old history, such as an imported Spotify archive, still
+      // say who you are: a favourite artist from 2019 stays known and seeds mixes, without outweighing what you play now.
+      add(p.track, d + 0.25 * decay(age, 150) + 0.1 * decay(age, 700));
       completions.set(p.track.id, (completions.get(p.track.id) ?? 0) + 1);
       if (age < 30 * DAY) monthPlays.set(p.track.id, (monthPlays.get(p.track.id) ?? 0) + 1);
     } else if (p.skipped) {
