@@ -35,15 +35,16 @@ export default function Home() {
   // On Repeat is its own row and page; everything else feeds the black feature card and the pastel picks.
   const onRepeatShelf = mixes.find((s) => /repeat/i.test(s.title));
   const onRepeat = songsOf(onRepeatShelf);
+  const dailyShelves = mixes.filter((s) => /^Daily Mix/.test(s.title));
   const pickPool = useMemo(() => {
-    const fromMixes = mixes.filter((s) => s !== onRepeatShelf).flatMap(songsOf);
+    const fromMixes = mixes.filter((s) => s !== onRepeatShelf && !dailyShelves.includes(s)).flatMap(songsOf)
+      .concat(dailyShelves.flatMap(songsOf));
     const base = fromMixes.length >= 3 ? fromMixes : [...fromMixes, ...(trending.filter((i): i is Track => i.kind === 'song') as Track[])];
     const seen = new Set<string>();
     return base.filter((t) => !seen.has(t.id) && !!seen.add(t.id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recs.data, explore.data]);
   const feature = pickPool[0];
-  const picks = pickPool.slice(1, 5);
   const featureLiked = useLibrary((s) => (feature ? !!s.liked[feature.id] : false));
   const hour = new Date().getHours();
   const greeting = hour < 5 ? 'Late night' : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
@@ -121,17 +122,20 @@ export default function Home() {
         </section>
       )}
 
-      {home.quick && picks.length > 0 && (
-        <section className="picked" aria-label="Picked for you">
-          <h2>Picked For You</h2>
-          <div className="pgrid">
-            {picks.map((t, i) => (
-              <button key={t.id} className="pick" style={{ background: `var(--tile-${(i % 4) + 1})` }} onClick={() => usePlayer.getState().playRadio(t)} {...warmProps(t.id)}>
-                <span className="pa"><Avatar src={t.thumb} size="100%" /></span>
-                <b className="clamp1">{t.title}</b>
-                <span className="clamp1 muted">{artistNames(t.artists)}</span>
-              </button>
-            ))}
+      {home.quick && dailyShelves.length > 0 && (
+        <section className="picked" aria-label="Daily mixes">
+          <h2>Mixes</h2>
+          <div className="pgrid five">
+            {dailyShelves.map((sh, i) => {
+              const list = songsOf(sh);
+              return (
+                <button key={sh.title} className="pick" style={{ background: `var(--tile-${(i % 4) + 1})` }} onClick={() => playList(list, 'home-mix')} {...warmProps(list[0]?.id)}>
+                  <span className="pa"><Avatar src={list[0]?.thumb} size="100%" /></span>
+                  <b className="clamp1">{sh.title}</b>
+                  <span className="clamp2 muted">{sh.subtitle}</span>
+                </button>
+              );
+            })}
           </div>
         </section>
       )}
@@ -162,7 +166,7 @@ export default function Home() {
               <ShelfSkeleton title={false} />
             </Tile>
           )}
-          {mixes.filter((s) => s !== onRepeatShelf || !home.quick).map((s) => (
+          {mixes.filter((s) => (s !== onRepeatShelf || !home.quick) && !(home.quick && dailyShelves.includes(s))).map((s) => (
             <ShelfTile
               key={`rec-${s.title}`}
               shelf={s}
