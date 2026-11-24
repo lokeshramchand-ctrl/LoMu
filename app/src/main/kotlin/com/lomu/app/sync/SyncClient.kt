@@ -729,7 +729,11 @@ class SyncClient @Inject constructor(
                 RecShelf(sh.getString("title"), sh.optString("subtitle").ifBlank { null }, (0 until items.length()).mapNotNull { trackToMetadata(items.getJSONObject(it)) })
             }.filter { it.tracks.isNotEmpty() }
         }.getOrDefault(emptyList())
-        if (prefs.getString("dailyDay5", null) == day) read().takeIf { it.isNotEmpty() }?.let { return it }
+        // A full set is kept for the day; a short one (radio failed for some seeds) is retried, at most every 10 minutes.
+        val have = read()
+        if (prefs.getString("dailyDay5", null) == day && have.size >= 5) return have
+        if (have.isNotEmpty() && prefs.getString("dailyTryDay5", null) == day && System.currentTimeMillis() - prefs.getLong("dailyTryAt5", 0) < 600_000) return have
+        prefs.edit().putString("dailyTryDay5", day).putLong("dailyTryAt5", System.currentTimeMillis()).apply()
         val seeds = aff.topTracks.take(15)
         val cands = seeds.associate { seed ->
             seed.id to (runCatching {
@@ -745,7 +749,7 @@ class SyncClient @Inject constructor(
                 arr.put(JSONObject().put("title", sh.title).put("subtitle", sh.subtitle ?: JSONObject.NULL)
                     .put("items", JSONArray().also { a -> sh.tracks.forEach { a.put(metadataToTrack(it)) } }))
             }
-            prefs.edit().putString("dailyDay5", day).putString("dailyMixes5", arr.toString()).apply()
+            prefs.edit().putString("dailyDay5", if (shelves.size >= 5) day else "").putString("dailyMixes5", arr.toString()).apply()
         }
         return shelves
     }
