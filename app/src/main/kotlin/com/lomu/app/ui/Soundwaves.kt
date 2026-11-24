@@ -107,6 +107,8 @@ fun HomeScreen() {
     }
     val feature = picks.firstOrNull()
     val mixes = remember(recs) { recs.filter { it.title.startsWith("Daily Mix") } }
+    // Discover Weekly and the four time-of-day mixes: a second set of tiles under the daily mixes.
+    val dayMixes = remember(recs) { recs.filter { it.title == "Discover Weekly" || Regex("^(Morning|Afternoon|Evening|Late Night) Mix$").matches(it.title) } }
 
     // The page takes the colour of the playing song's cover, as the player does, fading to white lower down.
     val noMeta = remember { kotlinx.coroutines.flow.MutableStateFlow<MediaMetadata?>(null) }
@@ -165,23 +167,8 @@ fun HomeScreen() {
                 }
             }
         }
-        if (mixes.isNotEmpty()) item {
-            Column(Modifier.appear(3)) {
-                SoundSection("Mixes")
-                Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    mixes.chunked(2).forEachIndexed { r, row ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            row.forEachIndexed { c, mix ->
-                                PickTile(mix.title, mix.subtitle.orEmpty(), mix.tracks.firstOrNull()?.thumbnailUrl, tileColor(r * 2 + c), Modifier.weight(1f)) {
-                                    MixStore.title = mix.title; MixStore.tracks = mix.tracks; nav.push(Screen.Mix)
-                                }
-                            }
-                            if (row.size == 1) Spacer(Modifier.weight(1f))
-                        }
-                    }
-                }
-            }
-        }
+        if (mixes.isNotEmpty()) item { MixTiles("Mixes", mixes, 0) }
+        if (dayMixes.isNotEmpty()) item { MixTiles("For your day", dayMixes, 1) }
         // Until the personal picks arrive (or when signed out) fall back to the open feed.
         if (recs.isEmpty() && liked.isEmpty() && !recsLoaded) item { SkeletonShelves() }
         else if (recs.isEmpty() && liked.isEmpty()) when (val st = state) {
@@ -355,6 +342,7 @@ fun CreateScreen() {
             Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 CreateCard(Ph.Download, "Import from YouTube Music", "Bring your playlists and likes over.", tileColor(1)) { nav.push(Screen.Import) }
                 CreateCard(Ph.Sparkles, "New releases", "What is new on YouTube Music.", tileColor(2)) { nav.push(Screen.New) }
+                CreateCard(Ph.Sparkles, "Wrapped", "Your year in music: top songs, artists and habits.", tileColor(0)) { nav.push(Screen.Wrapped) }
                 CreateCard(Ph.Moon, "Sleep", "See when the queue kept going after you dozed off.", tileColor(3)) { nav.push(Screen.Sleep) }
                 CreateCard(Ph.Settings, "Settings", "Account, sync and appearance.", lo.surface2) { nav.push(Screen.Settings) }
             }
@@ -374,5 +362,26 @@ private fun CreateCard(icon: Ph, title: String, line: String, fill: Color, onCli
             Text(line, style = LoType.small, color = lo.grey)
         }
         Ic(Ph.Right, 18.dp, lo.grey)
+    }
+}
+
+/** Two-column grid of coloured mix tiles; each opens the mix as an album-style page. */
+@Composable
+private fun MixTiles(heading: String, shelves: List<com.lomu.app.sync.SyncClient.RecShelf>, appearAt: Int) {
+    val nav = LocalNav.current
+    Column(Modifier.appear(3 + appearAt)) {
+        SoundSection(heading)
+        Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            shelves.chunked(2).forEachIndexed { r, row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    row.forEachIndexed { c, mix ->
+                        PickTile(mix.title, mix.subtitle.orEmpty(), mix.tracks.firstOrNull()?.thumbnailUrl, tileColor(r * 2 + c), Modifier.weight(1f)) {
+                            MixStore.title = mix.title; MixStore.tracks = mix.tracks; nav.push(Screen.Mix)
+                        }
+                    }
+                    if (row.size == 1) Spacer(Modifier.weight(1f))
+                }
+            }
+        }
     }
 }

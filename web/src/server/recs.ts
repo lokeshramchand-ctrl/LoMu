@@ -4,7 +4,7 @@ import { all } from './sync';
 import { radio } from './catalog';
 import { cached, readStale, writeStale } from './yt';
 import { aiShelf, refreshAiMix } from './ai-recs';
-import { affinity, dailyMixes, dayKey, diversify, rankCandidates, type Affinity, type PlayDoc, type LikeDoc } from './recs-core';
+import { affinity, dailyMixes, dayKey, discoverWeekly as pickWeekly, diversify, hourOf, orderByNow, rankCandidates, slotAffinities, timeMixes, weekKey, type Affinity, type PlayDoc, type SlotId, type LikeDoc } from './recs-core';
 
 /* Server-side recommendations, shared by the web player and the phone. Signals come from the
    synced play log and likes; candidates come from YouTube's own radio for the strongest recent
@@ -50,6 +50,37 @@ async function dailyPlaylists(uid: number, aff: Affinity, now: number): Promise<
   return shelves;
 }
 
+/** Four mixes, one per part of the day you listen in: built once a day, put in order of "right now" when served. */
+async function timeOfDay(uid: number, aff: Affinity, plays: PlayDoc[], now: number, tz?: number): Promise<Shelf[]> {
+  const day = dayKey(now);
+  const key = `recs:u${uid}:tod:${day}:${tz ?? 'srv'}:${Math.floor(aff.playCount / 1000)}`;
+  let built = readStale<(Shelf & { slot: SlotId })[]>(key);
+  if (!built) {
+    const slots = slotAffinities(plays, now, tz);
+    const seeds = [...new Map(slots.flatMap((s) => s.aff.topTracks.slice(0, 4)).map((t) => [t.id, t])).values()];
+    const { map, ok } = await candidatesFor(seeds);
+    if (!ok && seeds.length) return [];
+    built = timeMixes(aff, slots, map, day).map((m) => ({ title: m.title, subtitle: m.subtitle, items: m.items, slot: m.slot }));
+    if (built.length) writeStale(key, built);
+  }
+  return orderByNow<Shelf>(built, tz === undefined ? new Date(now).getHours() : hourOf(now, tz));
+}
+
+/** One playlist a week of artists you have never played, the same all week. */
+async function discoverWeekly(uid: number, aff: Affinity, now: number): Promise<Shelf | null> {
+  const week = weekKey(now);
+  const key = `recs:u${uid}:dw:${week}:${Math.floor(aff.playCount / 1000)}`;
+  const kept = readStale<Shelf>(key);
+  if (kept) return kept;
+  const { map, ok } = await candidatesFor(aff.topTracks.slice(0, 20));
+  if (!ok) return null;
+  const items = pickWeekly(aff, map, week);
+  if (!items.length) return null;
+  const shelf: Shelf = { title: 'Discover Weekly', subtitle: 'Artists new to you · changes every Monday', items };
+  writeStale(key, shelf);
+  return shelf;
+}
+
 const memo = new Map<number, { at: number; aff: Affinity }>();
 
 /** The account's taste profile. A big imported history makes this a real cost, so it is kept for a minute. */
@@ -63,9 +94,9 @@ export function userAffinity(uid: number): Affinity {
   return aff;
 }
 
-export function buildMixes(uid: number): Promise<Shelf[]> {
+export function buildMixes(uid: number, tz?: number): Promise<Shelf[]> {
   // The play log changes slowly relative to how often the home page is opened.
-  return cached(`recs:u${uid}:mixes`, 3 * 60_000, async () => {
+  return cached(`recs:u${uid}:mixes:${tz ?? 'srv'}`, 3 * 60_000, async () => {
     const plays = all(uid, 'play', 40000).map((r) => r.value as PlayDoc);
     const likes = all(uid, 'like', 10000).map((r) => r.value as LikeDoc);
     if (!plays.length && !likes.length) return [];
@@ -75,7 +106,7 @@ export function buildMixes(uid: number): Promise<Shelf[]> {
     const seeds = aff.topTracks.slice(0, SEEDS);
     const { map: cands, ok } = await candidatesFor(seeds);
     // Nothing reachable (offline): throw, so `cached` serves the last full set instead of a thin one.
-    if (!ok && seeds.length && readStale(`recs:u${uid}:mixes`)) throw new Error('YouTube unreachable');
+    if (!ok && seeds.length && readStale(`recs:u${uid}:mixes:${tz ?? 'srv'}`)) throw new Error('YouTube unreachable');
     const ranked = rankCandidates(seeds, cands, aff);
 
     const shelves: Shelf[] = [];
@@ -83,6 +114,9 @@ export function buildMixes(uid: number): Promise<Shelf[]> {
     const ai = aiShelf(uid, now);
     if (ai) shelves.push(ai);
     shelves.push(...(await dailyPlaylists(uid, aff, now)));
+    const dw = await discoverWeekly(uid, aff, now);
+    if (dw) shelves.push(dw);
+    shelves.push(...(await timeOfDay(uid, aff, plays, now, tz)));
 
     if (aff.onRepeat.length) shelves.push({ title: 'On Repeat', subtitle: 'Your last 30 days', items: aff.onRepeat.slice(0, 50) });
 
