@@ -23,6 +23,7 @@ class Affinity(
     val skipped: Set<String>,
     val knownArtists: Set<String>,
     val favorites: List<MediaMetadata>,
+    val playCount: Int = 0, // size of the play log: a big import must rebuild today's mixes
 )
 
 private const val DAY = 86_400_000L
@@ -49,7 +50,8 @@ fun affinity(plays: List<PlayDoc>, likes: List<LikeDoc>, now: Long): Affinity {
         val d = decay(age, 14.0)
         when {
             p.completed -> {
-                add(p.track, d)
+                // A slow second clock keeps long-time favourites alive: months on repeat is taste, not a phase.
+                add(p.track, d + 0.25 * decay(age, 150.0))
                 completions.merge(p.track.id, 1) { x, y -> x + y }
                 if (age < 30 * DAY) monthPlays.merge(p.track.id, 1) { x, y -> x + y }
             }
@@ -64,19 +66,29 @@ fun affinity(plays: List<PlayDoc>, likes: List<LikeDoc>, now: Long): Affinity {
             }
         }
     }
-    for (l in likes) add(l.track, 2 * decay(now - l.at, 45.0))
+    // Library presence: saving a song is a deliberate act, and it outlasts a plain play.
+    for (l in likes) add(l.track, 3 * decay(now - l.at, 90.0))
 
     val ranked = trackScore.entries.filter { it.value > 0 }.sortedByDescending { it.value }
-    val top = ArrayList<MediaMetadata>()
-    val perArtist = HashMap<String, Int>()
+    // Seeds: the best song of each top artist first, then the strongest remaining tracks (two per artist at most), strongest first.
+    val bestByLead = HashMap<String, String>()
     for ((id, _) in ranked) {
-        val t = byId[id] ?: continue
-        val n = perArtist[lead(t)] ?: 0
-        if (n >= (if (top.size < 3) 1 else 2)) continue // spread the first few seeds, then at most two per artist
-        perArtist[lead(t)] = n + 1
-        top.add(t)
-        if (top.size >= 20) break
+        val a = byId[id]?.let { lead(it) } ?: continue
+        if (a.isNotEmpty() && a !in bestByLead) bestByLead[a] = id
     }
+    val picked = ArrayList<String>()
+    val perArtist = HashMap<String, Int>()
+    fun pick(id: String) {
+        val a = byId[id]?.let { lead(it) } ?: return
+        if (id in picked || (perArtist[a] ?: 0) >= 2) return
+        picked.add(id); perArtist[a] = (perArtist[a] ?: 0) + 1
+    }
+    for ((a, sc) in artistScore.entries.filter { it.value > 0 }.sortedByDescending { it.value }) {
+        bestByLead[a]?.let { pick(it) }
+        if (picked.size >= 12) break
+    }
+    for ((id, _) in ranked) { if (picked.size >= 20) break; pick(id) }
+    val top = picked.sortedByDescending { trackScore[it] ?: 0.0 }.mapNotNull { byId[it] }
 
     val onRepeat = monthPlays.entries.sortedByDescending { it.value }.take(50).mapNotNull { byId[it.key] }
 
@@ -88,6 +100,7 @@ fun affinity(plays: List<PlayDoc>, likes: List<LikeDoc>, now: Long): Affinity {
         skipped = recentSkips.filter { it.value >= 1 && it.key !in likedIds }.keys.toSet(),
         knownArtists = artistScore.filter { it.value > 0 }.keys.toSet(),
         favorites = favorites,
+        playCount = plays.size,
     )
 }
 
@@ -150,7 +163,7 @@ fun dailyMix(
     val r = rng("mix:$day$salt")
     fun bad(t: MediaMetadata) = t.id in aff.skipped || t.id in exclude
     val ks = knownSet ?: aff.knownArtists
-    val familiar = pickWeighted((familiarPool ?: aff.favorites).filter { !bad(it) }, (size * 0.35).toInt(), r)
+    val familiar = pickWeighted((familiarPool ?: aff.favorites).filter { !bad(it) }, (size * 0.4).toInt(), r)
     val fresh = ranked.filter { !bad(it) }
     val known = fresh.filter { t -> t.artists.any { it.name.lowercase() in ks } }
     val unknown = fresh.filter { t -> t.artists.none { it.name.lowercase() in ks } }
@@ -166,7 +179,7 @@ fun dailyMix(
     val q = mapOf(
         'F' to familiar.toMutableList(),
         'K' to take(known, (size * 0.4).toInt()).toMutableList(),
-        'D' to take(unknown, (size * 0.25).toInt()).toMutableList(),
+        'D' to take(unknown, (size * 0.2).toInt()).toMutableList(),
         'S' to take(fresh, size).toMutableList(),
     )
     val rhythm = "FKFKD"
@@ -227,7 +240,7 @@ private fun mixName(group: List<MediaMetadata>, aff: Affinity): String {
 }
 
 fun dailyMixes(aff: Affinity, cands: Map<String, List<MediaMetadata>>, day: String, count: Int = 5, size: Int = 40): List<ThemedMix> {
-    val seeds = aff.topTracks.take(15)
+    val seeds = aff.topTracks.take(20)
     fun weight(g: List<MediaMetadata>) = g.sumOf { aff.trackScore[it.id] ?: 0.0 }
     // Seeds whose radio came back empty cannot be grouped by sound: they join a group afterwards.
     val withRadio = seeds.filter { cands[it.id].orEmpty().isNotEmpty() }

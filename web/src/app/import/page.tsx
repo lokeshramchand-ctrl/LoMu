@@ -4,15 +4,20 @@ import Link from 'next/link';
 import { api as authFetch } from '@/player/sync';
 import { useLibrary } from '@/player/library';
 import { parseTakeoutFile, type TakeoutList } from '@/lib/takeout';
+import { parseWatchHistory, summarize, type ImportedPlay } from '@/lib/ytmhistory';
 import type { Track } from '@/lib/types';
 import { Icon } from '@/components/Icon';
 import { PageHeader } from '@/components/ui';
 import { toast } from '@/components/Toast';
 
 const BATCH = 25;
+const PLAY_BATCH = 1000;
 
 export default function ImportPage() {
   const input = useRef<HTMLInputElement>(null);
+  const histInput = useRef<HTMLInputElement>(null);
+  const [hist, setHist] = useState<ImportedPlay[] | null>(null);
+  const [histDone, setHistDone] = useState<number | null>(null);
   const [lists, setLists] = useState<TakeoutList[]>([]);
   const [skipped, setSkipped] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -32,6 +37,44 @@ export default function ImportPage() {
     setLists(out);
     setSkipped(skip);
     setDone(null);
+  };
+
+  const pickHistory = async (files: FileList | null) => {
+    const f = files?.[0];
+    if (!f) return;
+    setProgress('Reading your history…');
+    setBusy(true);
+    try {
+      const plays = parseWatchHistory(await f.text());
+      setHist(plays);
+      setHistDone(null);
+      if (!plays.length) toast('No YouTube Music plays found in that file');
+    } finally {
+      setBusy(false);
+      setProgress('');
+    }
+  };
+
+  /** Sends the plays straight to the account's sync log (not through the 8,000-entry on-screen history), so every device and the recommendation engine see all of it. */
+  const importHistory = async () => {
+    if (!hist) return;
+    setBusy(true);
+    try {
+      for (let i = 0; i < hist.length; i += PLAY_BATCH) {
+        setProgress(`Listening history: ${Math.min(i + PLAY_BATCH, hist.length)} of ${hist.length}`);
+        const docs = hist.slice(i, i + PLAY_BATCH).map((p) => ({ kind: 'play', key: `${p.at}:${p.track.id}`, value: p, updated: p.at }));
+        const res = await authFetch('/api/sync', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ docs }) });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Request failed (${res.status})`);
+      }
+      setHistDone(hist.length);
+      setHist(null);
+      toast(`Imported ${hist.length} plays`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Import failed');
+    } finally {
+      setBusy(false);
+      setProgress('');
+    }
   };
 
   const run = async () => {
@@ -85,6 +128,33 @@ export default function ImportPage() {
           <button className="btn primary" disabled={busy} onClick={() => input.current?.click()}>
             <Icon name="download" size={16} /> Choose CSV files
           </button>
+        </section>
+
+        <section className="card pad">
+          <h2 className="h">Listening history</h2>
+          <p className="muted small">
+            Teaches LoMu your taste, so Daily Mixes and On Repeat start from years of listening instead of from zero. In the Takeout export, keep <b>history</b> in HTML format
+            and choose <code>history/watch-history.html</code>. Only YouTube Music plays are used; plain YouTube watching is ignored.
+          </p>
+          <input ref={histInput} type="file" accept=".html,text/html" hidden onChange={(e) => pickHistory(e.target.files)} />
+          <button className="btn" disabled={busy} onClick={() => histInput.current?.click()}>
+            <Icon name="download" size={16} /> Choose watch-history.html
+          </button>
+          {hist && hist.length > 0 && (() => {
+            const sum = summarize(hist);
+            const day = (t: number) => new Date(t).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
+            return (
+              <div className="fade-in" style={{ marginTop: 14 }}>
+                <p className="muted small">{sum.plays.toLocaleString()} plays of {sum.songs.toLocaleString()} songs, {day(sum.from)} to {day(sum.to)}.</p>
+                <div className="row">
+                  <button className="btn primary" disabled={busy} onClick={importHistory}>{busy ? 'Importing…' : 'Import listening history'}</button>
+                  {busy && <span className="muted small">{progress}</span>}
+                </div>
+              </div>
+            );
+          })()}
+          {busy && !hist && <div className="muted small" style={{ marginTop: 10 }}>{progress}</div>}
+          {histDone !== null && <p className="muted small" style={{ marginTop: 10 }}>{histDone.toLocaleString()} plays imported. Your mixes will rebuild from them.</p>}
         </section>
 
         {lists.length > 0 && (
