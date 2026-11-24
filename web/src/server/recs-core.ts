@@ -15,7 +15,7 @@ export type Affinity = {
   knownArtists: Set<string>;
   playCount: number; // size of the play log: a big import must rebuild today's mixes
   favorites: Track[]; // strongest tracks overall (positive score), best first: the "familiar" pool of the daily mix
-  positives: Track[]; // the top 600 positive tracks, for mood filters
+  positives: Track[]; // every positive track (top 5000), for mood filters
   rewind: { track: Track; plays: number; last: number }[]; // played to the end 3+ times, not heard for 45+ days
   blocked: Set<string>; // lower-case artists the user never wants recommended
 };
@@ -118,7 +118,7 @@ export function affinity(plays: PlayDoc[], likes: LikeDoc[], now: number, blocke
     skipped: new Set([...recentSkips].filter(([id, n]) => n >= 1 && !likedIds.has(id)).map(([id]) => id)),
     knownArtists: new Set([...artistScore].filter(([, s]) => s > 0).map(([a]) => a)),
     playCount: plays.length,
-    positives: ranked.slice(0, 600).map(([id]) => byId.get(id)!),
+    positives: ranked.slice(0, 5000).map(([id]) => byId.get(id)!),
     rewind,
     blocked,
   };
