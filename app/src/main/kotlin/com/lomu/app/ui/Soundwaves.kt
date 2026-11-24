@@ -89,10 +89,13 @@ fun HomeScreen() {
     val lo = LocalLo.current
     // Start from the cached shelves so Home does not flash the open feed before the personal picks are built.
     var recsLoaded by remember { mutableStateOf(sync == null) }
-    val recsRaw by produceState<List<com.lomu.app.sync.SyncClient.RecShelf>>(
-        remember { runCatching { sync?.cachedRecs() }.getOrNull().orEmpty() }, syncState.user, syncState.status.startsWith("Up to date"),
-    ) {
-        value = runCatching { sync?.recs() }.getOrNull().orEmpty()
+    // The shelves are kept until a newer non-empty set arrives. (produceState with keys put the value back to the
+    // old starting list every time a sync finished, and an empty or failed rebuild blanked Home: the mixes
+    // vanished until the next rebuild came back.)
+    var recsRaw by remember { mutableStateOf(runCatching { sync?.cachedRecs() }.getOrNull().orEmpty()) }
+    LaunchedEffect(syncState.user, syncState.status.startsWith("Up to date")) {
+        val fresh = runCatching { sync?.recs() }.getOrNull().orEmpty()
+        if (fresh.isNotEmpty()) recsRaw = fresh
         recsLoaded = true
     }
     // Blocking an artist hides them at once, before the next rebuild of the mixes.
