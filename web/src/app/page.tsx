@@ -68,7 +68,6 @@ export default function Home() {
     <Bento className="fade-in">
       <header className="greet">
         <div className="gtext">
-          <h1>My LoMu</h1>
           <p className="muted" suppressHydrationWarning>
             {personal ? `${greeting}. ${new Date().toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })}` : 'Play a few songs and LoMu starts learning your taste.'}
           </p>

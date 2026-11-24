@@ -58,7 +58,7 @@ import com.lomu.app.utils.HiResArt
 import androidx.compose.animation.core.Animatable
 
 /** Pushes an artwork colour to a rich, saturated mid-dark tone so the player wash is strong but white text stays readable. */
-private fun playerTint(c: Color?): Color? {
+internal fun playerTint(c: Color?): Color? {
     c ?: return null
     val hsv = FloatArray(3)
     android.graphics.Color.colorToHSV(android.graphics.Color.argb(255, (c.red * 255).toInt(), (c.green * 255).toInt(), (c.blue * 255).toInt()), hsv)
@@ -77,13 +77,13 @@ fun MiniPlayer(onOpen: () -> Unit, modifier: Modifier = Modifier) {
     val meta by pc.mediaMetadata.collectAsState()
     val playing by pc.isPlaying.collectAsState()
     val m = meta ?: return
-    val shape = RoundedCornerShape(32.dp)
+    val shape = RoundedCornerShape(36.dp)
     Row(
-        modifier.fillMaxWidth().height(52.dp).glass(shape, lo).a11y("Open player").pressable(shape, onClick = onOpen).padding(start = 10.dp, end = 4.dp),
+        modifier.fillMaxWidth().height(66.dp).glass(shape, lo).a11y("Open player").pressable(shape, onClick = onOpen).padding(start = 12.dp, end = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Cover(m.thumbnailUrl, 34.dp, radius = 8.dp)
-        Spacer(Modifier.width(10.dp))
+        Cover(m.thumbnailUrl, 46.dp, radius = 10.dp)
+        Spacer(Modifier.width(12.dp))
         AnimatedContent(
             targetState = m,
             contentKey = { it.id },
@@ -92,12 +92,12 @@ fun MiniPlayer(onOpen: () -> Unit, modifier: Modifier = Modifier) {
             label = "miniTitle",
         ) { song ->
             Column {
-                Text(song.title, style = LoType.sub.copy(fontSize = 13.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.2).sp), color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(song.artistLine(), style = LoType.small.copy(fontSize = 11.sp, lineHeight = 13.sp, fontWeight = FontWeight.Medium), color = lo.grey, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(song.title, style = LoType.sub.copy(fontSize = 15.sp, lineHeight = 19.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.2).sp), color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(song.artistLine(), style = LoType.small.copy(fontSize = 13.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium), color = lo.grey, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
-        PlayPauseBtn(playing, { pc.togglePlayPause() }, size = 44.dp, iconSize = 28.dp)
-        IconBtnV(Icons.Rounded.FastForward, { pc.seekToNext() }, size = 44.dp, iconSize = 28.dp)
+        PlayPauseBtn(playing, { pc.togglePlayPause() }, size = 52.dp, iconSize = 34.dp)
+        IconBtnV(Icons.Rounded.FastForward, { pc.seekToNext() }, size = 52.dp, iconSize = 34.dp)
     }
 }
 
