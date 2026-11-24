@@ -708,7 +708,7 @@ class SyncClient @Inject constructor(
             val ranked = rankCandidates(seeds, cands, aff)
             val mix = dailyPlaylist(aff, ranked)
             if (mix.isNotEmpty()) shelves.add(RecShelf("Your Mix", "Fresh every day · " + java.time.LocalDate.now().dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.getDefault()), mix))
-            if (aff.onRepeat.isNotEmpty()) shelves.add(RecShelf("On Repeat", "Your last 30 days", aff.onRepeat.take(15)))
+            if (aff.onRepeat.isNotEmpty()) shelves.add(RecShelf("On Repeat", "Your last 30 days", aff.onRepeat.take(50)))
             for (seed in seeds.take(3)) {
                 val list = diversify(cands[seed.id].orEmpty().filter { it.id !in aff.heavilyPlayed && it.id !in aff.skipped }, 2).take(15)
                 if (list.size >= 5) shelves.add(RecShelf("Because you played ${seed.title}", null, list))

@@ -133,7 +133,7 @@ private fun FullPlayerContent(onClose: () -> Unit) {
     val skipScope = rememberCoroutineScope()
     Box(Modifier.fillMaxSize().graphicsLayer { translationY = dragY.value; alpha = 1f - (dragY.value / (size.height * 2f)).coerceIn(0f, 0.4f) }.background(lo.bg)) {
         // Strong colour wash taken from the artwork; it cross-fades slowly when the song changes.
-        val tint by animateColorAsState(playerTint(rememberTint(art)) ?: lo.bg, tween(900), label = "playerTint")
+        val tint by animateColorAsState(playerTint(rememberTint(m?.thumbnailUrl)) ?: lo.bg, tween(900), label = "playerTint")
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to tint, 0.75f to tint.copy(alpha = 0.92f).compositeOver(lo.bg), 1f to lo.bg)))
         Ambient(art, height = 900.dp, strength = 0.85f)
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp)) {
