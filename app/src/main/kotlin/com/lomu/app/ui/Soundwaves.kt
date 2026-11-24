@@ -96,8 +96,8 @@ fun HomeScreen() {
     val state by load("home") { YouTube.home() }
     val sleep = lastSleep()
 
-    val likedMeta = remember(liked) { liked.take(24).map { it.toMediaMetadata() } }
-    val onRepeat = recs.firstOrNull { it.title.contains("repeat", true) }?.tracks ?: likedMeta.take(12)
+    val likedMeta = remember(liked) { liked.take(50).map { it.toMediaMetadata() } }
+    val onRepeat = recs.firstOrNull { it.title.contains("repeat", true) }?.tracks ?: likedMeta.take(50)
     // Everything that is not "On Repeat", flattened and de-duplicated: the feature card and the pastel tiles come from here.
     val picks = remember(recs, likedMeta) {
         val fromRecs = recs.filter { !it.title.contains("repeat", true) }.flatMap { it.tracks }.distinctBy { it.id }
@@ -157,7 +157,7 @@ fun HomeScreen() {
                     Ic(Ph.Right, 18.dp, lo.grey)
                 }
                 LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    items(onRepeat.take(12), key = { it.id }) { m ->
+                    items(onRepeat.take(50), key = { it.id }) { m ->
                         val at = onRepeat.indexOf(m)
                         Column(Modifier.width(92.dp).pressable(RoundedCornerShape(4.dp)) { player?.playMediaItems("On Repeat", onRepeat.map { it.toMediaItem() }, at) }) {
                             Cover(m.thumbnailUrl, 92.dp, radius = 18.dp)

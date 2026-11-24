@@ -190,12 +190,15 @@ fun Ambient(url: String?, modifier: Modifier = Modifier, height: Dp = 380.dp, st
  * The vivid colour of an artwork (Palette), used to wash a detail page behind its cover as Apple Music does.
  * Null until the image has been read, or when it cannot be.
  */
+private val tintCache = java.util.concurrent.ConcurrentHashMap<String, Color>()
+
 @Composable
 fun rememberTint(url: String?): Color? {
     val ctx = LocalContext.current
-    val tint by produceState<Color?>(null, url) {
-        value = null
-        if (url == null) return@produceState
+    val tint by produceState<Color?>(url?.let { tintCache[it] }, url) {
+        if (url == null) { value = null; return@produceState }
+        tintCache[url]?.let { value = it; return@produceState }
+        // The previous colour stays until the new one is ready, so a song change fades instead of flashing.
         value = withContext(Dispatchers.IO) {
             runCatching {
                 val req = ImageRequest.Builder(ctx).data(url).size(96).allowHardware(false).build()
@@ -203,7 +206,7 @@ fun rememberTint(url: String?): Color? {
                 val p = Palette.from(bmp).maximumColorCount(16).generate()
                 (p.vibrantSwatch ?: p.mutedSwatch ?: p.dominantSwatch)?.rgb?.let { Color(it) }
             }.getOrNull()
-        }
+        }?.also { tintCache[url] = it }
     }
     return tint
 }

@@ -66,7 +66,7 @@ export function affinity(plays: PlayDoc[], likes: LikeDoc[], now: number): Affin
 
   const onRepeat = [...monthPlays.entries()]
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 20)
+    .slice(0, 50)
     .map(([id]) => byId.get(id)!);
 
   const favorites = ranked.slice(0, 80).map(([id]) => byId.get(id)!);
