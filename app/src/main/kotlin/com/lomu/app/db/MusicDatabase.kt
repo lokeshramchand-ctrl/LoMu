@@ -19,6 +19,7 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.migration.AutoMigrationSpec
 import androidx.room.migration.Migration
+import androidx.room.withTransaction as roomTransaction
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteOpenHelper
 import com.lomu.app.db.daos.SpeedDialDao
@@ -77,16 +78,12 @@ class MusicDatabase(
             }
         }
 
-    suspend fun withTransaction(block: suspend MusicDatabase.() -> Unit) =
-        with(delegate) {
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                runInTransaction {
-                    kotlinx.coroutines.runBlocking {
-                        block(this@MusicDatabase)
-                    }
-                }
-            }
-        }
+    // Room's own suspending transaction: queries made inside the block run on the transaction's thread. The
+    // old runInTransaction + runBlocking version held the main connection while waiting on a Flow query that
+    // needed that same connection, which wedged the whole database (sync stalled, no mixes could be built).
+    suspend fun withTransaction(block: suspend MusicDatabase.() -> Unit) {
+        delegate.roomTransaction { block(this@MusicDatabase) }
+    }
 
     fun close() = delegate.close()
 }
