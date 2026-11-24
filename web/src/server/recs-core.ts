@@ -270,10 +270,25 @@ function mixName(group: Track[], aff: Affinity): string {
  */
 export function dailyMixes(aff: Affinity, cands: Map<string, Track[]>, day: string, count = 5, size = 40): ThemedMix[] {
   const seeds = aff.topTracks.slice(0, 15);
-  const groups = clusterSeeds(seeds, cands, count)
-    .map((g) => ({ g, w: g.reduce((s, t) => s + (aff.trackScore.get(t.id) ?? 0), 0) }))
-    .sort((a, b) => b.w - a.w)
-    .map((x) => x.g);
+  const weight = (g: Track[]) => g.reduce((n, t) => n + (aff.trackScore.get(t.id) ?? 0), 0);
+  // Seeds whose radio came back empty cannot be grouped by sound: they join a group afterwards.
+  const withRadio = seeds.filter((t) => (cands.get(t.id)?.length ?? 0) > 0);
+  const without = seeds.filter((t) => !withRadio.includes(t));
+  let groups = clusterSeeds(withRadio.length ? withRadio : seeds, cands, count);
+  if (withRadio.length) without.forEach((t, i) => groups[i % groups.length].push(t));
+  // Fewer tastes than mixes: split the biggest group in two until there are enough.
+  while (groups.length < count) {
+    groups.sort((a, b) => b.length - a.length);
+    if (groups[0].length < 2) break;
+    const [x, y] = clusterSeeds(groups[0], cands, 2);
+    groups = [x, y, ...groups.slice(1)];
+  }
+  groups.sort((a, b) => weight(b) - weight(a));
+
+  const globalRanked = rankCandidates(seeds, cands, aff); // top-up pool when a group's own radios run short
+  // A thin pool is shared fairly: no mix may use more than its share, so the last one is not left with scraps.
+  const pool = new Set([...globalRanked.map((t) => t.id), ...aff.favorites.map((t) => t.id)]).size;
+  const each = Math.max(12, Math.min(size, Math.floor(pool / Math.max(1, groups.length))));
   const taken = new Set<string>();
   const out: ThemedMix[] = [];
   groups.forEach((g, i) => {
@@ -284,8 +299,10 @@ export function dailyMixes(aff: Affinity, cands: Map<string, Track[]>, day: stri
     for (const s of g) for (const t of cands.get(s.id) ?? []) for (const a of t.artists) seen.set(a.name.toLowerCase(), (seen.get(a.name.toLowerCase()) ?? 0) + 1);
     for (const [a, n] of seen) if (n >= 2 && aff.knownArtists.has(a)) artists.add(a);
     const familiar = aff.favorites.filter((t) => t.artists.some((a) => artists.has(a.name.toLowerCase())));
-    const ranked = rankCandidates(g, cands, aff);
-    const items = dailyMix(aff, ranked, day, size, { salt: `#${i}`, familiar, known: artists, exclude: taken });
+    const own = rankCandidates(g, cands, aff);
+    const ownIds = new Set(own.map((t) => t.id));
+    const ranked = [...own, ...globalRanked.filter((t) => !ownIds.has(t.id))];
+    const items = dailyMix(aff, ranked, day, each, { salt: `#${i}`, familiar, known: artists, exclude: taken });
     if (items.length < 8) return;
     items.forEach((t) => taken.add(t.id));
     out.push({ title: '', subtitle: mixName(g, aff), items });
