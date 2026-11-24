@@ -38,13 +38,13 @@ async function dailyPlaylists(uid: number, aff: Affinity, now: number): Promise<
   const day = dayKey(now);
   const key = `recs:u${uid}:mixes5:${day}`;
   const kept = readStale<Shelf[]>(key);
-  if (kept?.length) return kept;
+  if (kept && kept.length >= 5) return kept; // a short set is rebuilt next time, not kept for the day
   const seeds = aff.topTracks.slice(0, 15);
   const { map, ok } = await candidatesFor(seeds);
   if (!ok && seeds.length) return readStale<Shelf[]>(`recs:u${uid}:mixes5:last`) ?? [];
   const shelves: Shelf[] = dailyMixes(aff, map, day).map((m) => ({ title: m.title, subtitle: m.subtitle, items: m.items }));
   if (shelves.length) {
-    writeStale(key, shelves);
+    if (shelves.length >= 5) writeStale(key, shelves);
     writeStale(`recs:u${uid}:mixes5:last`, shelves);
   }
   return shelves;
