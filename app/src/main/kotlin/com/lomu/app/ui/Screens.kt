@@ -217,16 +217,6 @@ fun SearchScreen() {
 }
 
 @Composable
-private fun CategoryTile(label: String, colors: Pair<Color, Color>, modifier: Modifier, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(10.dp)
-    Box(
-        modifier.height(96.dp).background(androidx.compose.ui.graphics.lerp(colors.first, Color.Black, 0.35f), shape).pressable(shape, onClick = onClick).padding(12.dp),
-    ) {
-        Text(label, style = LoType.body.copy(fontWeight = FontWeight.Bold), color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
-    }
-}
-
-@Composable
 fun ResultRow(item: YTItem, onClick: () -> Unit) {
     val lo = LocalLo.current
     Column(Modifier.fillMaxWidth().pressable(RoundedCornerShape(0.dp), onClick = onClick)) {
@@ -427,7 +417,7 @@ fun AlbumScreen(id: String) {
                         }),
                     ),
             ) {
-                itemsIndexed(page.songs) { i, s -> TrackRow(s, flat = true, showLine = false, modifier = Modifier.appear(i)) { player?.playList(page.album.title, page.songs, i) } }
+                itemsIndexed(page.songs) { i, s -> TrackRow(s, flat = true, modifier = Modifier.appear(i)) { player?.playList(page.album.title, page.songs, i) } }
             }
         }
     }
@@ -460,7 +450,7 @@ fun PlaylistScreen(id: String) {
                         }),
                     ),
             ) {
-                itemsIndexed(page.songs) { i, s -> TrackRow(s, flat = true, showLine = false, modifier = Modifier.appear(i)) { player?.playPlaylist(id, page.playlist.title, page.songs, page.songsContinuation, i) } }
+                itemsIndexed(page.songs) { i, s -> TrackRow(s, flat = true, modifier = Modifier.appear(i)) { player?.playPlaylist(id, page.playlist.title, page.songs, page.songsContinuation, i) } }
             }
         }
     }
@@ -499,7 +489,7 @@ fun ArtistScreen(id: String) {
                     if (songs.isNotEmpty() && songs.size == sec.items.size) {
                         Column {
                             CaptionedTitle(sec.title, null, "See All") { player?.playList(sec.title, songs) }
-                            songs.take(5).forEachIndexed { i, s -> TrackRow(s, flat = true, showLine = false, modifier = Modifier.appear(i)) { player?.playList(sec.title, songs, i) } }
+                            songs.take(5).forEachIndexed { i, s -> TrackRow(s, flat = true, modifier = Modifier.appear(i)) { player?.playList(sec.title, songs, i) } }
                         }
                     } else Shelf(sec.title, sec.items)
                 }
@@ -549,7 +539,7 @@ fun LocalPlaylistScreen(id: String) {
         if (songs.isEmpty()) item { EmptyState(Ph.Playlist, "This playlist is empty") }
         itemsIndexed(songs) { i, s ->
             MediaRow(
-                s.song.song.title, s.song.artists.joinToString { it.name }, s.song.song.thumbnailUrl, trailing = formatTime(s.song.song.duration * 1000L), active = now == s.song.song.id, flat = true, showLine = false, modifier = Modifier.appear(i),
+                s.song.song.title, s.song.artists.joinToString { it.name }, s.song.song.thumbnailUrl, trailing = formatTime(s.song.song.duration * 1000L), active = now == s.song.song.id, flat = true, modifier = Modifier.appear(i),
                 menu = MenuTarget(s.song.toMediaMetadata(), "Remove from this Playlist") { player?.database?.let { d -> scope.launch(kotlinx.coroutines.Dispatchers.IO) { d.withTransaction { deletePlaylistSongMap(s.map.id) } } } },
             ) {
                 player?.playMediaItems("Playlist", items, i)
@@ -626,14 +616,11 @@ fun SettingsScreen() {
     Column(Modifier.fillMaxSize().background(lo.grouped).verticalScroll(rememberScrollState()).padding(bottom = bottomPad())) {
         BackTitle("Back", "Settings", nav::pop)
         if (st.user != null) {
-            Group("Account", footer = st.error ?: st.status) {
+            Group("Account", footer = st.error) {
                 Cell {
                     IconTile(Ph.User, lo.signal, 36.dp)
                     Spacer(Modifier.width(14.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(st.user.orEmpty(), style = LoType.body.copy(fontWeight = FontWeight.SemiBold), color = lo.ink)
-                        Text("Your LoMu server", style = LoType.small, color = lo.grey)
-                    }
+                    Text(st.user.orEmpty(), style = LoType.body.copy(fontWeight = FontWeight.SemiBold), color = lo.ink, modifier = Modifier.weight(1f))
                 }
                 Hairline(16.dp)
                 ActionCell(if (st.busy) "Syncing…" else "Sync Now", lo.signal, enabled = !st.busy) { scope.launch { sync?.sync() } }
@@ -641,7 +628,7 @@ fun SettingsScreen() {
                 ActionCell("Sign Out", lo.red) { sync?.signOut() }
             }
         } else {
-            val note = if (probing) "Checking the server…" else probe?.second ?: "One owner account on your own LoMu server."
+            val note = if (probing) "Checking the server…" else probe?.second
             Group("Account", footer = st.error ?: note) {
                 CellField(url, { url = it }, "Server, e.g. https://lomu.example.com")
                 Hairline(16.dp)
@@ -658,7 +645,7 @@ fun SettingsScreen() {
         run {
             var lanText by remember(st.lan) { mutableStateOf(st.lan) }
             var lanMsg by remember { mutableStateOf<String?>(null) }
-            Group("Home network", footer = lanMsg ?: "If the server's name does not work at home (router or WARP), the phone uses these addresses instead. Example: 192.168.1.10 (through the proxy) or 192.168.1.10:4100 (straight to the server, plain HTTP). Leave empty to let the server tell the phone.") {
+            Group("Home network", footer = lanMsg) {
                 CellField(lanText, { lanText = it; lanMsg = null }, "Server address at home (optional)")
                 Hairline(16.dp)
                 ActionCell("Save", lo.signal) {
@@ -668,7 +655,7 @@ fun SettingsScreen() {
         }
         if (st.user != null) {
             val openDevices = LocalOpenDevices.current
-            Group("Devices", footer = "See the other devices signed in to this account, move music between them, and control them from here.") {
+            Group("Devices") {
                 Cell(Modifier.pressable(RoundedCornerShape(0.dp)) { openDevices() }) {
                     IconTile(Ph.Headphones, lo.signal)
                     Spacer(Modifier.width(14.dp))
@@ -677,7 +664,7 @@ fun SettingsScreen() {
                 }
             }
         }
-        Group("Tabs", footer = "Show the New tab (YouTube Music's open feed) in the bottom bar.") {
+        Group("Tabs") {
             val ctx = LocalContext.current
             Cell {
                 IconTile(Ph.Sparkles, Color(0xFFFF9500))
@@ -686,22 +673,12 @@ fun SettingsScreen() {
                 androidx.compose.material3.Switch(UiPrefs.showNew(ctx), { UiPrefs.setShowNew(ctx, it) })
             }
         }
-        Group("Library", footer = "Copy your liked songs and playlists once. The Google session is discarded afterwards.") {
+        Group("Library") {
             Cell(Modifier.pressable(RoundedCornerShape(0.dp)) { nav.push(Screen.Import) }) {
                 IconTile(Ph.Download, Color(0xFF34C759))
                 Spacer(Modifier.width(14.dp))
                 Text("Import from YouTube Music", style = LoType.body, color = lo.ink, modifier = Modifier.weight(1f))
                 Icon(Icons.Rounded.ChevronRight, null, tint = lo.grey.copy(alpha = 0.7f), modifier = Modifier.size(20.dp))
-            }
-        }
-        Group("About") {
-            Cell {
-                IconTile(Ph.Waveform, lo.signal)
-                Spacer(Modifier.width(14.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("LoMu", style = LoType.body, color = lo.ink)
-                    Text("Plays anonymously from YouTube Music. No ads, no Google account.", style = LoType.small, color = lo.grey)
-                }
             }
         }
     }
@@ -721,7 +698,7 @@ fun MixScreen() {
     ) {
         if (tracks.isEmpty()) item { EmptyState(Ph.Playlist, "Nothing here yet") }
         itemsIndexed(tracks) { i, m ->
-            MediaRow(m.title, m.artists.joinToString { it.name }, m.thumbnailUrl, trailing = formatTime(m.duration * 1000L), active = now == m.id, flat = true, showLine = false, modifier = Modifier.appear(i), menu = MenuTarget(m)) {
+            MediaRow(m.title, m.artists.joinToString { it.name }, m.thumbnailUrl, trailing = formatTime(m.duration * 1000L), active = now == m.id, flat = true, modifier = Modifier.appear(i), menu = MenuTarget(m)) {
                 player?.playMediaItems(title, items, i)
             }
         }
