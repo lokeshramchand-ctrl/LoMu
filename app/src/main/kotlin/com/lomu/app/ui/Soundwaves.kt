@@ -106,7 +106,7 @@ fun HomeScreen() {
         if (fromRecs.size >= 3) fromRecs else (fromRecs + likedMeta).distinctBy { it.id }
     }
     val feature = picks.firstOrNull()
-    val tiles = picks.drop(1).take(4)
+    val mixes = remember(recs) { recs.filter { it.title.startsWith("Daily Mix") } }
 
     // The page takes the colour of the playing song's cover, as the player does, fading to white lower down.
     val noMeta = remember { kotlinx.coroutines.flow.MutableStateFlow<MediaMetadata?>(null) }
@@ -165,14 +165,16 @@ fun HomeScreen() {
                 }
             }
         }
-        if (tiles.isNotEmpty()) item {
+        if (mixes.isNotEmpty()) item {
             Column(Modifier.appear(3)) {
-                SoundSection("Picked For You")
+                SoundSection("Mixes")
                 Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    tiles.chunked(2).forEachIndexed { r, row ->
+                    mixes.chunked(2).forEachIndexed { r, row ->
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            row.forEachIndexed { c, m ->
-                                PickTile(m, tileColor(r * 2 + c), Modifier.weight(1f)) { player?.playRadio(m) }
+                            row.forEachIndexed { c, mix ->
+                                PickTile(mix.title, mix.subtitle.orEmpty(), mix.tracks.firstOrNull()?.thumbnailUrl, tileColor(r * 2 + c), Modifier.weight(1f)) {
+                                    player?.playMediaItems(mix.title, mix.tracks.map { it.toMediaItem() }, 0)
+                                }
                             }
                             if (row.size == 1) Spacer(Modifier.weight(1f))
                         }
@@ -236,13 +238,13 @@ private fun FeatureCard(m: MediaMetadata) {
 
 /** Big pastel tile with round art, the title and the artist underneath. */
 @Composable
-private fun PickTile(m: MediaMetadata, fill: Color, modifier: Modifier, onClick: () -> Unit) {
+private fun PickTile(title: String, subtitle: String, thumb: String?, fill: Color, modifier: Modifier, onClick: () -> Unit) {
     val lo = LocalLo.current
     val shape = RoundedCornerShape(26.dp)
     Column(modifier.background(fill, shape).pressable(shape, onClick = onClick).padding(horizontal = 12.dp, vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        BoxWithConstraints(Modifier.fillMaxWidth(), Alignment.Center) { Cover(m.thumbnailUrl, maxWidth * 0.86f, round = true) }
-        Text(m.title, style = LoType.body.copy(fontWeight = FontWeight.Medium, fontSize = 16.sp), color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 12.dp))
-        Text(m.artists.joinToString { it.name }, style = LoType.small, color = lo.grey, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+        BoxWithConstraints(Modifier.fillMaxWidth(), Alignment.Center) { Cover(thumb, maxWidth * 0.86f, round = true) }
+        Text(title, style = LoType.body.copy(fontWeight = FontWeight.Medium, fontSize = 16.sp), color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 12.dp))
+        Text(subtitle, style = LoType.small, color = lo.grey, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
     }
 }
 
