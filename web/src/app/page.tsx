@@ -36,9 +36,12 @@ export default function Home() {
   const onRepeatShelf = mixes.find((s) => /repeat/i.test(s.title));
   const onRepeat = songsOf(onRepeatShelf);
   const dailyShelves = mixes.filter((s) => /^Daily Mix/.test(s.title));
+  // Discover Weekly and the four time-of-day mixes: a second row of tiles under the daily mixes.
+  const dayShelves = mixes.filter((s) => s.title === 'Discover Weekly' || /^(Morning|Afternoon|Evening|Late Night) Mix$/.test(s.title));
+  const tileShelves = [...dailyShelves, ...dayShelves];
   const pickPool = useMemo(() => {
-    const fromMixes = mixes.filter((s) => s !== onRepeatShelf && !dailyShelves.includes(s)).flatMap(songsOf)
-      .concat(dailyShelves.flatMap(songsOf));
+    const fromMixes = mixes.filter((s) => s !== onRepeatShelf && !tileShelves.includes(s)).flatMap(songsOf)
+      .concat(tileShelves.flatMap(songsOf));
     const base = fromMixes.length >= 3 ? fromMixes : [...fromMixes, ...(trending.filter((i): i is Track => i.kind === 'song') as Track[])];
     const seen = new Set<string>();
     return base.filter((t) => !seen.has(t.id) && !!seen.add(t.id));
@@ -122,23 +125,8 @@ export default function Home() {
         </section>
       )}
 
-      {home.quick && dailyShelves.length > 0 && (
-        <section className="picked" aria-label="Daily mixes">
-          <h2>Mixes</h2>
-          <div className="pgrid five">
-            {dailyShelves.map((sh, i) => {
-              const list = songsOf(sh);
-              return (
-                <Link key={sh.title} href={`/mix?name=${encodeURIComponent(sh.title)}`} className="pick" style={{ background: `var(--tile-${(i % 4) + 1})` }} {...warmProps(list[0]?.id)}>
-                  <span className="pa"><Avatar src={list[0]?.thumb} size="100%" /></span>
-                  <b className="clamp1">{sh.title}</b>
-                  <span className="clamp2 muted">{sh.subtitle}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
-      )}
+      {home.quick && dailyShelves.length > 0 && <TileRow label="Daily mixes" heading="Mixes" shelves={dailyShelves} />}
+      {home.quick && dayShelves.length > 0 && <TileRow label="For your day" heading="For your day" shelves={dayShelves} />}
 
       {showStats && (
         <aside className="week-line" aria-label="This week">
@@ -166,7 +154,7 @@ export default function Home() {
               <ShelfSkeleton title={false} />
             </Tile>
           )}
-          {mixes.filter((s) => (s !== onRepeatShelf || !home.quick) && !(home.quick && dailyShelves.includes(s))).map((s) => (
+          {mixes.filter((s) => (s !== onRepeatShelf || !home.quick) && !(home.quick && tileShelves.includes(s))).map((s) => (
             <ShelfTile
               key={`rec-${s.title}`}
               shelf={s}
@@ -294,4 +282,25 @@ function Moods({ moods }: { moods: { title: string; params: string; browseId: st
 
 function MoodItem({ item, siblings }: { item: Item; siblings: Track[] }) {
   return <ItemCard item={item} siblings={siblings.length > 1 ? siblings : undefined} />;
+}
+
+/** A row of coloured tiles; each opens the mix as an album-style page. */
+function TileRow({ label, heading, shelves }: { label: string; heading: string; shelves: Shelf[] }) {
+  return (
+    <section className="picked" aria-label={label}>
+      <h2>{heading}</h2>
+      <div className="pgrid five">
+        {shelves.map((sh, i) => {
+          const list = (sh.items.filter((x): x is Track => x.kind === 'song') ?? []) as Track[];
+          return (
+            <Link key={sh.title} href={`/mix?name=${encodeURIComponent(sh.title)}`} className="pick" style={{ background: `var(--tile-${(i % 4) + 1})` }} {...warmProps(list[0]?.id)}>
+              <span className="pa"><Avatar src={list[0]?.thumb} size="100%" /></span>
+              <b className="clamp1">{sh.title}</b>
+              <span className="clamp2 muted">{sh.subtitle}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
+  );
 }
