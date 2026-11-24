@@ -379,6 +379,7 @@ class SyncClient @Inject constructor(
             "playlist" -> applyPlaylist(d)
             "saved" -> applySaved(d)
             "queue" -> applyQueue(d)
+            "block" -> applyBlock(d)
             "play" -> {
                 if (d.optBoolean("deleted")) return
                 val v = d.optJSONObject("value") ?: return
@@ -623,6 +624,14 @@ class SyncClient @Inject constructor(
                 .put("completed", completed).put("skipped", !completed && e.event.playTime < 30_000)
             docs.put(doc("play", "$at:${e.song.song.id}", v, at, false))
         }
+        // Blocked artists: diff against what the server last heard from us.
+        val blockedNow = JSONObject(prefs.getString("blocked", null) ?: "{}")
+        val blockBefore = prefs.getStringSet("blockSnap", null)
+        blockedNow.keys().forEach { k ->
+            if (blockBefore == null || k !in blockBefore) docs.put(doc("block", k, blockedNow.getJSONObject(k), blockedNow.getJSONObject(k).optLong("at", now), false))
+        }
+        blockBefore?.filter { !blockedNow.has(it) }?.forEach { docs.put(doc("block", it, null, now, true)) }
+        val blockKeys = blockedNow.keys().asSequence().toSet()
         val plSnap = playlistSnapshot()
         val plNow = syncedPlaylists().associate { it.first to it.second }
         val plSigs = JSONObject()
@@ -659,12 +668,59 @@ class SyncClient @Inject constructor(
             .apply { if (queueDue) putLong("queuePushedAt", queueAt) }.apply()
         // Our own writes are the next seq numbers; skip them so they are not pulled back.
         val seq = prefs.getLong("seq", 0)
-        val edit = prefs.edit().putStringSet("liked", likedIds).putLong("lastEvent", events.lastOrNull()?.event?.id ?: lastEvent)
+        val edit = prefs.edit().putStringSet("liked", likedIds).putStringSet("blockSnap", blockKeys).putLong("lastEvent", events.lastOrNull()?.event?.id ?: lastEvent)
         if (o.optLong("seq") - seq == o.optLong("applied")) edit.putLong("seq", o.getLong("seq"))
         edit.apply()
     }
 
-    data class RecShelf(val title: String, val subtitle: String?, val tracks: List<MediaMetadata>)
+    /** [why] maps a track id to its "why this song?" line (mixes only). */
+    data class RecShelf(val title: String, val subtitle: String?, val tracks: List<MediaMetadata>, val why: Map<String, String> = emptyMap())
+
+    // ---- Artists the user never wants recommended: lower-case name -> {name, at}, kept in prefs and synced as 'block' docs.
+
+    /** The blocked artists (lower-case names). Home watches this, so blocking takes effect on screen at once. */
+    val blocked = kotlinx.coroutines.flow.MutableStateFlow<Set<String>>(blockedArtists().keys)
+
+    fun blockedArtists(): Map<String, String> = runCatching {
+        val o = JSONObject(prefs.getString("blocked", null) ?: "{}")
+        o.keys().asSequence().associateWith { o.getJSONObject(it).optString("name", it) }
+    }.getOrDefault(emptyMap())
+
+    private fun writeBlocked(o: JSONObject) {
+        prefs.edit().putString("blocked", o.toString()).apply()
+        blocked.value = o.keys().asSequence().toSet()
+    }
+
+    fun blockArtist(name: String) {
+        val o = JSONObject(prefs.getString("blocked", null) ?: "{}")
+        o.put(name.trim().lowercase(), JSONObject().put("name", name.trim()).put("at", System.currentTimeMillis()))
+        writeBlocked(o)
+    }
+
+    fun unblockArtist(key: String) {
+        val o = JSONObject(prefs.getString("blocked", null) ?: "{}")
+        o.remove(key)
+        writeBlocked(o)
+    }
+
+    private fun applyBlock(d: JSONObject) {
+        val o = JSONObject(prefs.getString("blocked", null) ?: "{}")
+        val key = d.getString("key")
+        val v = d.optJSONObject("value")
+        if (d.optBoolean("deleted") || v == null) o.remove(key) else o.put(key, v)
+        writeBlocked(o)
+    }
+
+    /** Short fingerprint of the block list: part of every cache key, so blocking an artist rebuilds the day's mixes. */
+    private fun blockSig(b: Set<String>): String {
+        var h = 5381
+        for (c in b.sorted().joinToString("|")) h = (h shl 5) + h + c.code
+        return if (b.isEmpty()) "0" else Integer.toUnsignedString(h, 36)
+    }
+
+    /** Nothing by a blocked artist is ever shown, whatever an older cached shelf holds. */
+    fun hideBlocked(shelves: List<RecShelf>, blocked: Set<String>): List<RecShelf> =
+        if (blocked.isEmpty()) shelves else shelves.map { sh -> sh.copy(tracks = sh.tracks.filter { !blockedTrack(blocked, it) }) }.filter { it.tracks.isNotEmpty() }
 
     /**
      * Personalised shelves, computed on the phone from its own play log and likes (which sync keeps
@@ -696,31 +752,27 @@ class SyncClient @Inject constructor(
         }
         if (plays.isEmpty() && likes.isEmpty()) return emptyList()
 
-        val aff = affinity(plays, likes, System.currentTimeMillis())
+        val aff = affinity(plays, likes, System.currentTimeMillis(), blockedArtists().keys)
         val seeds = aff.topTracks.take(5)
         var radioOk = false
-        val cands = seeds.associate { seed ->
-            seed.id to (runCatching {
-                com.music.innertube.YouTube.next(com.music.innertube.models.WatchEndpoint(videoId = seed.id, playlistId = "RDAMVM${seed.id}"))
-                    .getOrThrow().items.map { it.toMediaMetadata() }.filter { it.id != seed.id }.take(30)
-            }.getOrNull()?.also { radioOk = true } ?: emptyList())
-        }
+        val cands = radios(seeds).also { m -> radioOk = m.values.any { it.isNotEmpty() } }
         val shelves = ArrayList<RecShelf>()
         if (radioOk) {
             val ranked = rankCandidates(seeds, cands, aff)
             shelves.addAll(dailyPlaylists(aff))
             discoverWeeklyShelf(aff)?.let { shelves.add(it) }
             shelves.addAll(timeOfDay(aff, plays))
+            shelves.addAll(momentsAndRewind(aff))
             if (aff.onRepeat.isNotEmpty()) shelves.add(RecShelf("On Repeat", "Your last 30 days", aff.onRepeat.take(50)))
             for (seed in seeds.take(3)) {
-                val list = diversify(cands[seed.id].orEmpty().filter { it.id !in aff.heavilyPlayed && it.id !in aff.skipped }, 2).take(15)
+                val list = diversify(cands[seed.id].orEmpty().filter { it.id !in aff.heavilyPlayed && it.id !in aff.skipped && !blockedTrack(aff.blocked, it) }, 2).take(15)
                 if (list.size >= 5) shelves.add(RecShelf("Because you played ${seed.title}", null, list))
             }
             val fresh = ranked.filter { t -> t.artists.all { it.name.lowercase() !in aff.knownArtists } }
             val discover = diversify(fresh, 1).take(20)
             if (discover.size >= 5) shelves.add(RecShelf("Discover", "Artists you have not played yet", discover))
         } // else: offline, so return nothing and let recs() fall back to the cached full set
-        return shelves
+        return hideBlocked(shelves, aff.blocked)
     }
 
     private suspend fun radios(seeds: List<MediaMetadata>): Map<String, List<MediaMetadata>> = seeds.associate { seed ->
@@ -733,106 +785,114 @@ class SyncClient @Inject constructor(
     private fun tracksJson(l: List<MediaMetadata>) = JSONArray().also { a -> l.forEach { a.put(metadataToTrack(it)) } }
     private fun tracksFrom(a: JSONArray) = (0 until a.length()).mapNotNull { trackToMetadata(a.getJSONObject(it)) }
 
-    /** Discover Weekly: one playlist a week of artists never played, kept until Monday (or a big history import). */
+    private fun shelfJson(sh: RecShelf) = JSONObject().put("title", sh.title).put("subtitle", sh.subtitle ?: JSONObject.NULL)
+        .put("items", tracksJson(sh.tracks)).put("why", JSONObject(sh.why as Map<*, *>))
+
+    private fun shelfFrom(o: JSONObject): RecShelf {
+        val w = o.optJSONObject("why")
+        return RecShelf(o.getString("title"), o.optString("subtitle").ifBlank { null }, tracksFrom(o.getJSONArray("items")),
+            w?.keys()?.asSequence()?.associateWith { w.getString(it) } ?: emptyMap())
+    }
+
+    private fun shelvesFrom(json: String?): List<RecShelf> = runCatching {
+        val arr = JSONArray(json ?: return emptyList())
+        (0 until arr.length()).map { shelfFrom(arr.getJSONObject(it)) }.filter { it.tracks.isNotEmpty() }
+    }.getOrDefault(emptyList())
+
+    private fun shelvesJson(l: List<RecShelf>) = JSONArray().also { a -> l.forEach { a.put(shelfJson(it)) } }.toString()
+
+    /** Discover Weekly: one playlist a week of artists never played, kept until Monday (or a big history import, or a new block). */
     private suspend fun discoverWeeklyShelf(aff: Affinity): RecShelf? {
-        val key = weekKey(System.currentTimeMillis()) + "/" + (aff.playCount / 1000)
-        if (prefs.getString("dwKey", null) == key) {
-            val items = runCatching { tracksFrom(JSONArray(prefs.getString("dwItems", "[]"))) }.getOrDefault(emptyList())
-            if (items.isNotEmpty()) return RecShelf("Discover Weekly", "Artists new to you · changes every Monday", items)
-        }
+        val week = weekKey(System.currentTimeMillis())
+        val key = "$week/${aff.playCount / 1000}/${blockSig(aff.blocked)}"
+        if (prefs.getString("dwKey2", null) == key) shelvesFrom(prefs.getString("dwShelf", null)).firstOrNull()?.let { return it }
         val cands = radios(aff.topTracks.take(20))
         if (cands.values.all { it.isEmpty() }) return null
-        val items = discoverWeekly(aff, cands, weekKey(System.currentTimeMillis()))
-        if (items.isEmpty()) return null
-        prefs.edit().putString("dwKey", key).putString("dwItems", tracksJson(items).toString()).apply()
-        return RecShelf("Discover Weekly", "Artists new to you · changes every Monday", items)
+        val picked = discoverWeekly(aff, cands, week)
+        if (picked.items.isEmpty()) return null
+        val shelf = RecShelf("Discover Weekly", "Artists new to you · changes every Monday", picked.items, picked.why)
+        prefs.edit().putString("dwKey2", key).putString("dwShelf", shelvesJson(listOf(shelf))).apply()
+        return shelf
+    }
+
+    /** Repeat Rewind (history only) and the mood mixes (YouTube radios, built once a day). */
+    private suspend fun momentsAndRewind(aff: Affinity): List<RecShelf> {
+        val now = System.currentTimeMillis()
+        val out = ArrayList<RecShelf>()
+        val rw = repeatRewind(aff, weekKey(now))
+        if (rw.items.isNotEmpty()) out.add(RecShelf("Repeat Rewind", "Songs you loved, a while ago", rw.items, rw.why))
+        val plan = moodPlan(aff)
+        if (plan.isNotEmpty()) {
+            val key = "${dayKey(now)}/${aff.playCount / 1000}/${blockSig(aff.blocked)}"
+            var moods = if (prefs.getString("momKey", null) == key) shelvesFrom(prefs.getString("momShelves", null)) else emptyList()
+            if (moods.isEmpty()) {
+                val cands = radios(plan.flatMap { it.seeds }.distinctBy { it.id })
+                if (cands.values.any { it.isNotEmpty() }) {
+                    moods = moodMixes(aff, plan, cands, dayKey(now)).map { RecShelf(it.title, it.subtitle, it.items, it.why) }
+                    if (moods.isNotEmpty()) prefs.edit().putString("momKey", key).putString("momShelves", shelvesJson(moods)).apply()
+                }
+            }
+            out.addAll(moods)
+        }
+        return out
     }
 
     /** Morning / Afternoon / Evening / Late Night mixes from what is played in each part of the day; built once a day, ordered by "right now" when read. */
     private suspend fun timeOfDay(aff: Affinity, plays: List<PlayDoc>): List<RecShelf> {
         val now = System.currentTimeMillis()
-        val key = dayKey(now) + "/" + (aff.playCount / 1000)
+        val key = dayKey(now) + "/" + (aff.playCount / 1000) + "/" + blockSig(aff.blocked)
         var built: List<TimeMix>? = null
-        if (prefs.getString("todKey", null) == key) {
+        if (prefs.getString("todKey2", null) == key) {
             built = runCatching {
-                val arr = JSONArray(prefs.getString("todMixes", "[]"))
+                val arr = JSONArray(prefs.getString("todMixes2", "[]"))
                 (0 until arr.length()).map { i ->
                     val o = arr.getJSONObject(i)
-                    TimeMix(SlotId.valueOf(o.getString("slot")), o.getString("title"), o.getString("subtitle"), tracksFrom(o.getJSONArray("items")))
+                    val sh = shelfFrom(o)
+                    TimeMix(SlotId.valueOf(o.getString("slot")), sh.title, sh.subtitle.orEmpty(), sh.tracks, sh.why)
                 }
             }.getOrNull()
         }
         if (built == null) {
-            val slots = slotAffinities(plays, now)
+            val slots = slotAffinities(plays, now, aff.blocked)
             val seeds = slots.flatMap { it.second.topTracks.take(4) }.distinctBy { it.id }
             val cands = radios(seeds)
             if (seeds.isNotEmpty() && cands.values.all { it.isEmpty() }) return emptyList()
             built = timeMixes(aff, slots, cands, dayKey(now))
             if (built.isNotEmpty()) {
                 val arr = JSONArray()
-                built.forEach { arr.put(JSONObject().put("slot", it.slot.name).put("title", it.title).put("subtitle", it.subtitle).put("items", tracksJson(it.items))) }
-                prefs.edit().putString("todKey", key).putString("todMixes", arr.toString()).apply()
+                built.forEach { arr.put(shelfJson(RecShelf(it.title, it.subtitle, it.items, it.why)).put("slot", it.slot.name)) }
+                prefs.edit().putString("todKey2", key).putString("todMixes2", arr.toString()).apply()
             }
         }
-        return orderByNow(built, java.time.LocalTime.now().hour).map { RecShelf(it.title, it.subtitle, it.items) }
+        return orderByNow(built, java.time.LocalTime.now().hour).map { RecShelf(it.title, it.subtitle, it.items, it.why) }
     }
 
     /** Five themed mixes, built once per calendar day and kept. Each one is a taste cluster of the top tracks. */
     private suspend fun dailyPlaylists(aff: Affinity): List<RecShelf> {
-        // The day plus a history-size bucket: a big import rebuilds today's mixes instead of waiting for tomorrow.
-        val day = dayKey(System.currentTimeMillis()) + "/" + (aff.playCount / 1000)
-        fun read(): List<RecShelf> = runCatching {
-            val arr = JSONArray(prefs.getString("dailyMixes5", "[]"))
-            (0 until arr.length()).map { i ->
-                val sh = arr.getJSONObject(i); val items = sh.getJSONArray("items")
-                RecShelf(sh.getString("title"), sh.optString("subtitle").ifBlank { null }, (0 until items.length()).mapNotNull { trackToMetadata(items.getJSONObject(it)) })
-            }.filter { it.tracks.isNotEmpty() }
-        }.getOrDefault(emptyList())
+        // The day plus a history-size bucket and the block list: a big import or a new block rebuilds today's mixes.
+        val day = dayKey(System.currentTimeMillis()) + "/" + (aff.playCount / 1000) + "/" + blockSig(aff.blocked)
+        fun read() = shelvesFrom(prefs.getString("dailyMixes6", "[]"))
         // A full set is kept for the day; a short one (radio failed for some seeds) is retried, at most every 10 minutes.
         val have = read()
-        if (prefs.getString("dailyDay5", null) == day && have.size >= 5) return have
-        if (have.isNotEmpty() && prefs.getString("dailyTryDay5", null) == day && System.currentTimeMillis() - prefs.getLong("dailyTryAt5", 0) < 600_000) return have
-        prefs.edit().putString("dailyTryDay5", day).putLong("dailyTryAt5", System.currentTimeMillis()).apply()
-        val seeds = aff.topTracks.take(20)
-        val cands = seeds.associate { seed ->
-            seed.id to (runCatching {
-                com.music.innertube.YouTube.next(com.music.innertube.models.WatchEndpoint(videoId = seed.id, playlistId = "RDAMVM${seed.id}"))
-                    .getOrThrow().items.map { it.toMediaMetadata() }.filter { it.id != seed.id }.take(30)
-            }.getOrNull() ?: emptyList())
-        }
+        if (prefs.getString("dailyDay6", null) == day && have.size >= 5) return have
+        if (have.isNotEmpty() && prefs.getString("dailyTryDay6", null) == day && System.currentTimeMillis() - prefs.getLong("dailyTryAt6", 0) < 600_000) return have
+        prefs.edit().putString("dailyTryDay6", day).putLong("dailyTryAt6", System.currentTimeMillis()).apply()
+        val cands = radios(aff.topTracks.take(20))
         if (cands.values.all { it.isEmpty() }) return read() // offline: yesterday's set stays
-        val shelves = dailyMixes(aff, cands, day).map { RecShelf(it.title, it.subtitle, it.items) }
+        val shelves = dailyMixes(aff, cands, day).map { RecShelf(it.title, it.subtitle, it.items, it.why) }
         if (shelves.isNotEmpty()) {
-            val arr = JSONArray()
-            shelves.forEach { sh ->
-                arr.put(JSONObject().put("title", sh.title).put("subtitle", sh.subtitle ?: JSONObject.NULL)
-                    .put("items", JSONArray().also { a -> sh.tracks.forEach { a.put(metadataToTrack(it)) } }))
-            }
-            prefs.edit().putString("dailyDay5", if (shelves.size >= 5) day else "").putString("dailyMixes5", arr.toString()).apply()
+            prefs.edit().putString("dailyDay6", if (shelves.size >= 5) day else "").putString("dailyMixes6", shelvesJson(shelves)).apply()
         }
         return shelves
     }
 
     private fun saveRecsCache(shelves: List<RecShelf>) {
-        val arr = JSONArray()
-        shelves.forEach { sh ->
-            arr.put(JSONObject().put("title", sh.title).put("subtitle", sh.subtitle ?: JSONObject.NULL)
-                .put("items", JSONArray().also { a -> sh.tracks.forEach { a.put(metadataToTrack(it)) } }))
-        }
-        prefs.edit().putString("recsCache", arr.toString()).apply()
+        prefs.edit().putString("recsCache2", shelvesJson(shelves)).apply()
     }
 
     fun cachedRecs(): List<RecShelf> = loadRecsCache()
 
-    private fun loadRecsCache(): List<RecShelf> = runCatching {
-        val arr = JSONArray(prefs.getString("recsCache", null) ?: return emptyList())
-        (0 until arr.length()).map { i ->
-            val sh = arr.getJSONObject(i)
-            val items = sh.getJSONArray("items")
-            RecShelf(sh.getString("title"), sh.optString("subtitle").ifBlank { null },
-                (0 until items.length()).mapNotNull { j -> trackToMetadata(items.getJSONObject(j)) })
-        }.filter { it.tracks.isNotEmpty() }
-    }.getOrDefault(emptyList())
+    private fun loadRecsCache(): List<RecShelf> = hideBlocked(shelvesFrom(prefs.getString("recsCache2", null)), blocked.value)
 
     private fun doc(kind: String, key: String, value: JSONObject?, updated: Long, deleted: Boolean) =
         JSONObject().put("kind", kind).put("key", key).put("value", value ?: JSONObject.NULL).put("updated", updated).put("deleted", deleted)
