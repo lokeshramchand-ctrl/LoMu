@@ -13,6 +13,7 @@ export type Affinity = {
   heavilyPlayed: Set<string>; // completed 3+ times: not "new" any more
   skipped: Set<string>; // early-skipped recently and never liked
   knownArtists: Set<string>;
+  playCount: number; // size of the play log: a big import must rebuild today's mixes
   favorites: Track[]; // strongest tracks overall (positive score), best first: the "familiar" pool of the daily mix
 };
 
@@ -39,7 +40,9 @@ export function affinity(plays: PlayDoc[], likes: LikeDoc[], now: number): Affin
     const age = now - p.at;
     const d = decay(age, 14);
     if (p.completed) {
-      add(p.track, d); // finishing a song is the strongest implicit "yes"
+      // Finishing a song is the strongest implicit "yes". A slow second clock keeps long-time favourites alive: a song
+      // played on repeat for months is taste, not a phase, even if it has been quiet for a few weeks.
+      add(p.track, d + 0.25 * decay(age, 150));
       completions.set(p.track.id, (completions.get(p.track.id) ?? 0) + 1);
       if (age < 30 * DAY) monthPlays.set(p.track.id, (monthPlays.get(p.track.id) ?? 0) + 1);
     } else if (p.skipped) {
@@ -51,19 +54,35 @@ export function affinity(plays: PlayDoc[], likes: LikeDoc[], now: number): Affin
       add(p.track, (dur > 0 ? Math.min(0.7, Math.max(0.1, (p.playedMs / dur) * 0.8)) : 0.3) * d);
     }
   }
-  for (const l of likes) add(l.track, 2 * decay(now - l.at, 45));
+  // Library presence: saving a song is a deliberate act, and it outlasts a plain play.
+  for (const l of likes) add(l.track, 3 * decay(now - l.at, 90));
 
   const ranked = [...trackScore.entries()].filter(([, s]) => s > 0).sort((a, b) => b[1] - a[1]);
-  const topTracks: Track[] = [];
-  const perArtist = new Map<string, number>();
+  // Seeds: the best song of each of your top artists first (someone you play across forty songs would otherwise lose to a
+  // single hot track), then the strongest remaining tracks, at most two per artist, strongest first.
+  const bestByLead = new Map<string, string>();
   for (const [id] of ranked) {
-    const t = byId.get(id)!;
-    const n = perArtist.get(name(t)) ?? 0;
-    if (n >= (topTracks.length < 3 ? 1 : 2)) continue; // spread the first few seeds, then at most two per artist
-    perArtist.set(name(t), n + 1);
-    topTracks.push(t);
-    if (topTracks.length >= 20) break;
+    const a = name(byId.get(id)!);
+    if (a && !bestByLead.has(a)) bestByLead.set(a, id);
   }
+  const picked: string[] = [];
+  const perArtist = new Map<string, number>();
+  const pick = (id: string) => {
+    const a = name(byId.get(id)!);
+    if (picked.includes(id) || (perArtist.get(a) ?? 0) >= 2) return;
+    picked.push(id);
+    perArtist.set(a, (perArtist.get(a) ?? 0) + 1);
+  };
+  for (const [a] of [...artistScore.entries()].filter(([, s]) => s > 0).sort((x, y) => y[1] - x[1])) {
+    const id = bestByLead.get(a);
+    if (id) pick(id);
+    if (picked.length >= 12) break;
+  }
+  for (const [id] of ranked) {
+    if (picked.length >= 20) break;
+    pick(id);
+  }
+  const topTracks: Track[] = picked.sort((x, y) => (trackScore.get(y) ?? 0) - (trackScore.get(x) ?? 0)).map((id) => byId.get(id)!);
 
   const onRepeat = [...monthPlays.entries()]
     .sort((a, b) => b[1] - a[1])
@@ -81,6 +100,7 @@ export function affinity(plays: PlayDoc[], likes: LikeDoc[], now: number): Affin
     heavilyPlayed: new Set([...completions].filter(([, n]) => n >= 3).map(([id]) => id)),
     skipped: new Set([...recentSkips].filter(([id, n]) => n >= 1 && !likedIds.has(id)).map(([id]) => id)),
     knownArtists: new Set([...artistScore].filter(([, s]) => s > 0).map(([a]) => a)),
+    playCount: plays.length,
   };
 }
 
@@ -176,7 +196,7 @@ export function dailyMix(aff: Affinity, ranked: Track[], day: string, size = 40,
   const ex = scope.exclude;
   const bad = (t: Track) => aff.skipped.has(t.id) || !!ex?.has(t.id);
   const knownSet = scope.known ?? aff.knownArtists;
-  const familiar = pickWeighted((scope.familiar ?? aff.favorites).filter((t) => !bad(t)), Math.round(size * 0.35), rnd);
+  const familiar = pickWeighted((scope.familiar ?? aff.favorites).filter((t) => !bad(t)), Math.round(size * 0.4), rnd);
   const fresh = ranked.filter((t) => !bad(t));
   const known = fresh.filter((t) => t.artists.some((a) => knownSet.has(a.name.toLowerCase())));
   const unknown = fresh.filter((t) => t.artists.every((a) => !knownSet.has(a.name.toLowerCase())));
@@ -191,7 +211,7 @@ export function dailyMix(aff: Affinity, ranked: Track[], day: string, size = 40,
     return out;
   };
   const known2 = take(known, Math.round(size * 0.4));
-  const disc = take(unknown, Math.round(size * 0.25));
+  const disc = take(unknown, Math.round(size * 0.2));
   const spill = take(fresh, size); // tops up whichever pool ran short
 
   // Rhythm: F K F K D, repeated. A pool that runs dry hands its slot to the next one.
@@ -269,7 +289,7 @@ function mixName(group: Track[], aff: Affinity): string {
  * artists, plus the consensus of the cluster's radios (same artists first, then neighbours). No song appears in two mixes.
  */
 export function dailyMixes(aff: Affinity, cands: Map<string, Track[]>, day: string, count = 5, size = 40): ThemedMix[] {
-  const seeds = aff.topTracks.slice(0, 15);
+  const seeds = aff.topTracks.slice(0, 20);
   const weight = (g: Track[]) => g.reduce((n, t) => n + (aff.trackScore.get(t.id) ?? 0), 0);
   // Seeds whose radio came back empty cannot be grouped by sound: they join a group afterwards.
   const withRadio = seeds.filter((t) => (cands.get(t.id)?.length ?? 0) > 0);

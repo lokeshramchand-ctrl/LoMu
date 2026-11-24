@@ -36,10 +36,10 @@ async function candidatesFor(seeds: Track[]): Promise<{ map: Map<string, Track[]
  */
 async function dailyPlaylists(uid: number, aff: Affinity, now: number): Promise<Shelf[]> {
   const day = dayKey(now);
-  const key = `recs:u${uid}:mixes5:${day}`;
+  const key = `recs:u${uid}:mixes5:${day}:${Math.floor(aff.playCount / 1000)}`; // a big import changes the bucket and rebuilds
   const kept = readStale<Shelf[]>(key);
   if (kept && kept.length >= 5) return kept; // a short set is rebuilt next time, not kept for the day
-  const seeds = aff.topTracks.slice(0, 15);
+  const seeds = aff.topTracks.slice(0, 20);
   const { map, ok } = await candidatesFor(seeds);
   if (!ok && seeds.length) return readStale<Shelf[]>(`recs:u${uid}:mixes5:last`) ?? [];
   const shelves: Shelf[] = dailyMixes(aff, map, day).map((m) => ({ title: m.title, subtitle: m.subtitle, items: m.items }));
@@ -50,17 +50,24 @@ async function dailyPlaylists(uid: number, aff: Affinity, now: number): Promise<
   return shelves;
 }
 
+const memo = new Map<number, { at: number; aff: Affinity }>();
+
+/** The account's taste profile. A big imported history makes this a real cost, so it is kept for a minute. */
 export function userAffinity(uid: number): Affinity {
-  const plays = all(uid, 'play', 3000).map((r) => r.value as PlayDoc);
-  const likes = all(uid, 'like', 3000).map((r) => r.value as LikeDoc);
-  return affinity(plays, likes, Date.now());
+  const hit = memo.get(uid);
+  if (hit && Date.now() - hit.at < 60_000) return hit.aff;
+  const plays = all(uid, 'play', 40000).map((r) => r.value as PlayDoc);
+  const likes = all(uid, 'like', 10000).map((r) => r.value as LikeDoc);
+  const aff = affinity(plays, likes, Date.now());
+  memo.set(uid, { at: Date.now(), aff });
+  return aff;
 }
 
 export function buildMixes(uid: number): Promise<Shelf[]> {
   // The play log changes slowly relative to how often the home page is opened.
   return cached(`recs:u${uid}:mixes`, 3 * 60_000, async () => {
-    const plays = all(uid, 'play', 3000).map((r) => r.value as PlayDoc);
-    const likes = all(uid, 'like', 3000).map((r) => r.value as LikeDoc);
+    const plays = all(uid, 'play', 40000).map((r) => r.value as PlayDoc);
+    const likes = all(uid, 'like', 10000).map((r) => r.value as LikeDoc);
     if (!plays.length && !likes.length) return [];
 
     const now = Date.now();
@@ -96,9 +103,7 @@ export function buildMixes(uid: number): Promise<Shelf[]> {
 
 /** Adaptive autoplay: what should follow `seedId`, skipping things you keep skipping. */
 export async function nextUp(uid: number, seedId: string, recent: string[] = []): Promise<Track[]> {
-  const plays = all(uid, 'play', 3000).map((r) => r.value as PlayDoc);
-  const likes = all(uid, 'like', 3000).map((r) => r.value as LikeDoc);
-  const aff = affinity(plays, likes, Date.now());
+  const aff = userAffinity(uid);
   const skip = new Set(recent);
   const list = (await radio(seedId)).filter((t) => t.id !== seedId && !skip.has(t.id) && !aff.skipped.has(t.id));
   // Liked artists first, otherwise YouTube's order.
