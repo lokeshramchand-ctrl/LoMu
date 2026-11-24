@@ -111,6 +111,7 @@ export function toDocs(prev: Snapshot | null, s = useLibrary.getState(), now = D
       [...Object.entries(s.albums), ...Object.entries(s.artists), ...Object.entries(s.savedPlaylists)].map(([id, v]) => [id, (v as { at: number }).at]),
     ),
     plays: new Set(s.history.map(playKey)),
+    blocked: new Map(Object.entries(s.blocked ?? {}).map(([k, v]) => [k, v.at])),
   };
   const docs: Doc[] = [];
   if (!prev) {
@@ -120,6 +121,7 @@ export function toDocs(prev: Snapshot | null, s = useLibrary.getState(), now = D
     for (const [id, v] of [...Object.entries(s.albums), ...Object.entries(s.artists), ...Object.entries(s.savedPlaylists)])
       docs.push({ kind: 'saved', key: id, value: v, updated: (v as { at: number }).at });
     for (const p of s.history) docs.push({ kind: 'play', key: playKey(p), value: p, updated: p.at });
+    for (const [k, v] of Object.entries(s.blocked ?? {})) docs.push({ kind: 'block', key: k, value: v, updated: v.at });
     return { docs, snap };
   }
   for (const [id, at] of snap.likes) if (!prev.likes.has(id)) docs.push({ kind: 'like', key: id, value: s.liked[id], updated: at });
@@ -130,10 +132,12 @@ export function toDocs(prev: Snapshot | null, s = useLibrary.getState(), now = D
   for (const [id, at] of snap.saved) if (!prev.saved.has(id)) docs.push({ kind: 'saved', key: id, value: savedAll[id], updated: at });
   for (const id of prev.saved.keys()) if (!snap.saved.has(id)) docs.push({ kind: 'saved', key: id, value: null, updated: now, deleted: true });
   for (const p of s.history) if (!prev.plays.has(playKey(p))) docs.push({ kind: 'play', key: playKey(p), value: p, updated: p.at });
+  for (const [k, at] of snap.blocked) if (!prev.blocked.has(k)) docs.push({ kind: 'block', key: k, value: s.blocked?.[k], updated: at });
+  for (const k of prev.blocked.keys()) if (!snap.blocked.has(k)) docs.push({ kind: 'block', key: k, value: null, updated: now, deleted: true });
   return { docs, snap };
 }
 
-export type Snapshot = { likes: Map<string, number>; playlists: Map<string, number>; saved: Map<string, number>; plays: Set<string> };
+export type Snapshot = { likes: Map<string, number>; playlists: Map<string, number>; saved: Map<string, number>; plays: Set<string>; blocked: Map<string, number> };
 
 export function applyRows(rows: Row[]) {
   if (!rows.length) return;
@@ -143,6 +147,7 @@ export function applyRows(rows: Row[]) {
     const albums = { ...s.albums };
     const artists = { ...s.artists };
     const savedPlaylists = { ...s.savedPlaylists };
+    const blocked = { ...s.blocked };
     let playlists = [...s.playlists];
     const history = [...s.history];
     const have = new Set(history.map(playKey));
@@ -161,13 +166,16 @@ export function applyRows(rows: Row[]) {
         const map = kind === 'album' ? albums : kind === 'artist' ? artists : savedPlaylists;
         if (r.deleted || !v) delete map[r.key];
         else (map as Record<string, unknown>)[r.key] = v;
+      } else if (r.kind === 'block') {
+        if (r.deleted || !r.value) delete blocked[r.key];
+        else blocked[r.key] = r.value as { name: string; at: number };
       } else if (r.kind === 'play' && !r.deleted && !have.has(r.key)) {
         history.push(r.value as Play);
         have.add(r.key);
       }
     }
     history.sort((a, b) => b.at - a.at);
-    return { liked, albums, artists, savedPlaylists, playlists, history: history.slice(0, HISTORY_CAP) };
+    return { liked, albums, artists, savedPlaylists, playlists, blocked, history: history.slice(0, HISTORY_CAP) };
   });
 }
 
@@ -215,7 +223,7 @@ async function pull() {
   return pulling;
 }
 
-const emptySnap = (): Snapshot => ({ likes: new Map(), playlists: new Map(), saved: new Map(), plays: new Set() });
+const emptySnap = (): Snapshot => ({ likes: new Map(), playlists: new Map(), saved: new Map(), plays: new Set(), blocked: new Map() });
 
 async function pushPending() {
   const { docs, snap: next } = toDocs(snap);

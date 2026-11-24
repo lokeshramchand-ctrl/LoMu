@@ -120,6 +120,13 @@ export function TrackMenuHost() {
           ))}
           {album && <Item icon="disc" label="Go to album" onClick={() => go(`/album/${album.id}`)} />}
           <Item icon="share" label="Share" onClick={share} />
+          {track.artists[0]?.name && (
+            <Item
+              icon="close"
+              label={`Never recommend ${track.artists[0].name}`}
+              onClick={() => (lib.blockArtist(track.artists[0].name), toast(`Won't recommend ${track.artists[0].name}`), close())}
+            />
+          )}
         </>
       ) : mode === 'name' ? (
         // An inline field: window.prompt() does not exist in the desktop app (Electron).

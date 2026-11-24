@@ -33,12 +33,13 @@ export default function Home() {
   const songsOf = (s?: Shelf) => (s?.items.filter((i): i is Track => i.kind === 'song') ?? []) as Track[];
   const trending = explore.data?.trending ?? [];
   // On Repeat is its own row and page; everything else feeds the black feature card and the pastel picks.
-  const onRepeatShelf = mixes.find((s) => /repeat/i.test(s.title));
+  const onRepeatShelf = mixes.find((s) => /^on repeat$/i.test(s.title));
   const onRepeat = songsOf(onRepeatShelf);
   const dailyShelves = mixes.filter((s) => /^Daily Mix/.test(s.title));
   // Discover Weekly and the four time-of-day mixes: a second row of tiles under the daily mixes.
   const dayShelves = mixes.filter((s) => s.title === 'Discover Weekly' || /^(Morning|Afternoon|Evening|Late Night) Mix$/.test(s.title));
-  const tileShelves = [...dailyShelves, ...dayShelves];
+  const momentShelves = mixes.filter((s) => /^(Repeat Rewind|Slowed & Reverb|Unplugged & Acoustic|Instrumentals & Themes)$/.test(s.title));
+  const tileShelves = [...dailyShelves, ...dayShelves, ...momentShelves];
   const pickPool = useMemo(() => {
     const fromMixes = mixes.filter((s) => s !== onRepeatShelf && !tileShelves.includes(s)).flatMap(songsOf)
       .concat(tileShelves.flatMap(songsOf));
@@ -127,6 +128,7 @@ export default function Home() {
 
       {home.quick && dailyShelves.length > 0 && <TileRow label="Daily mixes" heading="Mixes" shelves={dailyShelves} />}
       {home.quick && dayShelves.length > 0 && <TileRow label="For your day" heading="For your day" shelves={dayShelves} />}
+      {home.quick && momentShelves.length > 0 && <TileRow label="Moods and throwbacks" heading="Moods and throwbacks" shelves={momentShelves} />}
 
       {showStats && (
         <aside className="week-line" aria-label="This week">
