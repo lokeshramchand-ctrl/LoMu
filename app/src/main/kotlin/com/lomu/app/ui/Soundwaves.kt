@@ -1,6 +1,9 @@
 package com.lomu.app.ui
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -103,11 +106,21 @@ fun HomeScreen() {
     val feature = picks.firstOrNull()
     val tiles = picks.drop(1).take(4)
 
+    // The page takes the colour of the playing song's cover, as the player does, fading to white lower down.
+    val noMeta = remember { kotlinx.coroutines.flow.MutableStateFlow<MediaMetadata?>(null) }
+    val cur by (player?.mediaMetadata ?: noMeta).collectAsState()
+    val wash by animateColorAsState(playerTint(rememberTint(cur?.thumbnailUrl)) ?: lo.bg, tween(900), label = "homeTint")
+    Box(Modifier.fillMaxSize().background(lo.bg)) {
+    Box(Modifier.fillMaxWidth().fillMaxHeight(0.7f).background(Brush.verticalGradient(0f to wash, 1f to lo.bg)))
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = bottomPad())) {
         item {
-            SoundTitle("My LoMu") {
+            Row(Modifier.fillMaxWidth().statusBarsPadding().padding(start = 20.dp, end = 16.dp, top = 14.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Spacer(Modifier.weight(1f))
                 Row(Modifier.background(lo.surface2, CircleShape).padding(3.dp), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(38.dp).a11y("Devices").pressable(CircleShape) { openDevices() }, Alignment.Center) { IcV(Ph.Cloud.vector, 19.dp, lo.ink) }
+                    Row(Modifier.height(38.dp).a11y("Devices").pressable(CircleShape) { openDevices() }.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        IcV(Ph.Cloud.vector, 19.dp, lo.ink)
+                        Text("Devices", style = LoType.small.copy(fontWeight = FontWeight.Medium), color = lo.ink, modifier = Modifier.padding(start = 7.dp))
+                    }
                     Avatar(syncState.user?.take(2) ?: "LM", { nav.push(Screen.Settings) }, size = 38.dp)
                 }
             }
@@ -138,8 +151,9 @@ fun HomeScreen() {
         if (feature != null) item { FeatureCard(feature) }
         if (onRepeat.isNotEmpty()) item {
             Column(Modifier.appear(2)) {
-                Row(Modifier.fillMaxWidth().pressable(RoundedCornerShape(0.dp)) { MixStore.title = "On Repeat"; MixStore.tracks = onRepeat; nav.push(Screen.Mix) }, verticalAlignment = Alignment.CenterVertically) {
-                    SoundSection("On Repeat")
+                Row(Modifier.fillMaxWidth().pressable(RoundedCornerShape(0.dp)) { MixStore.title = "On Repeat"; MixStore.tracks = onRepeat; nav.push(Screen.Mix) }.padding(start = 20.dp, end = 20.dp, top = 26.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("On Repeat", style = LoType.section, color = lo.ink)
+                    Spacer(Modifier.width(6.dp))
                     Ic(Ph.Right, 18.dp, lo.grey)
                 }
                 LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -175,6 +189,7 @@ fun HomeScreen() {
             is Load.Err -> item { ErrorBox(st.message, st.retry) }
             is Load.Ok -> items(st.value.sections.take(3)) { Shelf(it.title, it.items) }
         }
+    }
     }
 }
 

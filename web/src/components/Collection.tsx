@@ -93,7 +93,7 @@ export function Collection({
         {tracks.length > 0 && (
           <div className="alist">
             {tracks.map((t, i) => (
-              <TrackRow key={`${t.id}-${i}`} track={t} index={i} list={tracks} showArt showArtist={false} playlistId={playlistId} />
+              <TrackRow key={`${t.id}-${i}`} track={t} index={i} list={tracks} showArt playlistId={playlistId} />
             ))}
           </div>
         )}

@@ -349,7 +349,7 @@ private fun NowPlayingBars(tint: Color, modifier: Modifier = Modifier) = Ic(Ph.W
 @Composable
 fun MediaRow(
     title: String, line: String, thumb: String?, trailing: String? = null, index: Int? = null, active: Boolean = false,
-    separator: Boolean = true, pad: Dp = 20.dp, menu: MenuTarget? = null, flat: Boolean = false, showLine: Boolean = true, modifier: Modifier = Modifier, onClick: () -> Unit,
+    separator: Boolean = true, pad: Dp = 20.dp, menu: MenuTarget? = null, flat: Boolean = false, modifier: Modifier = Modifier, onClick: () -> Unit,
 ) {
     val lo = LocalLo.current
     val openMenu = LocalTrackMenu.current
@@ -370,7 +370,7 @@ fun MediaRow(
             }
             Column(Modifier.weight(1f)) {
                 Text(title, style = LoType.body, color = if (active) lo.signal else lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (showLine && line.isNotBlank()) Text(line, style = LoType.small, color = lo.grey, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (line.isNotBlank()) Text(line, style = LoType.small, color = lo.grey, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             if (trailing != null) Text(trailing, style = LoType.small.copy(fontSize = 14.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium, letterSpacing = 0.sp), color = lo.ink, modifier = Modifier.padding(start = 10.dp))
         }
@@ -386,8 +386,8 @@ fun playingId(): String? {
 }
 
 @Composable
-fun TrackRow(song: SongItem, index: Int? = null, flat: Boolean = false, showLine: Boolean = true, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    MediaRow(song.title, artistLine(song), song.thumbnail, song.duration?.let { formatTime(it * 1000L) }, index, playingId() == song.id, menu = MenuTarget(song.toMediaMetadata()), flat = flat, showLine = showLine, modifier = modifier, onClick = onClick)
+fun TrackRow(song: SongItem, index: Int? = null, flat: Boolean = false, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    MediaRow(song.title, artistLine(song), song.thumbnail, song.duration?.let { formatTime(it * 1000L) }, index, playingId() == song.id, menu = MenuTarget(song.toMediaMetadata()), flat = flat, modifier = modifier, onClick = onClick)
 }
 
 /** Shelf card: square art with a soft edge, one line of title, one of grey detail. */
@@ -400,18 +400,6 @@ fun ItemCard(item: YTItem, onClick: () -> Unit) {
         Spacer(Modifier.height(8.dp))
         Text(item.title, style = LoType.body.copy(fontSize = 15.sp), color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = if (artist) TextAlign.Center else TextAlign.Start)
         Text(subtitle(item), style = LoType.small, color = lo.grey, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = if (artist) TextAlign.Center else TextAlign.Start)
-    }
-}
-
-/** Square card used in shelves of plain tracks. */
-@Composable
-fun MediaCard(thumb: String?, title: String, line: String, active: Boolean = false, onClick: () -> Unit) {
-    val lo = LocalLo.current
-    Column(Modifier.width(160.dp).pressable(RoundedCornerShape(12.dp), onClick = onClick)) {
-        Cover(thumb, 160.dp, radius = 12.dp)
-        Spacer(Modifier.height(8.dp))
-        Text(title, style = LoType.body.copy(fontSize = 15.sp), color = if (active) lo.signal else lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(line, style = LoType.small, color = lo.grey, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -501,25 +489,6 @@ fun Modifier.glass(shape: Shape, lo: Lo): Modifier = composed {
 /** The blurred-page state shared by the screens (source) and the floating bars (effect). */
 val LocalHaze = staticCompositionLocalOf<HazeState?> { null }
 
-/** iOS segmented control: a grey track with a raised white (or lifted grey) thumb under the selection. */
-@Composable
-fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
-    val lo = LocalLo.current
-    val track = RoundedCornerShape(10.dp)
-    Row(modifier.fillMaxWidth().padding(horizontal = 20.dp).height(36.dp).background(lo.surface2, track).padding(2.dp)) {
-        options.forEachIndexed { i, label ->
-            val on = i == selected
-            val thumb = RoundedCornerShape(8.dp)
-            Box(
-                Modifier.weight(1f).fillMaxHeight()
-                    .then(if (on) Modifier.shadow(1.dp, thumb).background(if (lo.dark) Color(0xFF636366) else Color.White, thumb) else Modifier)
-                    .pressable(thumb) { onSelect(i) },
-                Alignment.Center,
-            ) { Text(label, style = LoType.small.copy(fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium), color = lo.ink, maxLines = 1) }
-        }
-    }
-}
-
 /** Horizontally scrolling scope pills (search filters). */
 @Composable
 fun Chips(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier, center: Boolean = false) {
@@ -550,17 +519,6 @@ fun TopBar(title: String, onBack: (() -> Unit)?, modifier: Modifier = Modifier) 
     Row(modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         if (onBack != null) GlassCircle(androidx.compose.material.icons.Icons.Rounded.ChevronLeft, onBack)
         if (title.isNotBlank()) Text(title, style = LoType.body.copy(fontWeight = FontWeight.SemiBold), color = lo.ink, modifier = Modifier.padding(start = 12.dp))
-    }
-}
-
-/** iOS large title with an optional grey kicker above and a subtitle below. */
-@Composable
-fun PageTitle(eyebrow: String, title: String, sub: String? = null) {
-    val lo = LocalLo.current
-    Column(Modifier.statusBarsPadding().padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 6.dp)) {
-        if (eyebrow.isNotBlank()) Eyebrow(eyebrow)
-        Text(title, style = LoType.hero, color = lo.ink, modifier = Modifier.padding(top = 2.dp))
-        if (sub != null) Text(sub, style = LoType.body, color = lo.grey, modifier = Modifier.padding(top = 2.dp))
     }
 }
 
