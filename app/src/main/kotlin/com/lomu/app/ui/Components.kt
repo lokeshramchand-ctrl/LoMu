@@ -71,6 +71,7 @@ import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.toBitmap
 import androidx.palette.graphics.Palette
+import androidx.compose.ui.input.pointer.pointerInput
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.music.innertube.models.AlbumItem
@@ -94,6 +95,9 @@ fun IcV(icon: ImageVector, size: Dp = 22.dp, tint: Color = LocalLo.current.ink, 
 
 /** Clickable with a soft spring "press" so every tap has feedback. */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+/** Full-screen overlays use this so touches that hit no control do not fall through to the screen underneath. */
+fun Modifier.blockTouches(): Modifier = pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent() } }
+
 fun Modifier.pressable(shape: Shape = RoundedCornerShape(10.dp), enabled: Boolean = true, role: Role = Role.Button, onClickLabel: String? = null, onLongClick: (() -> Unit)? = null, onClick: () -> Unit): Modifier = composed {
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
