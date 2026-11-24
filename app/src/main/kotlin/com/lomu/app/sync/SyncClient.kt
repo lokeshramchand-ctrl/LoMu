@@ -706,8 +706,7 @@ class SyncClient @Inject constructor(
         val shelves = ArrayList<RecShelf>()
         if (radioOk) {
             val ranked = rankCandidates(seeds, cands, aff)
-            val mix = dailyPlaylist(aff, ranked)
-            if (mix.isNotEmpty()) shelves.add(RecShelf("Your Mix", "Fresh every day · " + java.time.LocalDate.now().dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.getDefault()), mix))
+            shelves.addAll(dailyPlaylists(aff))
             if (aff.onRepeat.isNotEmpty()) shelves.add(RecShelf("On Repeat", "Your last 30 days", aff.onRepeat.take(50)))
             for (seed in seeds.take(3)) {
                 val list = diversify(cands[seed.id].orEmpty().filter { it.id !in aff.heavilyPlayed && it.id !in aff.skipped }, 2).take(15)
@@ -720,28 +719,35 @@ class SyncClient @Inject constructor(
         return shelves
     }
 
-    /** "Your Mix": built once per calendar day and kept, with seeds that rotate through the top tracks so each day differs. */
-    private suspend fun dailyPlaylist(aff: Affinity, ranked: List<MediaMetadata>): List<MediaMetadata> {
+    /** Five themed mixes, built once per calendar day and kept. Each one is a taste cluster of the top tracks. */
+    private suspend fun dailyPlaylists(aff: Affinity): List<RecShelf> {
         val day = dayKey(System.currentTimeMillis())
-        if (prefs.getString("dailyDay", null) == day) {
-            runCatching {
-                val arr = JSONArray(prefs.getString("dailyMix", "[]"))
-                (0 until arr.length()).mapNotNull { trackToMetadata(arr.getJSONObject(it)) }
-            }.getOrNull()?.takeIf { it.isNotEmpty() }?.let { return it }
-        }
-        val seeds = dailySeeds(aff.topTracks.take(12), day, 6)
+        fun read(): List<RecShelf> = runCatching {
+            val arr = JSONArray(prefs.getString("dailyMixes5", "[]"))
+            (0 until arr.length()).map { i ->
+                val sh = arr.getJSONObject(i); val items = sh.getJSONArray("items")
+                RecShelf(sh.getString("title"), sh.optString("subtitle").ifBlank { null }, (0 until items.length()).mapNotNull { trackToMetadata(items.getJSONObject(it)) })
+            }.filter { it.tracks.isNotEmpty() }
+        }.getOrDefault(emptyList())
+        if (prefs.getString("dailyDay5", null) == day) read().takeIf { it.isNotEmpty() }?.let { return it }
+        val seeds = aff.topTracks.take(15)
         val cands = seeds.associate { seed ->
             seed.id to (runCatching {
                 com.music.innertube.YouTube.next(com.music.innertube.models.WatchEndpoint(videoId = seed.id, playlistId = "RDAMVM${seed.id}"))
                     .getOrThrow().items.map { it.toMediaMetadata() }.filter { it.id != seed.id }.take(30)
             }.getOrNull() ?: emptyList())
         }
-        if (cands.values.all { it.isEmpty() }) return diversify(ranked, 2).take(30)
-        val mix = dailyMix(aff, rankCandidates(seeds, cands, aff), day, 40)
-        if (mix.size >= 10) {
-            prefs.edit().putString("dailyDay", day).putString("dailyMix", JSONArray().also { a -> mix.forEach { a.put(metadataToTrack(it)) } }.toString()).apply()
+        if (cands.values.all { it.isEmpty() }) return read() // offline: yesterday's set stays
+        val shelves = dailyMixes(aff, cands, day).map { RecShelf(it.title, it.subtitle, it.items) }
+        if (shelves.isNotEmpty()) {
+            val arr = JSONArray()
+            shelves.forEach { sh ->
+                arr.put(JSONObject().put("title", sh.title).put("subtitle", sh.subtitle ?: JSONObject.NULL)
+                    .put("items", JSONArray().also { a -> sh.tracks.forEach { a.put(metadataToTrack(it)) } }))
+            }
+            prefs.edit().putString("dailyDay5", day).putString("dailyMixes5", arr.toString()).apply()
         }
-        return mix
+        return shelves
     }
 
     private fun saveRecsCache(shelves: List<RecShelf>) {

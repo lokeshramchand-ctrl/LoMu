@@ -68,13 +68,14 @@ fun affinity(plays: List<PlayDoc>, likes: List<LikeDoc>, now: Long): Affinity {
 
     val ranked = trackScore.entries.filter { it.value > 0 }.sortedByDescending { it.value }
     val top = ArrayList<MediaMetadata>()
-    val usedArtists = HashSet<String>()
+    val perArtist = HashMap<String, Int>()
     for ((id, _) in ranked) {
         val t = byId[id] ?: continue
-        if (lead(t) in usedArtists && top.size < 3) continue // spread the first few seeds
-        usedArtists.add(lead(t))
+        val n = perArtist[lead(t)] ?: 0
+        if (n >= (if (top.size < 3) 1 else 2)) continue // spread the first few seeds, then at most two per artist
+        perArtist[lead(t)] = n + 1
         top.add(t)
-        if (top.size >= 12) break
+        if (top.size >= 20) break
     }
 
     val onRepeat = monthPlays.entries.sortedByDescending { it.value }.take(50).mapNotNull { byId[it.key] }
@@ -142,12 +143,17 @@ private fun <T> pickWeighted(list: List<T>, n: Int, r: java.util.Random): List<T
 fun dailySeeds(top: List<MediaMetadata>, day: String, n: Int = 6): List<MediaMetadata> =
     if (top.size <= n) top else top.take(2) + pickWeighted(top.drop(2), n - 2, rng("seeds:$day"))
 
-fun dailyMix(aff: Affinity, ranked: List<MediaMetadata>, day: String, size: Int = 40): List<MediaMetadata> {
-    val r = rng("mix:$day")
-    val familiar = pickWeighted(aff.favorites.filter { it.id !in aff.skipped }, (size * 0.35).toInt(), r)
-    val fresh = ranked.filter { it.id !in aff.skipped }
-    val known = fresh.filter { t -> t.artists.any { it.name.lowercase() in aff.knownArtists } }
-    val unknown = fresh.filter { t -> t.artists.none { it.name.lowercase() in aff.knownArtists } }
+fun dailyMix(
+    aff: Affinity, ranked: List<MediaMetadata>, day: String, size: Int = 40,
+    salt: String = "", familiarPool: List<MediaMetadata>? = null, knownSet: Set<String>? = null, exclude: Set<String> = emptySet(),
+): List<MediaMetadata> {
+    val r = rng("mix:$day$salt")
+    fun bad(t: MediaMetadata) = t.id in aff.skipped || t.id in exclude
+    val ks = knownSet ?: aff.knownArtists
+    val familiar = pickWeighted((familiarPool ?: aff.favorites).filter { !bad(it) }, (size * 0.35).toInt(), r)
+    val fresh = ranked.filter { !bad(it) }
+    val known = fresh.filter { t -> t.artists.any { it.name.lowercase() in ks } }
+    val unknown = fresh.filter { t -> t.artists.none { it.name.lowercase() in ks } }
     val used = familiar.map { it.id }.toMutableSet()
     fun take(src: List<MediaMetadata>, n: Int): List<MediaMetadata> {
         val out = ArrayList<MediaMetadata>()
@@ -178,4 +184,64 @@ fun dailyMix(aff: Affinity, ranked: List<MediaMetadata>, day: String, size: Int 
         i++
     }
     return out
+}
+
+// ---- Five themed daily mixes (port of clusterSeeds / dailyMixes in recs-core.ts).
+
+private class Cluster(val seeds: MutableList<MediaMetadata>, val ids: MutableSet<String>, val artists: MutableSet<String>)
+
+/** Groups seeds into at most [k] tastes: a shared artist or overlapping radios means the same sound. */
+fun clusterSeeds(seeds: List<MediaMetadata>, cands: Map<String, List<MediaMetadata>>, k: Int = 5): List<List<MediaMetadata>> {
+    val cs = seeds.map { s ->
+        Cluster(mutableListOf(s), cands[s.id].orEmpty().map { it.id }.toMutableSet(), s.artists.map { it.name.lowercase() }.toMutableSet())
+    }.toMutableList()
+    fun sim(a: Cluster, b: Cluster): Double {
+        val same = a.artists.any { it in b.artists }
+        val n = a.ids.count { it in b.ids }
+        val overlap = n.toDouble() / max(1, min(a.ids.size, b.ids.size))
+        return ((if (same) 2.0 else 0.0) + overlap) / (1 + 0.15 * (a.seeds.size + b.seeds.size))
+    }
+    while (cs.size > k) {
+        var bi = 0; var bj = 1; var best = -1.0
+        for (i in cs.indices) for (j in i + 1 until cs.size) {
+            val v = sim(cs[i], cs[j])
+            if (v > best) { best = v; bi = i; bj = j }
+        }
+        val a = cs[bi]; val b = cs.removeAt(bj)
+        a.seeds.addAll(b.seeds); a.ids.addAll(b.ids); a.artists.addAll(b.artists)
+    }
+    return cs.map { it.seeds }
+}
+
+data class ThemedMix(val title: String, val subtitle: String, val items: List<MediaMetadata>)
+
+private fun mixName(group: List<MediaMetadata>, aff: Affinity): String {
+    val score = LinkedHashMap<String, Pair<String, Double>>()
+    for (t in group) {
+        val a = t.artists.firstOrNull()?.name ?: continue
+        val cur = score[a.lowercase()] ?: (a to 0.0)
+        score[a.lowercase()] = cur.first to cur.second + (aff.trackScore[t.id] ?: 0.0)
+    }
+    val top = score.values.sortedByDescending { it.second }.take(3).map { it.first }
+    return if (top.isEmpty()) "Your taste" else top.joinToString(", ") + " and more"
+}
+
+fun dailyMixes(aff: Affinity, cands: Map<String, List<MediaMetadata>>, day: String, count: Int = 5, size: Int = 40): List<ThemedMix> {
+    val seeds = aff.topTracks.take(15)
+    val groups = clusterSeeds(seeds, cands, count).sortedByDescending { g -> g.sumOf { aff.trackScore[it.id] ?: 0.0 } }
+    val taken = HashSet<String>()
+    val out = ArrayList<ThemedMix>()
+    groups.forEachIndexed { i, g ->
+        val artists = HashSet<String>()
+        g.forEach { t -> t.artists.forEach { artists.add(it.name.lowercase()) } }
+        val seen = HashMap<String, Int>()
+        for (s in g) for (t in cands[s.id].orEmpty()) for (a in t.artists) seen.merge(a.name.lowercase(), 1) { x, y -> x + y }
+        for ((a, n) in seen) if (n >= 2 && a in aff.knownArtists) artists.add(a)
+        val familiar = aff.favorites.filter { t -> t.artists.any { it.name.lowercase() in artists } }
+        val items = dailyMix(aff, rankCandidates(g, cands, aff), day, size, "#$i", familiar, artists, taken)
+        if (items.size < 8) return@forEachIndexed
+        taken.addAll(items.map { it.id })
+        out.add(ThemedMix("", mixName(g, aff), items))
+    }
+    return out.mapIndexed { i, m -> m.copy(title = "Daily Mix ${i + 1}") }
 }
