@@ -30,6 +30,8 @@ sealed interface Screen {
 /** Tiny back stack: the bottom entry is the current tab, the rest are pushed detail pages. */
 class Nav {
     val stack = mutableStateListOf<Screen>(Screen.Home)
+    /** Home's scroll position lives here, not in Home itself, so opening a mix and coming back lands where you left off. */
+    val homeList = androidx.compose.foundation.lazy.LazyListState()
     val current: Screen get() = stack.last()
     val canPop get() = stack.size > 1
     /** The last kind of navigation, so the screen transition knows which way to slide. */
