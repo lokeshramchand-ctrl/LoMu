@@ -44,4 +44,6 @@ class Nav {
 object MixStore {
     var title: String = ""
     var tracks: List<com.lomu.app.models.MediaMetadata> = emptyList()
+    /** Track id -> the "why this song?" line, for mixes that have one. */
+    var why: Map<String, String> = emptyMap()
 }

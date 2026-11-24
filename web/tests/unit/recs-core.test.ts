@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { affinity, discoverWeekly, diversify, hourOf, orderByNow, rankCandidates, slotAffinities, slotOf, timeMixes, weekKey, type PlayDoc } from '@/server/recs-core';
+import { affinity, blockedTrack, explain, moodMixes, moodPlan, repeatRewind, discoverWeekly, diversify, hourOf, orderByNow, rankCandidates, slotAffinities, slotOf, timeMixes, weekKey, type PlayDoc } from '@/server/recs-core';
 import type { Track } from '@/lib/types';
 
 const T = (id: string, artist: string): Track => ({ kind: 'song', id, title: id, artists: [{ name: artist }] });
@@ -181,5 +181,63 @@ describe('discover weekly', () => {
     expect(weekKey(new Date(2026, 10, 18, 15).getTime())).toBe('2026-11-16'); // Wed 18 Nov 2026
     expect(weekKey(new Date(2026, 10, 22, 9).getTime())).toBe('2026-11-16'); // Sunday
     expect(weekKey(new Date(2026, 10, 23, 9).getTime())).toBe('2026-11-23'); // next Monday
+  });
+});
+
+describe('blocked artists', () => {
+  const now = Date.UTC(2026, 10, 18);
+  it('drop out of favourites, seeds, candidates and Discover Weekly', () => {
+    const bad = T('b1', 'Banned'), good = T('g1', 'Good');
+    const plays = [play(bad, 1, 'done'), play(bad, 2, 'done'), play(good, 1, 'done')];
+    const aff = affinity(plays, [], now, new Set(['banned']));
+    expect(aff.favorites.map((t) => t.id)).toEqual(['g1']);
+    expect(aff.topTracks.map((t) => t.id)).toEqual(['g1']);
+    expect(aff.positives.map((t) => t.id)).toEqual(['g1']);
+    const cands = new Map([['g1', [T('x1', 'Banned'), T('x2', 'Fine')]]]);
+    expect(rankCandidates([good], cands, aff).map((t) => t.id)).toEqual(['x2']);
+    expect(blockedTrack(aff, T('z', 'BANNED'))).toBe(true);
+  });
+});
+
+describe('why this song', () => {
+  const now = Date.UTC(2026, 10, 18);
+  it('explains history songs, known artists and radio neighbours', () => {
+    const fav = T('f', 'Anirudh');
+    const aff = affinity([play(fav, 1, 'done'), play(T('o', 'Other'), 1, 'done')], [], now);
+    const cands = new Map([['f', [T('n1', 'Anirudh'), T('n2', 'Stranger')]]]);
+    expect(explain(fav, aff, cands, [fav])).toBe('From your listening');
+    expect(explain(T('n1', 'Anirudh'), aff, cands, [fav])).toBe('Because you play Anirudh');
+    expect(explain(T('n2', 'Stranger'), aff, cands, [fav])).toBe('Because you play f');
+    expect(explain(T('n2', 'Stranger'), aff, cands, [fav], true)).toBe('New artist, like f');
+  });
+});
+
+describe('mood mixes and repeat rewind', () => {
+  const now = Date.UTC(2026, 10, 18);
+  it('builds a mood mix only when the history has enough matching songs', () => {
+    const slowed = Array.from({ length: 10 }, (_, i) => T(`s${i}`, `A${i}`)).map((t) => ({ ...t, title: `${t.id} (Slowed + Reverb)` }));
+    const plain = Array.from({ length: 10 }, (_, i) => T(`p${i}`, `P${i}`));
+    const aff = affinity([...slowed, ...plain].map((t) => play(t, 1, 'done')), [], now);
+    const plan = moodPlan(aff);
+    expect(plan.map((p) => p.mood.id)).toEqual(['slowed']);
+    const cands = new Map<string, Track[]>();
+    for (const seed of plan[0].seeds) cands.set(seed.id, Array.from({ length: 15 }, (_, i) => ({ ...T(`r${seed.id}${i}`, `N${seed.id}${i}`), title: `r${i} slowed` })));
+    const mixes = moodMixes(aff, plan, cands, '2026-11-18');
+    expect(mixes[0].title).toBe('Slowed & Reverb');
+    expect(mixes[0].items.length).toBeGreaterThanOrEqual(10);
+    expect(mixes[0].items.every((t) => !!t.why)).toBe(true);
+  });
+  it('rewinds songs finished 3+ times and not heard for 45+ days', () => {
+    const old = Array.from({ length: 12 }, (_, i) => T(`o${i}`, `Old${i}`));
+    const plays = [
+      ...old.flatMap((t) => [play(t, 200, 'done'), play(t, 199, 'done'), play(t, 198, 'done')]),
+      ...[play(T('r', 'Recent'), 1, 'done'), play(T('r', 'Recent'), 2, 'done'), play(T('r', 'Recent'), 3, 'done')],
+    ];
+    const aff = affinity(plays, [], now);
+    const list = repeatRewind(aff, '2026-11-16');
+    expect(list.length).toBe(12);
+    expect(list.some((t) => t.id === 'r')).toBe(false);
+    expect(list[0].why).toMatch(/You played this 3 times, last in /);
+    expect(repeatRewind(aff, '2026-11-16').map((t) => t.id)).toEqual(list.map((t) => t.id));
   });
 });
