@@ -67,6 +67,19 @@ internal fun playerTint(c: Color?): Color? {
     return Color(android.graphics.Color.HSVToColor(hsv))
 }
 
+/**
+ * The colour wash behind the player and the Home page: one layer stack, one image, one fade, so the two always match.
+ * Returns the current (animated) tint for anything drawn on top.
+ */
+@Composable
+internal fun CoverWash(thumb: String?): Color {
+    val lo = LocalLo.current
+    val tint by animateColorAsState(playerTint(rememberTint(thumb)) ?: lo.bg, tween(900), label = "coverWash")
+    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to tint, 0.75f to tint.copy(alpha = 0.92f).compositeOver(lo.bg), 1f to lo.bg)))
+    Ambient(thumb, height = 900.dp, strength = 0.85f)
+    return tint
+}
+
 private fun MediaMetadata.artistLine() = artists.joinToString(", ") { it.name }
 
 /** Floating glass capsule above the tab bar: 32dp cover, two lines of text, play / pause and skip. */
@@ -133,9 +146,7 @@ private fun FullPlayerContent(onClose: () -> Unit) {
     val skipScope = rememberCoroutineScope()
     Box(Modifier.fillMaxSize().graphicsLayer { translationY = dragY.value; alpha = 1f - (dragY.value / (size.height * 2f)).coerceIn(0f, 0.4f) }.background(lo.bg)) {
         // Strong colour wash taken from the artwork; it cross-fades slowly when the song changes.
-        val tint by animateColorAsState(playerTint(rememberTint(m?.thumbnailUrl)) ?: lo.bg, tween(900), label = "playerTint")
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to tint, 0.75f to tint.copy(alpha = 0.92f).compositeOver(lo.bg), 1f to lo.bg)))
-        Ambient(art, height = 900.dp, strength = 0.85f)
+        val tint = CoverWash(m?.thumbnailUrl)
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp)) {
             // grabber
             // The bar at the top: tap or pull down to close. The hit area is much taller than the bar itself.
