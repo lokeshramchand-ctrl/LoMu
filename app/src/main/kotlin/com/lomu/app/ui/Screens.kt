@@ -616,7 +616,7 @@ fun SettingsScreen() {
     Column(Modifier.fillMaxSize().background(lo.grouped).verticalScroll(rememberScrollState()).padding(bottom = bottomPad())) {
         BackTitle("Back", "Settings", nav::pop)
         if (st.user != null) {
-            Group("Account", footer = st.error) {
+            Group("Account", footer = st.error ?: st.status.takeIf { it.isNotBlank() }) {
                 Cell {
                     IconTile(Ph.User, lo.signal, 36.dp)
                     Spacer(Modifier.width(14.dp))
