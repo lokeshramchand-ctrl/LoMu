@@ -617,7 +617,8 @@ class SyncClient @Inject constructor(
         events.forEach { e ->
             val at = e.event.timestamp.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
             val dur = e.song.song.duration * 1000L
-            val completed = dur > 0 && e.event.playTime >= dur * 0.85
+            // Plays imported from a Takeout history carry no song length: two minutes heard counts as finished.
+            val completed = if (dur > 0) e.event.playTime >= dur * 0.85 else e.event.playTime >= 100_000
             val v = JSONObject().put("track", songToTrack(e.song)).put("at", at).put("playedMs", e.event.playTime)
                 .put("completed", completed).put("skipped", !completed && e.event.playTime < 30_000)
             docs.put(doc("play", "$at:${e.song.song.id}", v, at, false))
@@ -685,10 +686,11 @@ class SyncClient @Inject constructor(
             val m = trackToMetadata(songToTrack(s)) ?: return@mapNotNull null
             LikeDoc(m, s.song.likedDate?.atZone(ZoneId.systemDefault())?.toInstant()?.toEpochMilli() ?: System.currentTimeMillis())
         }
-        val plays = database.events().first().take(3000).mapNotNull { e ->
+        val plays = database.events().first().take(12000).mapNotNull { e ->
             val m = trackToMetadata(songToTrack(e.song)) ?: return@mapNotNull null
             val dur = e.song.song.duration * 1000L
-            val completed = dur > 0 && e.event.playTime >= dur * 0.85
+            // Plays imported from a Takeout history carry no song length: two minutes heard counts as finished.
+            val completed = if (dur > 0) e.event.playTime >= dur * 0.85 else e.event.playTime >= 100_000
             PlayDoc(m, e.event.timestamp.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(), e.event.playTime,
                 completed, !completed && e.event.playTime < 30_000)
         }
@@ -721,7 +723,8 @@ class SyncClient @Inject constructor(
 
     /** Five themed mixes, built once per calendar day and kept. Each one is a taste cluster of the top tracks. */
     private suspend fun dailyPlaylists(aff: Affinity): List<RecShelf> {
-        val day = dayKey(System.currentTimeMillis())
+        // The day plus a history-size bucket: a big import rebuilds today's mixes instead of waiting for tomorrow.
+        val day = dayKey(System.currentTimeMillis()) + "/" + (aff.playCount / 1000)
         fun read(): List<RecShelf> = runCatching {
             val arr = JSONArray(prefs.getString("dailyMixes5", "[]"))
             (0 until arr.length()).map { i ->
@@ -734,7 +737,7 @@ class SyncClient @Inject constructor(
         if (prefs.getString("dailyDay5", null) == day && have.size >= 5) return have
         if (have.isNotEmpty() && prefs.getString("dailyTryDay5", null) == day && System.currentTimeMillis() - prefs.getLong("dailyTryAt5", 0) < 600_000) return have
         prefs.edit().putString("dailyTryDay5", day).putLong("dailyTryAt5", System.currentTimeMillis()).apply()
-        val seeds = aff.topTracks.take(15)
+        val seeds = aff.topTracks.take(20)
         val cands = seeds.associate { seed ->
             seed.id to (runCatching {
                 com.music.innertube.YouTube.next(com.music.innertube.models.WatchEndpoint(videoId = seed.id, playlistId = "RDAMVM${seed.id}"))
