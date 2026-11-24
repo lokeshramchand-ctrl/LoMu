@@ -742,7 +742,9 @@ class SyncClient @Inject constructor(
             val m = trackToMetadata(songToTrack(s)) ?: return@mapNotNull null
             LikeDoc(m, s.song.likedDate?.atZone(ZoneId.systemDefault())?.toInstant()?.toEpochMilli() ?: System.currentTimeMillis())
         }
-        val plays = database.events().first().take(12000).mapNotNull { e ->
+        // Newest plays first by their own time, not by row order: rows are inserted in the order sync delivers them, so an
+        // imported archive (inserted last) used to crowd the recent plays out of the first 12,000, leaving On Repeat empty.
+        val plays = database.events().first().sortedByDescending { it.event.timestamp }.take(40000).mapNotNull { e ->
             val m = trackToMetadata(songToTrack(e.song)) ?: return@mapNotNull null
             val dur = e.song.song.duration * 1000L
             // Plays imported from a Takeout history carry no song length: two minutes heard counts as finished.
