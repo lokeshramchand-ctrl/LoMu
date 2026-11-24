@@ -228,7 +228,25 @@ private fun mixName(group: List<MediaMetadata>, aff: Affinity): String {
 
 fun dailyMixes(aff: Affinity, cands: Map<String, List<MediaMetadata>>, day: String, count: Int = 5, size: Int = 40): List<ThemedMix> {
     val seeds = aff.topTracks.take(15)
-    val groups = clusterSeeds(seeds, cands, count).sortedByDescending { g -> g.sumOf { aff.trackScore[it.id] ?: 0.0 } }
+    fun weight(g: List<MediaMetadata>) = g.sumOf { aff.trackScore[it.id] ?: 0.0 }
+    // Seeds whose radio came back empty cannot be grouped by sound: they join a group afterwards.
+    val withRadio = seeds.filter { cands[it.id].orEmpty().isNotEmpty() }
+    val without = seeds.filter { it !in withRadio }
+    var groups = clusterSeeds(withRadio.ifEmpty { seeds }, cands, count).map { it.toMutableList() }.toMutableList()
+    if (withRadio.isNotEmpty()) without.forEachIndexed { i, t -> groups[i % groups.size].add(t) }
+    // Fewer tastes than mixes: split the biggest group in two until there are enough.
+    while (groups.size < count) {
+        groups.sortByDescending { it.size }
+        if (groups[0].size < 2) break
+        val parts = clusterSeeds(groups[0], cands, 2).map { it.toMutableList() }
+        groups = (parts + groups.drop(1)).toMutableList()
+    }
+    groups.sortByDescending { weight(it) }
+
+    val globalRanked = rankCandidates(seeds, cands, aff) // top-up pool when a group's own radios run short
+    // A thin pool is shared fairly: no mix may use more than its share, so the last one is not left with scraps.
+    val pool = (globalRanked.map { it.id } + aff.favorites.map { it.id }).toSet().size
+    val each = max(12, min(size, pool / max(1, groups.size)))
     val taken = HashSet<String>()
     val out = ArrayList<ThemedMix>()
     groups.forEachIndexed { i, g ->
@@ -238,7 +256,10 @@ fun dailyMixes(aff: Affinity, cands: Map<String, List<MediaMetadata>>, day: Stri
         for (s in g) for (t in cands[s.id].orEmpty()) for (a in t.artists) seen.merge(a.name.lowercase(), 1) { x, y -> x + y }
         for ((a, n) in seen) if (n >= 2 && a in aff.knownArtists) artists.add(a)
         val familiar = aff.favorites.filter { t -> t.artists.any { it.name.lowercase() in artists } }
-        val items = dailyMix(aff, rankCandidates(g, cands, aff), day, size, "#$i", familiar, artists, taken)
+        val own = rankCandidates(g, cands, aff)
+        val ownIds = own.map { it.id }.toSet()
+        val ranked = own + globalRanked.filter { it.id !in ownIds }
+        val items = dailyMix(aff, ranked, day, each, "#$i", familiar, artists, taken)
         if (items.size < 8) return@forEachIndexed
         taken.addAll(items.map { it.id })
         out.add(ThemedMix("", mixName(g, aff), items))

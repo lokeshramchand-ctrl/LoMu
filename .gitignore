@@ -154,3 +154,7 @@ Dashboard/
 San-Francisco-Pro-Fonts/
 web/public/fonts/
 app/src/main/assets/fonts/
+
+# Personal data exports (Google Takeout), never commit
+YouTube and YouTube Music/
+Takeout/
