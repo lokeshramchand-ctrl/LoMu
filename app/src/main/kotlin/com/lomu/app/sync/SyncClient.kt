@@ -709,6 +709,8 @@ class SyncClient @Inject constructor(
         if (radioOk) {
             val ranked = rankCandidates(seeds, cands, aff)
             shelves.addAll(dailyPlaylists(aff))
+            discoverWeeklyShelf(aff)?.let { shelves.add(it) }
+            shelves.addAll(timeOfDay(aff, plays))
             if (aff.onRepeat.isNotEmpty()) shelves.add(RecShelf("On Repeat", "Your last 30 days", aff.onRepeat.take(50)))
             for (seed in seeds.take(3)) {
                 val list = diversify(cands[seed.id].orEmpty().filter { it.id !in aff.heavilyPlayed && it.id !in aff.skipped }, 2).take(15)
@@ -719,6 +721,60 @@ class SyncClient @Inject constructor(
             if (discover.size >= 5) shelves.add(RecShelf("Discover", "Artists you have not played yet", discover))
         } // else: offline, so return nothing and let recs() fall back to the cached full set
         return shelves
+    }
+
+    private suspend fun radios(seeds: List<MediaMetadata>): Map<String, List<MediaMetadata>> = seeds.associate { seed ->
+        seed.id to (runCatching {
+            com.music.innertube.YouTube.next(com.music.innertube.models.WatchEndpoint(videoId = seed.id, playlistId = "RDAMVM${seed.id}"))
+                .getOrThrow().items.map { it.toMediaMetadata() }.filter { it.id != seed.id }.take(30)
+        }.getOrNull() ?: emptyList())
+    }
+
+    private fun tracksJson(l: List<MediaMetadata>) = JSONArray().also { a -> l.forEach { a.put(metadataToTrack(it)) } }
+    private fun tracksFrom(a: JSONArray) = (0 until a.length()).mapNotNull { trackToMetadata(a.getJSONObject(it)) }
+
+    /** Discover Weekly: one playlist a week of artists never played, kept until Monday (or a big history import). */
+    private suspend fun discoverWeeklyShelf(aff: Affinity): RecShelf? {
+        val key = weekKey(System.currentTimeMillis()) + "/" + (aff.playCount / 1000)
+        if (prefs.getString("dwKey", null) == key) {
+            val items = runCatching { tracksFrom(JSONArray(prefs.getString("dwItems", "[]"))) }.getOrDefault(emptyList())
+            if (items.isNotEmpty()) return RecShelf("Discover Weekly", "Artists new to you · changes every Monday", items)
+        }
+        val cands = radios(aff.topTracks.take(20))
+        if (cands.values.all { it.isEmpty() }) return null
+        val items = discoverWeekly(aff, cands, weekKey(System.currentTimeMillis()))
+        if (items.isEmpty()) return null
+        prefs.edit().putString("dwKey", key).putString("dwItems", tracksJson(items).toString()).apply()
+        return RecShelf("Discover Weekly", "Artists new to you · changes every Monday", items)
+    }
+
+    /** Morning / Afternoon / Evening / Late Night mixes from what is played in each part of the day; built once a day, ordered by "right now" when read. */
+    private suspend fun timeOfDay(aff: Affinity, plays: List<PlayDoc>): List<RecShelf> {
+        val now = System.currentTimeMillis()
+        val key = dayKey(now) + "/" + (aff.playCount / 1000)
+        var built: List<TimeMix>? = null
+        if (prefs.getString("todKey", null) == key) {
+            built = runCatching {
+                val arr = JSONArray(prefs.getString("todMixes", "[]"))
+                (0 until arr.length()).map { i ->
+                    val o = arr.getJSONObject(i)
+                    TimeMix(SlotId.valueOf(o.getString("slot")), o.getString("title"), o.getString("subtitle"), tracksFrom(o.getJSONArray("items")))
+                }
+            }.getOrNull()
+        }
+        if (built == null) {
+            val slots = slotAffinities(plays, now)
+            val seeds = slots.flatMap { it.second.topTracks.take(4) }.distinctBy { it.id }
+            val cands = radios(seeds)
+            if (seeds.isNotEmpty() && cands.values.all { it.isEmpty() }) return emptyList()
+            built = timeMixes(aff, slots, cands, dayKey(now))
+            if (built.isNotEmpty()) {
+                val arr = JSONArray()
+                built.forEach { arr.put(JSONObject().put("slot", it.slot.name).put("title", it.title).put("subtitle", it.subtitle).put("items", tracksJson(it.items))) }
+                prefs.edit().putString("todKey", key).putString("todMixes", arr.toString()).apply()
+            }
+        }
+        return orderByNow(built, java.time.LocalTime.now().hour).map { RecShelf(it.title, it.subtitle, it.items) }
     }
 
     /** Five themed mixes, built once per calendar day and kept. Each one is a taste cluster of the top tracks. */

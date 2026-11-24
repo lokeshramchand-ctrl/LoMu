@@ -138,6 +138,7 @@ fun LoMuRoot(seenWelcome: Boolean, onWelcomeDone: () -> Unit) {
                     Screen.Albums -> SavedAlbumsScreen()
                     Screen.Artists -> SavedArtistsScreen()
                     Screen.Sleep -> SleepScreen()
+                    Screen.Wrapped -> WrappedScreen()
                     Screen.Mix -> MixScreen()
                 }
                 }

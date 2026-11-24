@@ -10,6 +10,7 @@ const CARDS: { href: string; icon: IconName; title: string; line: string }[] = [
   { href: '/import', icon: 'download', title: 'Import from YouTube Music', line: 'Bring your playlists and likes over.' },
   { href: '/explore', icon: 'sparkles', title: 'New releases', line: 'What is new on YouTube Music.' },
   { href: '/insights', icon: 'pulse', title: 'Insights', line: 'What you listened to, and when.' },
+  { href: '/wrapped', icon: 'sparkles', title: 'Wrapped', line: 'Your year in music: top songs, artists and habits.' },
   { href: '/settings', icon: 'sliders', title: 'Settings', line: 'Account, sync and appearance.' },
 ];
 
