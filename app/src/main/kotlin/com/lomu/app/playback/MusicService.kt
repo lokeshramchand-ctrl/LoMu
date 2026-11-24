@@ -1429,6 +1429,8 @@ class MusicService :
                         recoverSong(mediaId, playbackData)
                         Timber.tag(TAG).d("✓ PREFETCHED STREAM: Upcoming track index=$idx mediaId=$mediaId")
                     }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e // a newer prefetch of the same song replaced this one: expected, not an error
                 } catch (e: Exception) {
                     Timber.tag(TAG).w(e, "Failed to prefetch stream for upcoming track $mediaId")
                 }
