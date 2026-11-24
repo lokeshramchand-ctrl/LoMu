@@ -144,7 +144,7 @@ private fun FullPlayerContent(onClose: () -> Unit) {
     // Swipe the artwork sideways: left = next song, right = previous. The cover follows the finger and springs back.
     val skipX = remember { Animatable(0f) }
     val skipScope = rememberCoroutineScope()
-    Box(Modifier.fillMaxSize().graphicsLayer { translationY = dragY.value; alpha = 1f - (dragY.value / (size.height * 2f)).coerceIn(0f, 0.4f) }.background(lo.bg)) {
+    Box(Modifier.fillMaxSize().graphicsLayer { translationY = dragY.value; alpha = 1f - (dragY.value / (size.height * 2f)).coerceIn(0f, 0.4f) }.background(lo.bg).blockTouches()) {
         // Strong colour wash taken from the artwork; it cross-fades slowly when the song changes.
         val tint = CoverWash(m?.thumbnailUrl)
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp)) {
