@@ -14,6 +14,8 @@ type LibraryState = {
   artists: Record<string, { item: ArtistCard; at: number }>;
   savedPlaylists: Record<string, { item: PlaylistCard; at: number }>;
   recentSearches: string[];
+  /** Artists never to recommend, keyed by lower-case name. Synced as 'block' documents. */
+  blocked: Record<string, { name: string; at: number }>;
 
   isLiked: (id: string) => boolean;
   toggleLike: (t: Track) => void;
@@ -27,6 +29,8 @@ type LibraryState = {
   isSaved: (id: string) => boolean;
   rememberSearch: (q: string) => void;
   clearSearches: () => void;
+  blockArtist: (name: string) => void;
+  unblockArtist: (key: string) => void;
 };
 
 /** Plays kept in the browser. Was 2000, which silently dropped older plays that the phone still counted. */
@@ -44,6 +48,7 @@ export const useLibrary = create<LibraryState>()(
       artists: {},
       savedPlaylists: {},
       recentSearches: [],
+      blocked: {},
 
       isLiked: (id) => !!get().liked[id],
       toggleLike: (t) =>
@@ -87,6 +92,13 @@ export const useLibrary = create<LibraryState>()(
       rememberSearch: (q) =>
         set((s) => ({ recentSearches: [q, ...s.recentSearches.filter((x) => x.toLowerCase() !== q.toLowerCase())].slice(0, 12) })),
       clearSearches: () => set({ recentSearches: [] }),
+      blockArtist: (name) => set((s) => ({ blocked: { ...s.blocked, [name.trim().toLowerCase()]: { name: name.trim(), at: Date.now() } } })),
+      unblockArtist: (key) =>
+        set((s) => {
+          const blocked = { ...s.blocked };
+          delete blocked[key];
+          return { blocked };
+        }),
     }),
     { name: 'lomu-library', version: 1, storage: createJSONStorage(() => localStorage) },
   ),

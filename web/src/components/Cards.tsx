@@ -219,6 +219,7 @@ export function TrackRow({
             </span>
           ))}
         </div>
+        {track.why && <div className="ta why clamp1">{track.why}</div>}
       </div>
       {!showIndex && track.album?.name && (
         <div className="alb clamp1">
@@ -264,6 +265,7 @@ export function TrackRow({
         .tt { font-weight: 500; font-size: .9375rem; color: var(--ink); }
         .trow.active .tt { color: var(--signal-t); }
         .ta { color: var(--muted); font-size: .8125rem; margin-top: 0; }
+        .why { font-style: italic; opacity: .75; }
         .trow:hover .ta { color: var(--ink); }
         .ta :global(a:hover), .alb :global(a:hover) { color: var(--ink); text-decoration: underline; }
         .e { display: inline-grid; place-items: center; width: 16px; height: 16px; font-size: 10px; font-weight: 700; border-radius: 2px; background: var(--muted); color: var(--bg); margin-inline-end: 6px; vertical-align: 1px; }

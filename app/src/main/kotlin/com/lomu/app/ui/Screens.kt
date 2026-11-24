@@ -653,6 +653,20 @@ fun SettingsScreen() {
                 }
             }
         }
+        run {
+            val blocked by (sync?.blocked ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptySet<String>()) }).collectAsState()
+            val names = remember(blocked) { sync?.blockedArtists().orEmpty() }
+            Group("Never recommend", footer = if (blocked.isEmpty()) "Open a song's menu and choose Never recommend. Blocked artists are dropped from every mix." else null) {
+                names.entries.forEachIndexed { i, e ->
+                    if (i > 0) Hairline(16.dp)
+                    Cell {
+                        Text(e.value, style = LoType.body, color = lo.ink, modifier = Modifier.weight(1f))
+                        Text("Allow again", style = LoType.sub, color = lo.signal, modifier = Modifier.pressable(RoundedCornerShape(8.dp)) { sync?.unblockArtist(e.key); scope.launch { runCatching { sync?.sync() } } }.padding(8.dp))
+                    }
+                }
+                if (names.isEmpty()) Cell { Text("Nothing blocked", style = LoType.body, color = lo.grey) }
+            }
+        }
         if (st.user != null) {
             val openDevices = LocalOpenDevices.current
             Group("Devices") {
@@ -698,7 +712,8 @@ fun MixScreen() {
     ) {
         if (tracks.isEmpty()) item { EmptyState(Ph.Playlist, "Nothing here yet") }
         itemsIndexed(tracks) { i, m ->
-            MediaRow(m.title, m.artists.joinToString { it.name }, m.thumbnailUrl, trailing = formatTime(m.duration * 1000L), active = now == m.id, flat = true, modifier = Modifier.appear(i), menu = MenuTarget(m)) {
+            val line = m.artists.joinToString { it.name } + (MixStore.why[m.id]?.let { " · $it" } ?: "")
+            MediaRow(m.title, line, m.thumbnailUrl, trailing = formatTime(m.duration * 1000L), active = now == m.id, flat = true, modifier = Modifier.appear(i), menu = MenuTarget(m)) {
                 player?.playMediaItems(title, items, i)
             }
         }
