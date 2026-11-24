@@ -111,7 +111,7 @@ export default function Home() {
             <Icon name="right" size={18} />
           </Link>
           <div className="orow">
-            {onRepeat.slice(0, 16).map((t, i) => (
+            {onRepeat.slice(0, 50).map((t, i) => (
               <button key={t.id} className={`oi${cur === t.id ? ' on' : ''}`} onClick={() => playList(onRepeat, 'home-onrepeat', i)} title={`${t.title} by ${artistNames(t.artists)}`} {...warmProps(t.id)}>
                 <Cover src={t.thumb} size="100%" radius={18} />
                 <span className="clamp1">{t.title}</span>
