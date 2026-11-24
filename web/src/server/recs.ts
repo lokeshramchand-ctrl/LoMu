@@ -79,7 +79,7 @@ export function buildMixes(uid: number): Promise<Shelf[]> {
     const mix = await dailyPlaylist(uid, aff, now, ranked);
     if (mix.length) shelves.push({ title: 'Your Mix', subtitle: `Fresh every day · ${new Date(now).toLocaleDateString('en', { weekday: 'long' })}`, items: mix });
 
-    if (aff.onRepeat.length) shelves.push({ title: 'On Repeat', subtitle: 'Your last 30 days', items: aff.onRepeat.slice(0, 15) });
+    if (aff.onRepeat.length) shelves.push({ title: 'On Repeat', subtitle: 'Your last 30 days', items: aff.onRepeat.slice(0, 50) });
 
     for (const seed of seeds.slice(0, 3)) {
       const list = diversify(
