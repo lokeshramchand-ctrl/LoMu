@@ -108,12 +108,3 @@ function evict() {
     /* best effort */
   }
 }
-
-export function audioCacheStats(): { files: number; bytes: number } {
-  try {
-    const list = fs.readdirSync(dir()).filter((n) => !n.endsWith('.part'));
-    return { files: list.length, bytes: list.reduce((s, n) => s + fs.statSync(path.join(dir(), n)).size, 0) };
-  } catch {
-    return { files: 0, bytes: 0 };
-  }
-}

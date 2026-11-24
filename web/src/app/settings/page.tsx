@@ -32,7 +32,7 @@ export default function SettingsPage() {
     <Bento className="fade-in">
       <PageHeader  title="Settings" />
         {local && <HubGroup />}
-        {!local && <Group span={7} title="Account" sub="Your own library, history and recommendations. They sync to your other devices and are never shown to other accounts.">
+        {!local && <Group span={7} title="Account">
           <Row
             label={user ? `Signed in as ${user}` : 'Not signed in'}
             hint={`Sync: ${sync === 'live' ? 'up to date' : sync}${lastSync ? ` · ${new Date(lastSync).toLocaleTimeString()}` : ''}`}
@@ -54,20 +54,18 @@ export default function SettingsPage() {
 
         <Group span={6} tall title="Today">
           {HOME_SECTIONS.map((s) => (
-            <HomeToggle key={s.id} id={s.id} label={s.label} hint={s.hint} />
+            <HomeToggle key={s.id} id={s.id} label={s.label} />
           ))}
         </Group>
 
         <Group span={6} title="Playback">
-          <Row label="Autoplay" hint="When the queue ends, keep going with songs picked for you.">
+          <Row label="Autoplay">
             <Switch on={autoplay} label="Autoplay" onChange={(v) => usePlayer.setState({ autoplay: v })} />
-          </Row>
-          <Row label="Audio quality" hint="Always the best stream YouTube offers without Premium: Opus around 160 kbps, AAC as a fallback.">
           </Row>
         </Group>
 
         <Group span={6} title="Library">
-          <Row label="Export library" hint="Download your likes, playlists, saved albums, artists and history as a JSON file.">
+          <Row label="Export library">
             <button className="btn" onClick={exportLibrary}>
               Export
             </button>
@@ -75,7 +73,7 @@ export default function SettingsPage() {
           <Row label="Import from Google Takeout">
             <Link href="/import" className="btn">Import</Link>
           </Row>
-          <Row label="Clear listening history" hint="Recommendations start learning again from scratch.">
+          <Row label="Clear listening history">
             {confirmClear ? (
               <span className="row" style={{ gap: 8 }}>
                 <button className="btn sm" onClick={() => setConfirmClear(false)}>
@@ -106,16 +104,11 @@ export default function SettingsPage() {
           <Row label="Explore">
             <Switch on={dev.explore} label="Explore" onChange={(v) => setDev('explore', v)} />
           </Row>
-          <Row label="Artist enrichment" hint="Sharper artist photos, banners and bios from TheAudioDB and Wikipedia.">
+          <Row label="Artist enrichment">
             <Switch on={dev.artistEnrichment} label="Artist enrichment" onChange={(v) => setDev('artistEnrichment', v)} />
           </Row>
-          <Row label="Stream info" hint="Show codec, bitrate and source client in the player.">
+          <Row label="Stream info">
             <Switch on={dev.streamInfo} label="Stream info" onChange={(v) => setDev('streamInfo', v)} />
-          </Row>
-        </Group>
-        <Group span={6} title="About">
-          <Row label="LoMu web player" hint={`Connected to ${typeof window !== 'undefined' ? window.location.host : 'this server'}. Press / anywhere to search and Esc to close the full player.`}>
-            <span className="muted small num">v{process.env.NEXT_PUBLIC_APP_VERSION}</span>
           </Row>
         </Group>
     </Bento>
@@ -156,7 +149,7 @@ function HubGroup() {
   const connected = !!hub?.url;
   const label = !connected ? 'Not connected' : hub!.state === 'online' ? 'Up to date' : hub!.state === 'syncing' ? 'Syncing…' : hub!.state === 'offline' ? 'Home server unreachable' : 'Problem';
   const hint = !connected
-    ? 'This PC works on its own. Connect your home server to share likes, playlists and history with your phone.'
+    ? ''
     : hub!.state === 'offline'
       ? `Everything is saved on this PC and will sync when ${new URL(hub!.url!).host} is back${hub!.pending ? ` (${hub!.pending} ${hub!.pending === 1 ? 'change' : 'changes'} waiting)` : ''}.`
       : hub!.state === 'error'
@@ -164,7 +157,7 @@ function HubGroup() {
         : `${hub!.user} on ${new URL(hub!.url!).host}${hub!.lastSync ? ` · last sync ${new Date(hub!.lastSync).toLocaleTimeString()}` : ''}${hub!.pending ? ` · ${hub!.pending} waiting` : ''}${hub!.route === 'lan' ? ' · via home network' : ''}`;
 
   return (
-    <Group span={7} title="Home server" sub="Your library lives on this PC. The home server only keeps your devices in step, so a power cut there never stops the music.">
+    <Group span={7} title="Home server">
       <Row label={label} hint={hint}>
         {connected && (
           <span className="row" style={{ gap: 8 }}>
@@ -205,11 +198,11 @@ function HubGroup() {
   );
 }
 
-function HomeToggle({ id, label, hint }: { id: (typeof HOME_SECTIONS)[number]['id']; label: string; hint: string }) {
+function HomeToggle({ id, label }: { id: (typeof HOME_SECTIONS)[number]['id']; label: string }) {
   const on = useSettings((s) => s.home[id]);
   return (
     <div className="hp">
-      <Toggle on={on} label={label} hint={hint} onChange={(v) => useSettings.getState().setHome(id, v)} />
+      <Toggle on={on} label={label} onChange={(v) => useSettings.getState().setHome(id, v)} />
       <style jsx>{`
         .hp { padding: 0 var(--sp-4); }
         .hp + .hp { border-top: 1px solid var(--border); }
@@ -251,11 +244,11 @@ function AiGroup() {
   const hint = !st
     ? ''
     : !st.configured
-      ? 'Set LOMU_AI_URL (and LOMU_AI_KEY if the server needs one) on this server, then restart it. Without it, Home uses the normal mixes.'
+      ? ''
       : [`Model server ${st.host}`, st.builtAt ? `last built ${when(st.builtAt)} · ${st.songs} songs` : null, st.lastError && !st.shown ? st.lastError : null].filter(Boolean).join(' · ');
 
   return (
-    <Group span={6} title="AI mix" sub="One playlist a day, written by your own model and checked against YouTube Music. If the model is off for a whole day, Home goes back to the normal mixes.">
+    <Group span={6} title="AI mix">
       <Row label={state} hint={hint}>
         <span className="row" style={{ gap: 8 }}>
           <button className="btn sm" disabled={!st?.configured || !!busy} onClick={() => run('test')}>{busy === 'test' ? 'Testing…' : 'Test connection'}</button>
@@ -347,7 +340,7 @@ function PasswordRow() {
   };
   return (
     <>
-      <Row label="Password" hint="Changing it signs out every other device.">
+      <Row label="Password">
         <button className="btn" onClick={() => setOpen((o) => !o)}>{open ? 'Cancel' : 'Change'}</button>
       </Row>
       {open && (
@@ -399,7 +392,7 @@ function AccountsGroup() {
 
   const full = users.length >= max;
   return (
-    <Group span={12} title="Accounts" sub={`${users.length} of ${max} accounts. Everyone gets their own library, history and recommendations; nothing is shared.`}>
+    <Group span={12} title="Accounts">
       {users.map((a) => (
         <Row key={a.id} label={`${a.username}${a.username === me ? ' (you)' : ''}${a.role === 'admin' ? ' · admin' : ''}${a.disabled ? ' · paused' : ''}`} hint={`${a.devices} signed-in ${a.devices === 1 ? 'device' : 'devices'} · since ${new Date(a.created).toLocaleDateString()}`}>
           {a.username !== me && (
