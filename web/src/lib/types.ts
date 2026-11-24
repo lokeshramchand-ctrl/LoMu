@@ -10,6 +10,7 @@ export type Track = {
   thumb?: string;
   explicit?: boolean;
   video?: boolean; // music video rather than an audio track
+  why?: string; // set on mix tracks: "Because you play Anirudh"
 };
 
 export type AlbumCard = {

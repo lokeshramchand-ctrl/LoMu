@@ -44,6 +44,8 @@ export default function SettingsPage() {
           <PasswordRow />
         </Group>}
 
+        <BlockedGroup />
+
         <Group span={5} title="Appearance">
           <Row label="Interface theme">
             <div style={{ width: 168 }}><ThemeSelect /></div>
@@ -269,6 +271,22 @@ function AiGroup() {
         .aires { padding: 12px var(--sp-4); border-top: 1px solid var(--border); font-size: 13px; color: var(--muted); line-height: 1.45; }
         .aires.bad { color: var(--red-t); background: var(--red-soft); }
       `}</style>
+    </Group>
+  );
+}
+
+function BlockedGroup() {
+  const blocked = useLibrary((s) => s.blocked);
+  const unblock = useLibrary((s) => s.unblockArtist);
+  const list = Object.entries(blocked).sort((a, b) => b[1].at - a[1].at);
+  return (
+    <Group span={6} title="Never recommend" sub="Artists you blocked from a song's menu. They are dropped from every mix.">
+      {!list.length && <Row label="Nothing blocked" hint="Open a song's menu and choose Never recommend." />}
+      {list.map(([key, v]) => (
+        <Row key={key} label={v.name}>
+          <button className="btn" onClick={() => unblock(key)}>Allow again</button>
+        </Row>
+      ))}
     </Group>
   );
 }

@@ -172,6 +172,13 @@ fun TrackMenuSheet(target: MenuTarget, onDismiss: () -> Unit, onNavigate: (Scree
                             ctx.startActivity(Intent.createChooser(send, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                             sheet.dismiss()
                         }
+                        m.artists.firstOrNull()?.name?.takeIf { it.isNotBlank() }?.let { artist ->
+                            MenuRow(Ph.Close, "Never recommend $artist") {
+                                sync?.blockArtist(artist)
+                                scope.launch(Dispatchers.IO) { runCatching { sync?.sync() } }
+                                done("Won't recommend $artist")
+                            }
+                        }
                         target.onRemove?.let { rm -> MenuRow(Ph.Close, target.removeLabel ?: "Remove", tint = lo.red) { rm(); done() } }
                     }
                     1 -> {

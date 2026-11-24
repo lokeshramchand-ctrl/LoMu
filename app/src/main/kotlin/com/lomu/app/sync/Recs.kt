@@ -24,19 +24,28 @@ class Affinity(
     val knownArtists: Set<String>,
     val favorites: List<MediaMetadata>,
     val playCount: Int = 0, // size of the play log: a big import must rebuild today's mixes
+    val positives: List<MediaMetadata> = emptyList(), // the top 600 positive tracks, for mood filters
+    val rewind: List<RewindEntry> = emptyList(), // played to the end 3+ times, not heard for 45+ days
+    val blocked: Set<String> = emptySet(), // lower-case artists the user never wants recommended
 )
+
+class RewindEntry(val track: MediaMetadata, val plays: Int, val last: Long)
+
+/** True when any credited artist is one the user blocked. */
+fun blockedTrack(blocked: Set<String>, t: MediaMetadata) = t.artists.any { it.name.lowercase() in blocked }
 
 private const val DAY = 86_400_000L
 private fun decay(ageMs: Long, halfLifeDays: Double) = 0.5.pow(max(0L, ageMs).toDouble() / DAY / halfLifeDays)
 private fun lead(t: MediaMetadata) = t.artists.firstOrNull()?.name?.lowercase().orEmpty()
 
-fun affinity(plays: List<PlayDoc>, likes: List<LikeDoc>, now: Long): Affinity {
+fun affinity(plays: List<PlayDoc>, likes: List<LikeDoc>, now: Long, blocked: Set<String> = emptySet()): Affinity {
     val trackScore = HashMap<String, Double>()
     val artistScore = HashMap<String, Double>()
     val byId = HashMap<String, MediaMetadata>()
     val completions = HashMap<String, Int>()
     val recentSkips = HashMap<String, Int>()
     val monthPlays = LinkedHashMap<String, Int>()
+    val lastPlayed = HashMap<String, Long>()
     val likedIds = likes.map { it.track.id }.toSet()
 
     fun add(t: MediaMetadata, w: Double) {
@@ -48,6 +57,7 @@ fun affinity(plays: List<PlayDoc>, likes: List<LikeDoc>, now: Long): Affinity {
     for (p in plays) {
         val age = now - p.at
         val d = decay(age, 14.0)
+        lastPlayed.merge(p.track.id, p.at) { x, y -> max(x, y) }
         when {
             p.completed -> {
                 // A slow second clock keeps long-time favourites alive: months on repeat is taste, not a phase.
@@ -69,7 +79,8 @@ fun affinity(plays: List<PlayDoc>, likes: List<LikeDoc>, now: Long): Affinity {
     // Library presence: saving a song is a deliberate act, and it outlasts a plain play.
     for (l in likes) add(l.track, 3 * decay(now - l.at, 90.0))
 
-    val ranked = trackScore.entries.filter { it.value > 0 }.sortedByDescending { it.value }
+    fun ok(id: String) = byId[id]?.let { !blockedTrack(blocked, it) } ?: false
+    val ranked = trackScore.entries.filter { it.value > 0 && ok(it.key) }.sortedByDescending { it.value }
     // Seeds: the best song of each top artist first, then the strongest remaining tracks (two per artist at most), strongest first.
     val bestByLead = HashMap<String, String>()
     for ((id, _) in ranked) {
@@ -90,9 +101,13 @@ fun affinity(plays: List<PlayDoc>, likes: List<LikeDoc>, now: Long): Affinity {
     for ((id, _) in ranked) { if (picked.size >= 20) break; pick(id) }
     val top = picked.sortedByDescending { trackScore[it] ?: 0.0 }.mapNotNull { byId[it] }
 
-    val onRepeat = monthPlays.entries.sortedByDescending { it.value }.take(50).mapNotNull { byId[it.key] }
+    val onRepeat = monthPlays.entries.filter { ok(it.key) }.sortedByDescending { it.value }.take(50).mapNotNull { byId[it.key] }
 
     val favorites = ranked.take(80).mapNotNull { byId[it.key] }
+    val rewind = completions.entries
+        .filter { it.value >= 3 && ok(it.key) && it.key !in recentSkips && now - (lastPlayed[it.key] ?: now) > 45 * DAY }
+        .sortedByDescending { it.value }.take(80)
+        .mapNotNull { e -> byId[e.key]?.let { RewindEntry(it, e.value, lastPlayed[e.key] ?: now) } }
 
     return Affinity(
         trackScore, artistScore, top, onRepeat,
@@ -101,6 +116,9 @@ fun affinity(plays: List<PlayDoc>, likes: List<LikeDoc>, now: Long): Affinity {
         knownArtists = artistScore.filter { it.value > 0 }.keys.toSet(),
         favorites = favorites,
         playCount = plays.size,
+        positives = ranked.take(600).mapNotNull { byId[it.key] },
+        rewind = rewind,
+        blocked = blocked,
     )
 }
 
@@ -113,7 +131,7 @@ fun rankCandidates(seeds: List<MediaMetadata>, cands: Map<String, List<MediaMeta
         val seedWeight = 1.0 / (1 + si * 0.25)
         val list = cands[seed.id].orEmpty()
         list.forEachIndexed { rank, t ->
-            if (t.id in seedIds || t.id in aff.skipped || t.id in aff.heavilyPlayed) return@forEachIndexed
+            if (t.id in seedIds || t.id in aff.skipped || t.id in aff.heavilyPlayed || blockedTrack(aff.blocked, t)) return@forEachIndexed
             byId[t.id] = t
             val positional = 1 - (rank.toDouble() / max(1, list.size)) * 0.5
             score.merge(t.id, seedWeight * positional) { x, y -> x + y }
@@ -161,7 +179,7 @@ fun dailyMix(
     salt: String = "", familiarPool: List<MediaMetadata>? = null, knownSet: Set<String>? = null, exclude: Set<String> = emptySet(),
 ): List<MediaMetadata> {
     val r = rng("mix:$day$salt")
-    fun bad(t: MediaMetadata) = t.id in aff.skipped || t.id in exclude
+    fun bad(t: MediaMetadata) = t.id in aff.skipped || t.id in exclude || blockedTrack(aff.blocked, t)
     val ks = knownSet ?: aff.knownArtists
     val familiar = pickWeighted((familiarPool ?: aff.favorites).filter { !bad(it) }, (size * 0.4).toInt(), r)
     val fresh = ranked.filter { !bad(it) }
@@ -226,7 +244,8 @@ fun clusterSeeds(seeds: List<MediaMetadata>, cands: Map<String, List<MediaMetada
     return cs.map { it.seeds }
 }
 
-data class ThemedMix(val title: String, val subtitle: String, val items: List<MediaMetadata>)
+/** [why] maps a track id to its "why this song?" line. */
+data class ThemedMix(val title: String, val subtitle: String, val items: List<MediaMetadata>, val why: Map<String, String> = emptyMap())
 
 private fun mixName(group: List<MediaMetadata>, aff: Affinity): String {
     val score = LinkedHashMap<String, Pair<String, Double>>()
@@ -275,7 +294,7 @@ fun dailyMixes(aff: Affinity, cands: Map<String, List<MediaMetadata>>, day: Stri
         val items = dailyMix(aff, ranked, day, each, "#$i", familiar, artists, taken)
         if (items.size < 8) return@forEachIndexed
         taken.addAll(items.map { it.id })
-        out.add(ThemedMix("", mixName(g, aff), items))
+        out.add(ThemedMix("", mixName(g, aff), items, items.associate { it.id to explain(it, aff, cands, g) }))
     }
     return out.mapIndexed { i, m -> m.copy(title = "Daily Mix ${i + 1}") }
 }
@@ -299,12 +318,12 @@ fun hourOf(at: Long): Int = java.time.Instant.ofEpochMilli(at).atZone(java.time.
 private const val MIN_SLOT_PLAYS = 25
 
 /** The taste profile of each part of the day that has enough listening behind it. */
-fun slotAffinities(plays: List<PlayDoc>, now: Long): List<Pair<Slot, Affinity>> {
+fun slotAffinities(plays: List<PlayDoc>, now: Long, blocked: Set<String> = emptySet()): List<Pair<Slot, Affinity>> {
     val by = plays.groupBy { slotOf(hourOf(it.at)).id }
-    return SLOTS.filter { s -> by[s.id].orEmpty().count { !it.skipped } >= MIN_SLOT_PLAYS }.map { it to affinity(by.getValue(it.id), emptyList(), now) }
+    return SLOTS.filter { s -> by[s.id].orEmpty().count { !it.skipped } >= MIN_SLOT_PLAYS }.map { it to affinity(by.getValue(it.id), emptyList(), now, blocked) }
 }
 
-data class TimeMix(val slot: SlotId, val title: String, val subtitle: String, val items: List<MediaMetadata>)
+data class TimeMix(val slot: SlotId, val title: String, val subtitle: String, val items: List<MediaMetadata>, val why: Map<String, String> = emptyMap())
 
 /** One mix per part of the day: songs you play mostly then lead, the slot's own top tracks seed the fresh part. */
 fun timeMixes(aff: Affinity, slots: List<Pair<Slot, Affinity>>, cands: Map<String, List<MediaMetadata>>, day: String, size: Int = 30): List<TimeMix> {
@@ -319,7 +338,9 @@ fun timeMixes(aff: Affinity, slots: List<Pair<Slot, Affinity>>, cands: Map<Strin
         val familiar = sa.favorites.sortedByDescending { lift(it) }
         val ranked = rankCandidates(seeds, cands, sa)
         val items = dailyMix(sa, ranked, day, size, "t:${slot.id.name.lowercase()}", familiar, sa.knownArtists, aff.skipped)
-        if (items.size >= 10) out.add(TimeMix(slot.id, slot.title, mixName(familiar.take(12), sa), items))
+        val phrase = when (slot.id) { SlotId.MORNING -> "in the morning"; SlotId.AFTERNOON -> "in the afternoon"; SlotId.EVENING -> "in the evening"; SlotId.NIGHT -> "late at night" }
+        val why = items.associate { it.id to if ((sa.trackScore[it.id] ?: 0.0) > 0) "You play this $phrase" else explain(it, aff, cands, seeds) }
+        if (items.size >= 10) out.add(TimeMix(slot.id, slot.title, mixName(familiar.take(12), sa), items, why))
     }
     return out
 }
@@ -328,7 +349,7 @@ fun timeMixes(aff: Affinity, slots: List<Pair<Slot, Affinity>>, cands: Map<Strin
 fun orderByNow(mixes: List<TimeMix>, hour: Int): List<ThemedMix> {
     val now = slotOf(hour).id
     return mixes.sortedByDescending { it.slot == now }
-        .map { ThemedMix(it.title, if (it.slot == now) "Right now · ${it.subtitle}" else it.subtitle, it.items) }
+        .map { ThemedMix(it.title, if (it.slot == now) "Right now · ${it.subtitle}" else it.subtitle, it.items, it.why) }
 }
 
 // ---- Discover Weekly (port of discoverWeekly in recs-core.ts).
@@ -338,7 +359,7 @@ fun weekKey(now: Long): String =
     java.time.Instant.ofEpochMilli(now).atZone(java.time.ZoneId.systemDefault()).toLocalDate().with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY)).toString()
 
 /** Songs by artists never played at all, from the consensus of the top tracks' radios; the same list all week. */
-fun discoverWeekly(aff: Affinity, cands: Map<String, List<MediaMetadata>>, week: String, size: Int = 30): List<MediaMetadata> {
+fun discoverWeekly(aff: Affinity, cands: Map<String, List<MediaMetadata>>, week: String, size: Int = 30): Picked {
     val seeds = aff.topTracks.take(20)
     val fresh = rankCandidates(seeds, cands, aff).filter { t ->
         t.artists.isNotEmpty() && t.artists.none { it.name.lowercase() in aff.artistScore } && t.id !in aff.skipped
@@ -346,5 +367,65 @@ fun discoverWeekly(aff: Affinity, cands: Map<String, List<MediaMetadata>>, week:
     var pool = diversify(fresh, 1)
     if (pool.size < size) pool = diversify(fresh, 2)
     val picked = pickWeighted(pool, size, rng("dw:$week"))
-    return if (picked.size >= 12) picked else emptyList()
+    return if (picked.size >= 12) Picked(picked, picked.associate { it.id to explain(it, aff, cands, seeds, fresh = true) }) else Picked(emptyList(), emptyMap())
+}
+
+/** Tracks plus their "why this song?" lines. */
+class Picked(val items: List<MediaMetadata>, val why: Map<String, String>)
+
+// ---- Why this song? (port of explain in recs-core.ts)
+
+fun explain(t: MediaMetadata, aff: Affinity, cands: Map<String, List<MediaMetadata>>, seeds: List<MediaMetadata>, fresh: Boolean = false): String {
+    val artist = t.artists.firstOrNull()?.name
+    if (t.id in aff.heavilyPlayed) return "One of your most-played songs"
+    if ((aff.trackScore[t.id] ?: 0.0) > 0) return "From your listening"
+    val via = seeds.firstOrNull { s -> cands[s.id].orEmpty().any { it.id == t.id } }
+    if (fresh) return if (via != null) "New artist, like ${via.title}" else "New artist, close to your taste"
+    if (artist != null && artist.lowercase() in aff.knownArtists) return "Because you play $artist"
+    return if (via != null) "Because you play ${via.title}" else "Matches your taste"
+}
+
+// ---- Mood mixes (port of MOODS / moodPlan / moodMixes). YouTube gives no genre or year, so moods come from title cues.
+
+class Mood(val id: String, val title: String, val subtitle: String, val re: Regex)
+
+val MOODS = listOf(
+    Mood("slowed", "Slowed & Reverb", "Slowed, reverb and lo-fi", Regex("slowed|reverb|lo-?fi|sped up|nightcore|8d audio", RegexOption.IGNORE_CASE)),
+    Mood("acoustic", "Unplugged & Acoustic", "Stripped back, unplugged and covers", Regex("unplugged|acoustic|stripped|reprise|coke studio|\\bcover\\b|session", RegexOption.IGNORE_CASE)),
+    Mood("instrumental", "Instrumentals & Themes", "Themes, BGM and instrumentals", Regex("instrumental|\\bbgm\\b|\\btheme\\b|background score|\\bost\\b|piano version", RegexOption.IGNORE_CASE)),
+)
+
+class MoodPlan(val mood: Mood, val seeds: List<MediaMetadata>, val familiar: List<MediaMetadata>)
+
+fun moodPlan(aff: Affinity): List<MoodPlan> =
+    MOODS.map { m -> val fam = aff.positives.filter { m.re.containsMatchIn(it.title) }; MoodPlan(m, fam.take(3), fam) }.filter { it.familiar.size >= 8 }
+
+fun moodMixes(aff: Affinity, plan: List<MoodPlan>, cands: Map<String, List<MediaMetadata>>, day: String, size: Int = 30): List<ThemedMix> {
+    val out = ArrayList<ThemedMix>()
+    for (p in plan) {
+        val all = rankCandidates(p.seeds, cands, aff)
+        val matching = all.filter { p.mood.re.containsMatchIn(it.title) }
+        val ranked = if (matching.size >= 8) matching else all
+        val items = dailyMix(aff, ranked, day, size, "m:${p.mood.id}", p.familiar, aff.knownArtists)
+        val why = items.associate {
+            it.id to if (p.mood.re.containsMatchIn(it.title) && (aff.trackScore[it.id] ?: 0.0) > 0) "From your ${p.mood.title.lowercase()} listening" else explain(it, aff, cands, p.seeds)
+        }
+        if (items.size >= 10) out.add(ThemedMix(p.mood.title, p.mood.subtitle, items, why))
+    }
+    return out
+}
+
+// ---- Repeat Rewind (port of repeatRewind): songs finished 3+ times, then dropped. Needs no network.
+
+fun repeatRewind(aff: Affinity, week: String, size: Int = 40): Picked {
+    if (aff.rewind.size < 10) return Picked(emptyList(), emptyMap())
+    val byId = aff.rewind.associateBy { it.track.id }
+    val pool = diversify(aff.rewind.map { it.track }, 2)
+    val picked = pickWeighted(pool, size, rng("rw:$week"))
+    val fmt = java.time.format.DateTimeFormatter.ofPattern("MMM yyyy", java.util.Locale.ENGLISH)
+    val why = picked.associate { t ->
+        val r = byId.getValue(t.id)
+        t.id to "You played this ${r.plays} times, last in ${java.time.Instant.ofEpochMilli(r.last).atZone(java.time.ZoneId.systemDefault()).format(fmt)}"
+    }
+    return Picked(picked, why)
 }

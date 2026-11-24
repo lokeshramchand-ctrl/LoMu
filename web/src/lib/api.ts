@@ -1,6 +1,7 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
 import { api as authFetch } from '@/player/sync';
+import { useLibrary } from '@/player/library';
 import type { Wrapped } from './wrapped';
 import type { AlbumData, ArtistData, ExploreData, HomeData, Item, LyricsData, PlaylistData, SearchData, Shelf, Track } from './types';
 
@@ -36,7 +37,15 @@ export const api = {
 };
 
 const long = { staleTime: 10 * 60_000 };
-export const useRecs = () => useQuery({ queryKey: ['recs'], queryFn: api.recs, staleTime: 3 * 60_000 });
+/** Shelves without anything by an artist the user blocked: applies at once, before the server's own caches catch up. */
+export function hideBlocked(shelves: Shelf[], blocked: Record<string, unknown>): Shelf[] {
+  if (!Object.keys(blocked).length) return shelves;
+  return shelves.map((s) => ({ ...s, items: s.items.filter((i) => i.kind !== 'song' || !i.artists.some((a) => blocked[a.name.toLowerCase()])) }));
+}
+export const useRecs = () => {
+  const blocked = useLibrary((s) => s.blocked);
+  return useQuery({ queryKey: ['recs'], queryFn: api.recs, staleTime: 3 * 60_000, select: (d) => hideBlocked(d, blocked) });
+};
 export const useWrapped = (year: number | null) => useQuery({ queryKey: ['wrapped', year], queryFn: () => api.wrapped(year), staleTime: 5 * 60_000 });
 export const useHome = () => useQuery({ queryKey: ['home'], queryFn: api.home, ...long });
 export const useExplore = () => useQuery({ queryKey: ['explore'], queryFn: api.explore, ...long });

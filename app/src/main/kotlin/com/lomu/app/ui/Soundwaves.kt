@@ -89,25 +89,29 @@ fun HomeScreen() {
     val lo = LocalLo.current
     // Start from the cached shelves so Home does not flash the open feed before the personal picks are built.
     var recsLoaded by remember { mutableStateOf(sync == null) }
-    val recs by produceState<List<com.lomu.app.sync.SyncClient.RecShelf>>(
+    val recsRaw by produceState<List<com.lomu.app.sync.SyncClient.RecShelf>>(
         remember { runCatching { sync?.cachedRecs() }.getOrNull().orEmpty() }, syncState.user, syncState.status.startsWith("Up to date"),
     ) {
         value = runCatching { sync?.recs() }.getOrNull().orEmpty()
         recsLoaded = true
     }
+    // Blocking an artist hides them at once, before the next rebuild of the mixes.
+    val blockedNow by (sync?.blocked ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptySet<String>()) }).collectAsState()
+    val recs = remember(recsRaw, blockedNow) { sync?.hideBlocked(recsRaw, blockedNow) ?: recsRaw }
     val state by load("home") { YouTube.home() }
     val sleep = lastSleep()
 
     val likedMeta = remember(liked) { liked.take(50).map { it.toMediaMetadata() } }
-    val onRepeat = recs.firstOrNull { it.title.contains("repeat", true) }?.tracks ?: likedMeta.take(50)
+    val onRepeat = recs.firstOrNull { it.title == "On Repeat" }?.tracks ?: likedMeta.take(50)
     // Everything that is not "On Repeat", flattened and de-duplicated: the feature card and the pastel tiles come from here.
     val picks = remember(recs, likedMeta) {
-        val fromRecs = recs.filter { !it.title.contains("repeat", true) }.flatMap { it.tracks }.distinctBy { it.id }
+        val fromRecs = recs.filter { it.title != "On Repeat" }.flatMap { it.tracks }.distinctBy { it.id }
         if (fromRecs.size >= 3) fromRecs else (fromRecs + likedMeta).distinctBy { it.id }
     }
     val feature = picks.firstOrNull()
     val mixes = remember(recs) { recs.filter { it.title.startsWith("Daily Mix") } }
     // Discover Weekly and the four time-of-day mixes: a second set of tiles under the daily mixes.
+    val moodMixes = remember(recs) { recs.filter { Regex("^(Repeat Rewind|Slowed & Reverb|Unplugged & Acoustic|Instrumentals & Themes)$").matches(it.title) } }
     val dayMixes = remember(recs) { recs.filter { it.title == "Discover Weekly" || Regex("^(Morning|Afternoon|Evening|Late Night) Mix$").matches(it.title) } }
 
     // The page takes the colour of the playing song's cover, as the player does, fading to white lower down.
@@ -151,7 +155,7 @@ fun HomeScreen() {
         if (feature != null) item { FeatureCard(feature) }
         if (onRepeat.isNotEmpty()) item {
             Column(Modifier.appear(2)) {
-                Row(Modifier.fillMaxWidth().pressable(RoundedCornerShape(0.dp)) { MixStore.title = "On Repeat"; MixStore.tracks = onRepeat; nav.push(Screen.Mix) }.padding(start = 20.dp, end = 20.dp, top = 26.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().pressable(RoundedCornerShape(0.dp)) { MixStore.title = "On Repeat"; MixStore.why = emptyMap(); MixStore.tracks = onRepeat; nav.push(Screen.Mix) }.padding(start = 20.dp, end = 20.dp, top = 26.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("On Repeat", style = LoType.section, color = lo.ink)
                     Spacer(Modifier.width(6.dp))
                     Ic(Ph.Right, 18.dp, lo.grey)
@@ -169,6 +173,7 @@ fun HomeScreen() {
         }
         if (mixes.isNotEmpty()) item { MixTiles("Mixes", mixes, 0) }
         if (dayMixes.isNotEmpty()) item { MixTiles("For your day", dayMixes, 1) }
+        if (moodMixes.isNotEmpty()) item { MixTiles("Moods and throwbacks", moodMixes, 2) }
         // Until the personal picks arrive (or when signed out) fall back to the open feed.
         if (recs.isEmpty() && liked.isEmpty() && !recsLoaded) item { SkeletonShelves() }
         else if (recs.isEmpty() && liked.isEmpty()) when (val st = state) {
@@ -376,7 +381,7 @@ private fun MixTiles(heading: String, shelves: List<com.lomu.app.sync.SyncClient
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     row.forEachIndexed { c, mix ->
                         PickTile(mix.title, mix.subtitle.orEmpty(), mix.tracks.firstOrNull()?.thumbnailUrl, tileColor(r * 2 + c), Modifier.weight(1f)) {
-                            MixStore.title = mix.title; MixStore.tracks = mix.tracks; nav.push(Screen.Mix)
+                            MixStore.title = mix.title; MixStore.tracks = mix.tracks; MixStore.why = mix.why; nav.push(Screen.Mix)
                         }
                     }
                     if (row.size == 1) Spacer(Modifier.weight(1f))

@@ -10,7 +10,7 @@ import { db } from './db';
 export type Doc = { kind: string; key: string; value: unknown | null; updated: number; deleted?: boolean };
 export type Row = { kind: string; key: string; value: unknown | null; updated: number; deleted: boolean; seq: number };
 
-const KINDS = new Set(['like', 'playlist', 'saved', 'play', 'search', 'queue']);
+const KINDS = new Set(['like', 'playlist', 'saved', 'play', 'search', 'queue', 'block']);
 /** Per-account ceiling, so one runaway client cannot fill the disk for everybody. */
 const MAX_DOCS = () => Number(process.env.LOMU_MAX_DOCS) || 300_000;
 
