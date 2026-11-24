@@ -109,9 +109,8 @@ fun HomeScreen() {
     // The page takes the colour of the playing song's cover, as the player does, fading to white lower down.
     val noMeta = remember { kotlinx.coroutines.flow.MutableStateFlow<MediaMetadata?>(null) }
     val cur by (player?.mediaMetadata ?: noMeta).collectAsState()
-    val wash by animateColorAsState(playerTint(rememberTint(cur?.thumbnailUrl)) ?: lo.bg, tween(900), label = "homeTint")
     Box(Modifier.fillMaxSize().background(lo.bg)) {
-    Box(Modifier.fillMaxWidth().fillMaxHeight(0.7f).background(Brush.verticalGradient(0f to wash, 1f to lo.bg)))
+    CoverWash(cur?.thumbnailUrl)
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = bottomPad())) {
         item {
             Row(Modifier.fillMaxWidth().statusBarsPadding().padding(start = 20.dp, end = 16.dp, top = 14.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
