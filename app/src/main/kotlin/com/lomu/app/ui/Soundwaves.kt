@@ -173,7 +173,7 @@ fun HomeScreen() {
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             row.forEachIndexed { c, mix ->
                                 PickTile(mix.title, mix.subtitle.orEmpty(), mix.tracks.firstOrNull()?.thumbnailUrl, tileColor(r * 2 + c), Modifier.weight(1f)) {
-                                    player?.playMediaItems(mix.title, mix.tracks.map { it.toMediaItem() }, 0)
+                                    MixStore.title = mix.title; MixStore.tracks = mix.tracks; nav.push(Screen.Mix)
                                 }
                             }
                             if (row.size == 1) Spacer(Modifier.weight(1f))
