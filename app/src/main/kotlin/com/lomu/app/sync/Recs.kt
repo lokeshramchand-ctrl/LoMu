@@ -24,7 +24,7 @@ class Affinity(
     val knownArtists: Set<String>,
     val favorites: List<MediaMetadata>,
     val playCount: Int = 0, // size of the play log: a big import must rebuild today's mixes
-    val positives: List<MediaMetadata> = emptyList(), // the top 600 positive tracks, for mood filters
+    val positives: List<MediaMetadata> = emptyList(), // every positive track (top 5000), for mood filters
     val rewind: List<RewindEntry> = emptyList(), // played to the end 3+ times, not heard for 45+ days
     val blocked: Set<String> = emptySet(), // lower-case artists the user never wants recommended
 )
@@ -118,7 +118,7 @@ fun affinity(plays: List<PlayDoc>, likes: List<LikeDoc>, now: Long, blocked: Set
         knownArtists = artistScore.filter { it.value > 0 }.keys.toSet(),
         favorites = favorites,
         playCount = plays.size,
-        positives = ranked.take(600).mapNotNull { byId[it.key] },
+        positives = ranked.take(5000).mapNotNull { byId[it.key] },
         rewind = rewind,
         blocked = blocked,
     )
