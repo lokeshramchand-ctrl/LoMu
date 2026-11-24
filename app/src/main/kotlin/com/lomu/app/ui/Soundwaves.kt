@@ -116,10 +116,7 @@ fun HomeScreen() {
             Row(Modifier.fillMaxWidth().statusBarsPadding().padding(start = 20.dp, end = 16.dp, top = 14.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Spacer(Modifier.weight(1f))
                 Row(Modifier.background(lo.surface2, CircleShape).padding(3.dp), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Row(Modifier.height(38.dp).a11y("Devices").pressable(CircleShape) { openDevices() }.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        IcV(Ph.Cloud.vector, 19.dp, lo.ink)
-                        Text("Devices", style = LoType.small.copy(fontWeight = FontWeight.Medium), color = lo.ink, modifier = Modifier.padding(start = 7.dp))
-                    }
+                    Box(Modifier.size(38.dp).a11y("Devices").pressable(CircleShape) { openDevices() }, Alignment.Center) { IcV(androidx.compose.material.icons.Icons.Rounded.Devices, 22.dp, lo.ink) }
                     Avatar(syncState.user?.take(2) ?: "LM", { nav.push(Screen.Settings) }, size = 38.dp)
                 }
             }
