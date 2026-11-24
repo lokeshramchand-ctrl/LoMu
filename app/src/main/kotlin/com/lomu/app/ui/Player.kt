@@ -24,6 +24,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
@@ -245,7 +246,19 @@ private fun Artwork(url: String?, playing: Boolean, glow: Color, thumb: String? 
         val side = minOf(maxWidth, maxHeight)
         // Coloured glow behind the cover, then the cover itself.
         Box(Modifier.size(side * 0.86f).graphicsLayer { scaleX = scale; scaleY = scale; translationY = 24f }.blur(48.dp).background(glow.copy(alpha = 1f), RoundedCornerShape(40.dp)))
-        Box(Modifier.size(side).graphicsLayer { scaleX = scale; scaleY = scale }.coverShadow(14.dp, 24.dp)) { Cover(url, side, radius = 14.dp, placeholderUrl = thumb) }
+        // The 4K YouTube cover sits underneath and is never swapped, and the official album art (when one is found) fades in
+        // on top only once it has loaded. Swapping the one image's address instead sent it back to the blurry thumbnail
+        // placeholder each time, so the cover went blurry, sharp, then blurry again.
+        val base = HiResArt.fallback(thumb) ?: url
+        Box(Modifier.size(side).graphicsLayer { scaleX = scale; scaleY = scale }.coverShadow(14.dp, 24.dp)) {
+            Cover(base, side, radius = 14.dp, placeholderUrl = thumb)
+            if (url != null && url != base) {
+                coil3.compose.AsyncImage(
+                    model = url, contentDescription = null, contentScale = ContentScale.Crop,
+                    modifier = Modifier.size(side).clip(RoundedCornerShape(14.dp)),
+                )
+            }
+        }
     }
 }
 
