@@ -118,7 +118,7 @@ fun HomeScreen() {
     val cur by (player?.mediaMetadata ?: noMeta).collectAsState()
     Box(Modifier.fillMaxSize().background(lo.bg)) {
     CoverWash(cur?.thumbnailUrl)
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = bottomPad())) {
+    LazyColumn(Modifier.fillMaxSize(), state = nav.homeList, contentPadding = PaddingValues(bottom = bottomPad())) {
         item {
             Row(Modifier.fillMaxWidth().statusBarsPadding().padding(start = 20.dp, end = 16.dp, top = 14.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Spacer(Modifier.weight(1f))
