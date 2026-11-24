@@ -113,4 +113,12 @@ describe('dailyMixes', () => {
     expect(new Set(ids).size).toBe(ids.length);
     expect(dailyMixes(aff, cands, '2026-11-24').map((m) => m.items.map((t) => t.id))).toEqual(a.map((m) => m.items.map((t) => t.id)));
   });
+
+  it('still gives five mixes when most seeds have no radio results', async () => {
+    const { dailyMixes } = await import('@/server/recs-core');
+    const sparse = new Map(seeds.map((s, i) => [s.id, [0, 1, 4, 5, 8, 9].includes(i) ? cands.get(s.id)! : []]));
+    const a = dailyMixes(aff, sparse, '2026-11-24');
+    expect(a.length).toBe(5);
+    for (const m of a) expect(m.items.length).toBeGreaterThanOrEqual(8);
+  });
 });
