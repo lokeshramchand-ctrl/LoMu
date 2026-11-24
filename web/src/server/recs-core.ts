@@ -55,13 +55,14 @@ export function affinity(plays: PlayDoc[], likes: LikeDoc[], now: number): Affin
 
   const ranked = [...trackScore.entries()].filter(([, s]) => s > 0).sort((a, b) => b[1] - a[1]);
   const topTracks: Track[] = [];
-  const usedArtists = new Set<string>();
+  const perArtist = new Map<string, number>();
   for (const [id] of ranked) {
     const t = byId.get(id)!;
-    if (usedArtists.has(name(t)) && topTracks.length < 3) continue; // spread the first few seeds
-    usedArtists.add(name(t));
+    const n = perArtist.get(name(t)) ?? 0;
+    if (n >= (topTracks.length < 3 ? 1 : 2)) continue; // spread the first few seeds, then at most two per artist
+    perArtist.set(name(t), n + 1);
     topTracks.push(t);
-    if (topTracks.length >= 12) break;
+    if (topTracks.length >= 20) break;
   }
 
   const onRepeat = [...monthPlays.entries()]
@@ -163,13 +164,22 @@ export function dailySeeds(top: Track[], day: string, n = 6): Track[] {
  * so it opens with something you love, never runs two tracks by one artist back to back, and
  * eases from comfortable to new and back. Deterministic per day.
  */
-export function dailyMix(aff: Affinity, ranked: Track[], day: string, size = 40): Track[] {
-  const rnd = seeded('mix:' + day);
-  const bad = (t: Track) => aff.skipped.has(t.id);
-  const familiar = pickWeighted(aff.favorites.filter((t) => !bad(t)), Math.round(size * 0.35), rnd);
+export type MixScope = {
+  salt?: string; // keeps each themed mix's shuffle different
+  familiar?: Track[]; // the history pool (defaults to all favourites)
+  known?: Set<string>; // lower-case artists that count as "known" for this mix
+  exclude?: Set<string>; // tracks already placed in a sibling mix
+};
+
+export function dailyMix(aff: Affinity, ranked: Track[], day: string, size = 40, scope: MixScope = {}): Track[] {
+  const rnd = seeded('mix:' + day + (scope.salt ?? ''));
+  const ex = scope.exclude;
+  const bad = (t: Track) => aff.skipped.has(t.id) || !!ex?.has(t.id);
+  const knownSet = scope.known ?? aff.knownArtists;
+  const familiar = pickWeighted((scope.familiar ?? aff.favorites).filter((t) => !bad(t)), Math.round(size * 0.35), rnd);
   const fresh = ranked.filter((t) => !bad(t));
-  const known = fresh.filter((t) => t.artists.some((a) => aff.knownArtists.has(a.name.toLowerCase())));
-  const unknown = fresh.filter((t) => t.artists.every((a) => !aff.knownArtists.has(a.name.toLowerCase())));
+  const known = fresh.filter((t) => t.artists.some((a) => knownSet.has(a.name.toLowerCase())));
+  const unknown = fresh.filter((t) => t.artists.every((a) => !knownSet.has(a.name.toLowerCase())));
   const used = new Set(familiar.map((t) => t.id));
   const take = (src: Track[], n: number) => {
     const out: Track[] = [];
@@ -200,4 +210,85 @@ export function dailyMix(aff: Affinity, ranked: Track[], day: string, size = 40)
     }
   }
   return out;
+}
+
+/* ------------------------------------------------------- five themed daily mixes */
+
+/**
+ * Groups seed tracks into at most `k` tastes. Two seeds belong together when they share an artist or when YouTube's
+ * radios for them return the same songs (the closest thing to "same genre" the catalogue exposes). Greedy merging,
+ * with a small penalty on size so one huge cluster does not swallow everything.
+ */
+export function clusterSeeds(seeds: Track[], cands: Map<string, Track[]>, k = 5): Track[][] {
+  type C = { seeds: Track[]; ids: Set<string>; artists: Set<string> };
+  const cs: C[] = seeds.map((s) => ({
+    seeds: [s],
+    ids: new Set((cands.get(s.id) ?? []).map((t) => t.id)),
+    artists: new Set(s.artists.map((a) => a.name.toLowerCase())),
+  }));
+  const sim = (a: C, b: C) => {
+    const same = [...a.artists].some((x) => b.artists.has(x));
+    let n = 0;
+    for (const id of a.ids) if (b.ids.has(id)) n++;
+    const overlap = n / Math.max(1, Math.min(a.ids.size, b.ids.size));
+    return ((same ? 2 : 0) + overlap) / (1 + 0.15 * (a.seeds.length + b.seeds.length));
+  };
+  while (cs.length > k) {
+    let bi = 0, bj = 1, best = -1;
+    for (let i = 0; i < cs.length; i++)
+      for (let j = i + 1; j < cs.length; j++) {
+        const s = sim(cs[i], cs[j]);
+        if (s > best) (best = s), (bi = i), (bj = j);
+      }
+    const a = cs[bi], b = cs.splice(bj, 1)[0];
+    a.seeds.push(...b.seeds);
+    b.ids.forEach((x) => a.ids.add(x));
+    b.artists.forEach((x) => a.artists.add(x));
+  }
+  return cs.map((c) => c.seeds);
+}
+
+export type ThemedMix = { title: string; subtitle: string; items: Track[] };
+
+/** "Arijit Singh, Pritam and more": the artists a cluster leans on most. */
+function mixName(group: Track[], aff: Affinity): string {
+  const score = new Map<string, { n: string; s: number }>();
+  for (const t of group) {
+    const a = t.artists[0]?.name;
+    if (!a) continue;
+    const e = score.get(a.toLowerCase()) ?? { n: a, s: 0 };
+    e.s += aff.trackScore.get(t.id) ?? 0;
+    score.set(a.toLowerCase(), e);
+  }
+  const top = [...score.values()].sort((a, b) => b.s - a.s).slice(0, 3).map((x) => x.n);
+  return top.length ? top.join(', ') + ' and more' : 'Your taste';
+}
+
+/**
+ * Up to five mixes for the day, like Daily Mix 1..5. Each one is a taste cluster: songs you already play from those
+ * artists, plus the consensus of the cluster's radios (same artists first, then neighbours). No song appears in two mixes.
+ */
+export function dailyMixes(aff: Affinity, cands: Map<string, Track[]>, day: string, count = 5, size = 40): ThemedMix[] {
+  const seeds = aff.topTracks.slice(0, 15);
+  const groups = clusterSeeds(seeds, cands, count)
+    .map((g) => ({ g, w: g.reduce((s, t) => s + (aff.trackScore.get(t.id) ?? 0), 0) }))
+    .sort((a, b) => b.w - a.w)
+    .map((x) => x.g);
+  const taken = new Set<string>();
+  const out: ThemedMix[] = [];
+  groups.forEach((g, i) => {
+    const artists = new Set<string>();
+    for (const t of g) for (const a of t.artists) artists.add(a.name.toLowerCase());
+    // Artists that keep showing up in this cluster's radios belong to its sound too.
+    const seen = new Map<string, number>();
+    for (const s of g) for (const t of cands.get(s.id) ?? []) for (const a of t.artists) seen.set(a.name.toLowerCase(), (seen.get(a.name.toLowerCase()) ?? 0) + 1);
+    for (const [a, n] of seen) if (n >= 2 && aff.knownArtists.has(a)) artists.add(a);
+    const familiar = aff.favorites.filter((t) => t.artists.some((a) => artists.has(a.name.toLowerCase())));
+    const ranked = rankCandidates(g, cands, aff);
+    const items = dailyMix(aff, ranked, day, size, { salt: `#${i}`, familiar, known: artists, exclude: taken });
+    if (items.length < 8) return;
+    items.forEach((t) => taken.add(t.id));
+    out.push({ title: '', subtitle: mixName(g, aff), items });
+  });
+  return out.map((m, i) => ({ ...m, title: `Daily Mix ${i + 1}` }));
 }

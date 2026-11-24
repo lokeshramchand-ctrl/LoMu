@@ -86,3 +86,31 @@ describe('dailyMix', () => {
     for (let i = 1; i < a.length; i++) expect(a[i].artists[0].name).not.toBe(a[i - 1].artists[0].name);
   });
 });
+
+describe('dailyMixes', () => {
+  // Three tastes: A-ish and B-ish share radios inside their group, C is separate. 12 artists, 2 songs each.
+  const seeds = Array.from({ length: 12 }, (_, i) => T('s' + i, 'Art' + i));
+  const group = (i: number) => (i < 4 ? 'g0' : i < 8 ? 'g1' : 'g2');
+  const cands = new Map(
+    seeds.map((s, i) => [s.id, Array.from({ length: 30 }, (_, j) => T(`${group(i)}-c${(j + i) % 30}`, `${group(i)}-artist${j % 12}`))]),
+  );
+  const aff = affinity(seeds.map((t) => play(t, 1, 'done')), [], now);
+
+  it('clusters seeds by shared radios into at most k groups', async () => {
+    const { clusterSeeds } = await import('@/server/recs-core');
+    const g = clusterSeeds(seeds, cands, 3);
+    expect(g.length).toBe(3);
+    for (const c of g) expect(new Set(c.map((t) => group(Number(t.id.slice(1))))).size).toBe(1);
+  });
+
+  it('builds up to five named mixes, stable per day, with no song in two mixes', async () => {
+    const { dailyMixes } = await import('@/server/recs-core');
+    const a = dailyMixes(aff, cands, '2026-11-24');
+    expect(a.length).toBeGreaterThanOrEqual(3);
+    expect(a.length).toBeLessThanOrEqual(5);
+    expect(a.map((m) => m.title)).toEqual(a.map((_, i) => `Daily Mix ${i + 1}`));
+    const ids = a.flatMap((m) => m.items.map((t) => t.id));
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(dailyMixes(aff, cands, '2026-11-24').map((m) => m.items.map((t) => t.id))).toEqual(a.map((m) => m.items.map((t) => t.id)));
+  });
+});
