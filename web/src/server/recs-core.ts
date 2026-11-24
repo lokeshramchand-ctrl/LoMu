@@ -329,3 +329,84 @@ export function dailyMixes(aff: Affinity, cands: Map<string, Track[]>, day: stri
   });
   return out.map((m, i) => ({ ...m, title: `Daily Mix ${i + 1}` }));
 }
+
+/* ------------------------------------------------------------ time-of-day mixes */
+
+export type SlotId = 'morning' | 'afternoon' | 'evening' | 'night';
+export type Slot = { id: SlotId; title: string; from: number; to: number };
+export const SLOTS: Slot[] = [
+  { id: 'morning', title: 'Morning Mix', from: 5, to: 11 },
+  { id: 'afternoon', title: 'Afternoon Mix', from: 11, to: 17 },
+  { id: 'evening', title: 'Evening Mix', from: 17, to: 22 },
+  { id: 'night', title: 'Late Night Mix', from: 22, to: 5 },
+];
+
+export const slotOf = (hour: number): Slot => SLOTS.find((s) => (s.from < s.to ? hour >= s.from && hour < s.to : hour >= s.from || hour < s.to)) ?? SLOTS[3];
+
+/** Local hour of an instant. `tzOffsetMin` is `Date.getTimezoneOffset()` of the viewer (the server may sit in another zone). */
+export const hourOf = (at: number, tzOffsetMin?: number) => (tzOffsetMin === undefined ? new Date(at).getHours() : new Date(at - tzOffsetMin * 60_000).getUTCHours());
+
+const MIN_SLOT_PLAYS = 25;
+
+/** The taste profile of each part of the day that has enough listening behind it. */
+export function slotAffinities(plays: PlayDoc[], now: number, tzOffsetMin?: number): { slot: Slot; aff: Affinity }[] {
+  const by = new Map<SlotId, PlayDoc[]>();
+  for (const p of plays) {
+    const id = slotOf(hourOf(p.at, tzOffsetMin)).id;
+    by.set(id, [...(by.get(id) ?? []), p]);
+  }
+  return SLOTS.filter((s) => (by.get(s.id) ?? []).filter((p) => !p.skipped).length >= MIN_SLOT_PLAYS).map((slot) => ({ slot, aff: affinity(by.get(slot.id)!, [], now) }));
+}
+
+/**
+ * One mix per part of the day: what you actually play then. Songs you play mostly in that slot lead (a song spread evenly
+ * over the day is nobody's morning song), and the slot's own top tracks seed the fresh part. Skips from any hour count.
+ */
+export function timeMixes(aff: Affinity, slots: { slot: Slot; aff: Affinity }[], cands: Map<string, Track[]>, day: string, size = 30): (ThemedMix & { slot: SlotId })[] {
+  const out: (ThemedMix & { slot: SlotId })[] = [];
+  for (const { slot, aff: sa } of slots) {
+    const seeds = sa.topTracks.slice(0, 4);
+    const lift = (t: Track) => {
+      const mine = sa.trackScore.get(t.id) ?? 0;
+      const all = aff.trackScore.get(t.id) ?? 0;
+      return mine * (0.4 + (all > 0 ? Math.min(1, mine / all) : 1));
+    };
+    const familiar = [...sa.favorites].sort((a, b) => lift(b) - lift(a));
+    const ranked = rankCandidates(seeds, cands, sa);
+    const items = dailyMix(sa, ranked, day, size, { salt: 't:' + slot.id, familiar, known: sa.knownArtists, exclude: aff.skipped });
+    if (items.length >= 10) out.push({ title: slot.title, subtitle: mixName(familiar.slice(0, 12), sa), items, slot: slot.id });
+  }
+  return out;
+}
+
+/** Puts the part of the day it is now first and says so. */
+export function orderByNow<T extends { title: string; subtitle?: string }>(mixes: (T & { slot: SlotId })[], hour: number): T[] {
+  const now = slotOf(hour).id;
+  return [...mixes]
+    .sort((a, b) => Number(b.slot === now) - Number(a.slot === now))
+    .map(({ slot, ...m }) => ({ ...(m as unknown as T), subtitle: slot === now ? `Right now · ${m.subtitle ?? ''}`.replace(/ · $/, '') : m.subtitle }));
+}
+
+/* ------------------------------------------------------------- discover weekly */
+
+/** Monday of the week, as a day key: Discover Weekly changes when this does. */
+export const weekKey = (now: number) => {
+  const d = new Date(now);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return dayKey(d.getTime());
+};
+
+/**
+ * Songs by artists you have never played at all (not even a skip), taken from the consensus of your top tracks' radios,
+ * one or two per artist, the same list all week. Empty when the catalogue gave too little to fill a real playlist.
+ */
+export function discoverWeekly(aff: Affinity, cands: Map<string, Track[]>, week: string, size = 30): Track[] {
+  const seeds = aff.topTracks.slice(0, 20);
+  const fresh = rankCandidates(seeds, cands, aff).filter(
+    (t) => t.artists.length > 0 && t.artists.every((a) => !aff.artistScore.has(a.name.toLowerCase())) && !aff.skipped.has(t.id),
+  );
+  let pool = diversify(fresh, 1);
+  if (pool.length < size) pool = diversify(fresh, 2);
+  const picked = pickWeighted(pool, size, seeded('dw:' + week));
+  return picked.length >= 12 ? picked : [];
+}

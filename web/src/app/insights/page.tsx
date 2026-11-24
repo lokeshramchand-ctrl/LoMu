@@ -68,7 +68,7 @@ export default function Insights() {
 
   return (
     <Bento className="fade-in">
-      <PageHeader  title="Your listening" />
+      <PageHeader title="Your listening" actions={<Link href="/wrapped" className="btn ghost">Your Wrapped</Link>} />
 
       <Tile span={6} md={12} tone="accent" title="Time listened" sub="Awake, all time">
         <Big lead value={formatSpan(stats.totalMs)} />

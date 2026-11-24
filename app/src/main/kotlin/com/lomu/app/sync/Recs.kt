@@ -279,3 +279,72 @@ fun dailyMixes(aff: Affinity, cands: Map<String, List<MediaMetadata>>, day: Stri
     }
     return out.mapIndexed { i, m -> m.copy(title = "Daily Mix ${i + 1}") }
 }
+
+// ---- Time-of-day mixes (port of slotAffinities / timeMixes / orderByNow in recs-core.ts).
+
+enum class SlotId { MORNING, AFTERNOON, EVENING, NIGHT }
+data class Slot(val id: SlotId, val title: String, val from: Int, val to: Int)
+
+val SLOTS = listOf(
+    Slot(SlotId.MORNING, "Morning Mix", 5, 11),
+    Slot(SlotId.AFTERNOON, "Afternoon Mix", 11, 17),
+    Slot(SlotId.EVENING, "Evening Mix", 17, 22),
+    Slot(SlotId.NIGHT, "Late Night Mix", 22, 5),
+)
+
+fun slotOf(hour: Int): Slot = SLOTS.firstOrNull { if (it.from < it.to) hour >= it.from && hour < it.to else hour >= it.from || hour < it.to } ?: SLOTS[3]
+
+fun hourOf(at: Long): Int = java.time.Instant.ofEpochMilli(at).atZone(java.time.ZoneId.systemDefault()).hour
+
+private const val MIN_SLOT_PLAYS = 25
+
+/** The taste profile of each part of the day that has enough listening behind it. */
+fun slotAffinities(plays: List<PlayDoc>, now: Long): List<Pair<Slot, Affinity>> {
+    val by = plays.groupBy { slotOf(hourOf(it.at)).id }
+    return SLOTS.filter { s -> by[s.id].orEmpty().count { !it.skipped } >= MIN_SLOT_PLAYS }.map { it to affinity(by.getValue(it.id), emptyList(), now) }
+}
+
+data class TimeMix(val slot: SlotId, val title: String, val subtitle: String, val items: List<MediaMetadata>)
+
+/** One mix per part of the day: songs you play mostly then lead, the slot's own top tracks seed the fresh part. */
+fun timeMixes(aff: Affinity, slots: List<Pair<Slot, Affinity>>, cands: Map<String, List<MediaMetadata>>, day: String, size: Int = 30): List<TimeMix> {
+    val out = ArrayList<TimeMix>()
+    for ((slot, sa) in slots) {
+        val seeds = sa.topTracks.take(4)
+        fun lift(t: MediaMetadata): Double {
+            val mine = sa.trackScore[t.id] ?: 0.0
+            val all = aff.trackScore[t.id] ?: 0.0
+            return mine * (0.4 + (if (all > 0) min(1.0, mine / all) else 1.0))
+        }
+        val familiar = sa.favorites.sortedByDescending { lift(it) }
+        val ranked = rankCandidates(seeds, cands, sa)
+        val items = dailyMix(sa, ranked, day, size, "t:${slot.id.name.lowercase()}", familiar, sa.knownArtists, aff.skipped)
+        if (items.size >= 10) out.add(TimeMix(slot.id, slot.title, mixName(familiar.take(12), sa), items))
+    }
+    return out
+}
+
+/** Puts the part of the day it is now first and says so. */
+fun orderByNow(mixes: List<TimeMix>, hour: Int): List<ThemedMix> {
+    val now = slotOf(hour).id
+    return mixes.sortedByDescending { it.slot == now }
+        .map { ThemedMix(it.title, if (it.slot == now) "Right now · ${it.subtitle}" else it.subtitle, it.items) }
+}
+
+// ---- Discover Weekly (port of discoverWeekly in recs-core.ts).
+
+/** Monday of the week, as a day key: Discover Weekly changes when this does. */
+fun weekKey(now: Long): String =
+    java.time.Instant.ofEpochMilli(now).atZone(java.time.ZoneId.systemDefault()).toLocalDate().with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY)).toString()
+
+/** Songs by artists never played at all, from the consensus of the top tracks' radios; the same list all week. */
+fun discoverWeekly(aff: Affinity, cands: Map<String, List<MediaMetadata>>, week: String, size: Int = 30): List<MediaMetadata> {
+    val seeds = aff.topTracks.take(20)
+    val fresh = rankCandidates(seeds, cands, aff).filter { t ->
+        t.artists.isNotEmpty() && t.artists.none { it.name.lowercase() in aff.artistScore } && t.id !in aff.skipped
+    }
+    var pool = diversify(fresh, 1)
+    if (pool.size < size) pool = diversify(fresh, 2)
+    val picked = pickWeighted(pool, size, rng("dw:$week"))
+    return if (picked.size >= 12) picked else emptyList()
+}
