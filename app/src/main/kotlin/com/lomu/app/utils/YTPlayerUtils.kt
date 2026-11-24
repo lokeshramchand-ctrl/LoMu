@@ -215,6 +215,10 @@ object YTPlayerUtils {
         // don't waste the one retry on it either way.
         val isGeoRestricted = BotDetectionMitigator.isGeoError(firstAttempt.exceptionOrNull()?.message)
 
+        // A cancelled lookup (the same song asked for twice, or the user skipped on) is not a failure of this phone's
+        // connection: no session rotation, no retry.
+        if (firstAttempt.exceptionOrNull() is kotlinx.coroutines.CancellationException) return firstAttempt
+
         if (firstAttempt.isFailure && !isGeoRestricted) {
             // visitorData rides in every request's client context independent of
             // login — cookie/dataSyncId are separate fields — so a flagged
@@ -681,6 +685,7 @@ object YTPlayerUtils {
             expiresInSeconds,
         )
     }.onFailure { e ->
+        if (e is kotlinx.coroutines.CancellationException) return@onFailure // cancelled, not broken: nothing to log
         Timber.tag(logTag).e(e, "Playback resolution failed")
         PlaybackLogManager.log(PlaybackLogLevel.ERROR, "Playback failed", "${e::class.simpleName}: ${e.message}")
         
