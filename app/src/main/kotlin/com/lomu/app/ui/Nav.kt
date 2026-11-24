@@ -22,6 +22,7 @@ sealed interface Screen {
     data object Albums : Screen
     data object Artists : Screen
     data object Sleep : Screen
+    data object Wrapped : Screen
     /** A list of songs shown as an album-style page; the songs are held in [MixStore]. */
     data object Mix : Screen
 }

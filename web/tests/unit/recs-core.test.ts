@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { affinity, diversify, rankCandidates, type PlayDoc } from '@/server/recs-core';
+import { affinity, discoverWeekly, diversify, hourOf, orderByNow, rankCandidates, slotAffinities, slotOf, timeMixes, weekKey, type PlayDoc } from '@/server/recs-core';
 import type { Track } from '@/lib/types';
 
 const T = (id: string, artist: string): Track => ({ kind: 'song', id, title: id, artists: [{ name: artist }] });
@@ -120,5 +120,66 @@ describe('dailyMixes', () => {
     const a = dailyMixes(aff, sparse, '2026-11-24');
     expect(a.length).toBe(5);
     for (const m of a) expect(m.items.length).toBeGreaterThanOrEqual(8);
+  });
+});
+
+describe('time-of-day mixes', () => {
+  const at = (h: number, i = 0) => Date.UTC(2026, 10, 10 + (i % 5), h, 0) - 0; // UTC hours, read back with tz 0
+  const songs = (prefix: string, artist: string, n: number) => Array.from({ length: n }, (_, i) => T(`${prefix}${i}`, `${artist}`));
+  const doneAt = (t: Track, hour: number, i: number): PlayDoc => ({ track: t, at: at(hour, i) + i * 60_000, playedMs: 180000, completed: true, skipped: false });
+  const now = Date.UTC(2026, 10, 20, 12);
+
+  it('maps hours to the part of the day, across midnight', () => {
+    expect(slotOf(6).id).toBe('morning');
+    expect(slotOf(13).id).toBe('afternoon');
+    expect(slotOf(21).id).toBe('evening');
+    expect(slotOf(23).id).toBe('night');
+    expect(slotOf(2).id).toBe('night');
+    expect(hourOf(Date.UTC(2026, 0, 1, 20, 30), -330)).toBe(2); // IST viewer, server elsewhere
+  });
+
+  it('builds a mix only for parts of the day with enough listening, led by what is played then', () => {
+    const am = songs('am', 'Dawn', 30);
+    const pm = songs('pm', 'Dusk', 30);
+    const plays = [...am.map((t, i) => doneAt(t, 7, i)), ...pm.map((t, i) => doneAt(t, 23, i)), ...am.slice(0, 3).map((t, i) => doneAt(t, 12, i))];
+    const slots = slotAffinities(plays, now, 0);
+    expect(slots.map((s) => s.slot.id).sort()).toEqual(['morning', 'night']); // afternoon has 3 plays: too few
+    const aff = affinity(plays, [], now);
+    const cands = new Map<string, Track[]>();
+    for (const s of slots) for (const seed of s.aff.topTracks.slice(0, 4)) cands.set(seed.id, songs(`r${seed.id}_`, 'Other', 12).map((t, i) => ({ ...t, artists: [{ name: `New${seed.id}${i}` }] })));
+    const mixes = timeMixes(aff, slots, cands, '2026-11-20');
+    const morning = mixes.find((m) => m.slot === 'morning')!;
+    expect(morning.title).toBe('Morning Mix');
+    expect(morning.items.filter((t) => t.id.startsWith('am')).length).toBeGreaterThan(morning.items.filter((t) => t.id.startsWith('pm')).length);
+    expect(new Set(morning.items.map((t) => t.id)).size).toBe(morning.items.length);
+    // "right now" goes first and is labelled
+    const ordered = orderByNow(mixes, 23);
+    expect(ordered[0].title).toBe('Late Night Mix');
+    expect(ordered[0].subtitle).toMatch(/^Right now/);
+  });
+});
+
+describe('discover weekly', () => {
+  const now = Date.UTC(2026, 10, 18);
+  it('only offers artists that were never played, the same all week, and nothing when thin', () => {
+    const fav = T('f1', 'Fav');
+    const plays: PlayDoc[] = [play(fav, 1, 'done'), play(fav, 2, 'done'), play(T('x', 'Skippy'), 1, 'skip')];
+    const aff = affinity(plays, [], now);
+    const fresh = Array.from({ length: 50 }, (_, i) => T(`n${i}`, `Newbie${i}`));
+    const cands = new Map<string, Track[]>([
+      ['f1', [...fresh, T('k1', 'Fav'), T('k2', 'Skippy')]],
+    ]);
+    const week = weekKey(Date.UTC(2026, 10, 18));
+    const list = discoverWeekly(aff, cands, week);
+    expect(list.length).toBe(30);
+    expect(list.every((t) => t.artists[0].name.startsWith('Newbie'))).toBe(true);
+    expect(discoverWeekly(aff, cands, week).map((t) => t.id)).toEqual(list.map((t) => t.id));
+    expect(discoverWeekly(aff, cands, '2026-11-23').map((t) => t.id)).not.toEqual(list.map((t) => t.id));
+    expect(discoverWeekly(aff, new Map([['f1', fresh.slice(0, 5)]]), week)).toEqual([]);
+  });
+  it('weekKey is the Monday of that week', () => {
+    expect(weekKey(new Date(2026, 10, 18, 15).getTime())).toBe('2026-11-16'); // Wed 18 Nov 2026
+    expect(weekKey(new Date(2026, 10, 22, 9).getTime())).toBe('2026-11-16'); // Sunday
+    expect(weekKey(new Date(2026, 10, 23, 9).getTime())).toBe('2026-11-23'); // next Monday
   });
 });
