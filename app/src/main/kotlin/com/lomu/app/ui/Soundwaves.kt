@@ -3,6 +3,8 @@ package com.lomu.app.ui
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Devices
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -116,7 +118,7 @@ fun HomeScreen() {
             Row(Modifier.fillMaxWidth().statusBarsPadding().padding(start = 20.dp, end = 16.dp, top = 14.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Spacer(Modifier.weight(1f))
                 Row(Modifier.background(lo.surface2, CircleShape).padding(3.dp), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(38.dp).a11y("Devices").pressable(CircleShape) { openDevices() }, Alignment.Center) { IcV(androidx.compose.material.icons.Icons.Rounded.Devices, 22.dp, lo.ink) }
+                    Box(Modifier.size(38.dp).a11y("Devices").pressable(CircleShape) { openDevices() }, Alignment.Center) { IcV(Icons.Rounded.Devices, 22.dp, lo.ink) }
                     Avatar(syncState.user?.take(2) ?: "LM", { nav.push(Screen.Settings) }, size = 38.dp)
                 }
             }
