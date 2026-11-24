@@ -92,7 +92,7 @@ fun RemotePlayer(d: Dev, onClose: () -> Unit) = CompositionLocalProvider(LocalLo
     val frac = drag ?: if (dur > 0) (pos / dur).toFloat().coerceIn(0f, 1f) else 0f
 
     val (dragY, dragMod) = rememberDismissDrag(onClose)
-    Box(Modifier.fillMaxSize().graphicsLayer { translationY = dragY.value; alpha = 1f - (dragY.value / (size.height * 2f)).coerceIn(0f, 0.4f) }.background(lo.bg)) {
+    Box(Modifier.fillMaxSize().graphicsLayer { translationY = dragY.value; alpha = 1f - (dragY.value / (size.height * 2f)).coerceIn(0f, 0.4f) }.background(lo.bg).blockTouches()) {
         Ambient(m?.thumbnailUrl, height = 900.dp, strength = 0.78f)
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp)) {
             Box(Modifier.fillMaxWidth().height(52.dp).then(dragMod).a11y("Close player").pressable(RoundedCornerShape(4.dp), onClick = onClose), Alignment.Center) {
