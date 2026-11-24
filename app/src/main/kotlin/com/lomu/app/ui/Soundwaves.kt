@@ -99,7 +99,6 @@ fun HomeScreen() {
     val blockedNow by (sync?.blocked ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptySet<String>()) }).collectAsState()
     val recs = remember(recsRaw, blockedNow) { sync?.hideBlocked(recsRaw, blockedNow) ?: recsRaw }
     val state by load("home") { YouTube.home() }
-    val sleep = lastSleep()
 
     val likedMeta = remember(liked) { liked.take(50).map { it.toMediaMetadata() } }
     val onRepeat = recs.firstOrNull { it.title == "On Repeat" }?.tracks ?: likedMeta.take(50)
@@ -129,7 +128,6 @@ fun HomeScreen() {
                 }
             }
         }
-        if (sleep != null) item { SleepCard(sleep) }
         val resume = remoteQueue
         if (resume != null) item {
             val first = resume.tracks[resume.index]
