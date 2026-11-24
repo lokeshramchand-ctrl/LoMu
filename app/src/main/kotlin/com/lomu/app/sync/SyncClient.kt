@@ -327,7 +327,7 @@ class SyncClient @Inject constructor(
         if (!signedIn) return@withLock
         withContext(Dispatchers.IO) {
             try {
-                _state.value = _state.value.copy(status = "Syncing…")
+                _state.value = _state.value.copy(status = "Syncing…", busy = true, error = null)
                 if (prefs.getString("dataOwner", null) == null) prefs.getString("user", null)?.let { prefs.edit().putString("dataOwner", it).apply() } // installs from before accounts were separate
                 if (prefs.getString("lan", null) == null && System.currentTimeMillis() - prefs.getLong("lanTried", 0) > 6 * 3600_000L) learnLan()
                 // One-time repair of plays that earlier versions inserted twice (they inflated this phone's totals).
@@ -342,9 +342,9 @@ class SyncClient @Inject constructor(
                     push()
                     if (prefs.getLong("lastEvent", 0) == before) break
                 }
-                _state.value = _state.value.copy(status = "Up to date · ${java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date())}", error = null)
+                _state.value = _state.value.copy(status = "Up to date · ${java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date())}", error = null, busy = false)
             } catch (e: Exception) {
-                _state.value = _state.value.copy(status = "Sync failed", error = friendlyError(e))
+                _state.value = _state.value.copy(status = "Sync failed", error = friendlyError(e), busy = false)
             }
         }
     }
