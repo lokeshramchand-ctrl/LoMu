@@ -35,6 +35,8 @@ android {
 
         // Default sync server; can be changed on the sign-in screen.
         val server = localProperties.getProperty("MUSIC_SERVER_URL") ?: System.getenv("MUSIC_SERVER_URL") ?: "https://lomu.deploy-ui.lokeshrc.me"
+        // The CI run number of this build (0 on a dev machine); the self-updater compares it with the newest release.
+        buildConfigField("int", "BUILD_NUMBER", (System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0).toString())
         buildConfigField("String", "DEFAULT_SERVER_URL", "\"$server\"")
     }
 
