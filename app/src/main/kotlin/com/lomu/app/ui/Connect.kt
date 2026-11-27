@@ -24,6 +24,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lomu.app.sync.ConnectClient
 import com.lomu.app.sync.Dev
+import com.lomu.app.utils.HiResArt
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import org.json.JSONObject
 
@@ -79,43 +84,85 @@ fun RemoteMiniPlayer(d: Dev, onOpen: () -> Unit, modifier: Modifier = Modifier) 
     }
 }
 
-/** Full-screen controller for another device: artwork, seek, transport, shuffle / repeat, volume. */
+/** Full-screen controller for another device. Same layout as the phone's own player; the controls steer [d]. */
 @Composable
-fun RemotePlayer(d: Dev, onClose: () -> Unit) = CompositionLocalProvider(LocalLo provides LegacyDarkLo) {
+fun RemotePlayer(d: Dev, onClose: () -> Unit) = CompositionLocalProvider(LocalLo provides LegacyDarkLo.copy(grey = Color.White.copy(alpha = 0.72f))) {
     val lo = LocalLo.current
     val c = LocalConnect.current ?: return@CompositionLocalProvider
     val openDevices = LocalOpenDevices.current
+    val haptic = rememberHaptic()
+    val sub = lo.grey
     val m = d.track
     val pos = rememberRemotePosition(d)
     var drag by remember { mutableStateOf<Float?>(null) }
+    var mode by remember { mutableStateOf(0) } // 0 artwork, 2 playing next
     val dur = d.duration
     val frac = drag ?: if (dur > 0) (pos / dur).toFloat().coerceIn(0f, 1f) else 0f
+    val art by produceState<String?>(HiResArt.fallback(m?.thumbnailUrl), m?.id) {
+        value = HiResArt.fallback(m?.thumbnailUrl)
+        m?.let { value = HiResArt.best(it.title, it.artists.map { a -> a.name }, it.thumbnailUrl) }
+    }
+    val skipX = remember { Animatable(0f) }
+    val skipScope = rememberCoroutineScope()
 
     val (dragY, dragMod) = rememberDismissDrag(onClose)
     Box(Modifier.fillMaxSize().graphicsLayer { translationY = dragY.value; alpha = 1f - (dragY.value / (size.height * 2f)).coerceIn(0f, 0.4f) }.background(lo.bg).blockTouches()) {
-        Ambient(m?.thumbnailUrl, height = 900.dp, strength = 0.78f)
+        val tint = CoverWash(m?.thumbnailUrl)
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp)) {
             Box(Modifier.fillMaxWidth().height(52.dp).then(dragMod).a11y("Close player").pressable(RoundedCornerShape(4.dp), onClick = onClose), Alignment.Center) {
-                Box(Modifier.width(36.dp).height(5.dp).background(lo.grey.copy(alpha = 0.6f), RoundedCornerShape(3.dp)))
+                Box(Modifier.width(36.dp).height(5.dp).background(sub.copy(alpha = 0.6f), RoundedCornerShape(3.dp)))
             }
             Spacer(Modifier.height(4.dp))
-            Row(Modifier.align(Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
-                IcV(deviceIcon(d), 16.dp, lo.signal)
-                Spacer(Modifier.width(6.dp))
-                Text("Playing on ${d.name}", style = LoType.sub.copy(fontWeight = FontWeight.SemiBold), color = lo.signal)
-            }
-            Box(Modifier.weight(1f).fillMaxWidth().then(dragMod), Alignment.Center) {
-                BoxWithConstraints(Modifier.fillMaxSize(), Alignment.Center) {
-                    val side = minOf(maxWidth, maxHeight)
-                    Cover(m?.thumbnailUrl, side, radius = 14.dp)
+            if (mode == 2) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Cover(m?.thumbnailUrl, 48.dp, radius = 5.dp)
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(m?.title ?: "Nothing playing", style = LoType.body.copy(fontWeight = FontWeight.SemiBold), color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(d.artistLine(), style = LoType.sub, color = sub, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+                Row(Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Playing Next", style = LoType.body.copy(fontWeight = FontWeight.SemiBold), color = lo.ink, modifier = Modifier.weight(1f))
+                    ToggleChip(Icons.Rounded.Shuffle, d.shuffle, "Shuffle") { c.send(d.id, JSONObject().put("type", "shuffle").put("on", !d.shuffle)) }
+                    Spacer(Modifier.width(8.dp))
+                    ToggleChip(if (d.repeat == "one") Icons.Rounded.RepeatOne else Icons.Rounded.Repeat, d.repeat != "off", if (d.repeat == "one") "Repeat one" else "Repeat") {
+                        c.send(d.id, JSONObject().put("type", "repeat").put("mode", when (d.repeat) { "off" -> "all"; "all" -> "one"; else -> "off" }))
+                    }
+                }
+                Box(Modifier.weight(1f).fillMaxWidth(), Alignment.Center) {
+                    Text("The queue is on ${d.name}", style = LoType.body, color = sub)
+                }
+            } else {
+                Box(
+                    Modifier.weight(1f).fillMaxWidth().then(dragMod).pointerInput(d.id) {
+                        detectHorizontalDragGestures(
+                            onDragEnd = {
+                                skipScope.launch {
+                                    val go = size.width * 0.22f
+                                    if (skipX.value < -go) { haptic(true); c.send(d.id, "next") } else if (skipX.value > go) { haptic(true); c.send(d.id, "prev") }
+                                    skipX.animateTo(0f, spring(dampingRatio = 0.7f, stiffness = 380f))
+                                }
+                            },
+                            onDragCancel = { skipScope.launch { skipX.animateTo(0f, spring(dampingRatio = 0.7f, stiffness = 380f)) } },
+                        ) { change, dx -> change.consume(); skipScope.launch { skipX.snapTo(skipX.value + dx) } }
+                    },
+                    Alignment.Center,
+                ) {
+                    Box(Modifier.fillMaxSize().graphicsLayer { translationX = skipX.value * 0.7f; rotationZ = skipX.value / 60f }) { Artwork(art, d.playing, tint, m?.thumbnailUrl) }
+                }
+                Spacer(Modifier.height(18.dp))
+                Column(Modifier.fillMaxWidth()) {
+                    Text(m?.title ?: "Nothing playing", style = LoType.playerTitle.copy(fontSize = 21.sp, lineHeight = 26.sp), color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(d.artistLine(), style = LoType.body.copy(fontSize = 19.sp, lineHeight = 24.sp), color = sub, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
-            Spacer(Modifier.height(18.dp))
-            Text(m?.title ?: "Nothing playing", style = LoType.playerTitle.copy(fontSize = 21.sp, lineHeight = 26.sp), color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(d.artistLine(), style = LoType.body.copy(fontSize = 19.sp, lineHeight = 24.sp), color = lo.grey, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(10.dp))
 
             // Seek
+            val dragging = drag != null
+            val knob by animateDpAsState(if (dragging) 18.dp else 10.dp, spring(dampingRatio = 0.6f, stiffness = 500f), label = "rknob")
+            val thick by animateDpAsState(if (dragging) 8.dp else 4.dp, spring(stiffness = 600f), label = "rthick")
             BoxWithConstraints(
                 Modifier.fillMaxWidth().height(22.dp)
                     .pointerInput(dur) { detectTapGestures { o -> if (dur > 0) c.send(d.id, JSONObject().put("type", "seek").put("position", o.x / size.width * dur)) } }
@@ -128,13 +175,13 @@ fun RemotePlayer(d: Dev, onClose: () -> Unit) = CompositionLocalProvider(LocalLo
                     },
                 Alignment.CenterStart,
             ) {
-                Box(Modifier.fillMaxWidth().height(4.dp).background(lo.grey.copy(alpha = 0.3f), CircleShape))
-                Box(Modifier.fillMaxWidth(frac).height(4.dp).background(lo.ink.copy(alpha = 0.85f), CircleShape))
-                Box(Modifier.offset(x = (maxWidth - 10.dp) * frac).size(10.dp).background(lo.ink, CircleShape))
+                Box(Modifier.fillMaxWidth().height(thick).background(lo.grey.copy(alpha = 0.3f), CircleShape))
+                Box(Modifier.fillMaxWidth(frac).height(thick).background(lo.ink.copy(alpha = 0.85f), CircleShape))
+                Box(Modifier.offset(x = (maxWidth - knob) * frac).size(knob).background(lo.ink, CircleShape))
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(formatTime(((drag?.let { it * dur } ?: pos) * 1000).toLong()), style = LoType.caption, color = lo.grey)
-                Text("-" + formatTime(((dur - pos).coerceAtLeast(0.0) * 1000).toLong()), style = LoType.caption, color = lo.grey)
+                Text(formatTime(((drag?.let { it * dur } ?: pos) * 1000).toLong()), style = LoType.caption.copy(fontSize = 11.sp), color = lo.grey)
+                Text("-" + formatTime(((dur - (drag?.let { it * dur } ?: pos)).coerceAtLeast(0.0) * 1000).toLong()), style = LoType.caption.copy(fontSize = 11.sp), color = lo.grey)
             }
 
             Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
@@ -164,15 +211,14 @@ fun RemotePlayer(d: Dev, onClose: () -> Unit) = CompositionLocalProvider(LocalLo
                 }
                 IcV(Icons.Rounded.VolumeUp, 16.dp, lo.grey)
             }
+            // Same two buttons as the phone's own player; the device button shows where it is playing.
             Row(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 14.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-                IconBtnV(Icons.Rounded.Shuffle, { c.send(d.id, JSONObject().put("type", "shuffle").put("on", !d.shuffle)) }, size = 48.dp, iconSize = 24.dp, tint = if (d.shuffle) lo.signal else lo.grey)
-                IconBtnV(Icons.Rounded.KeyboardArrowDown, onClose, size = 48.dp, iconSize = 30.dp, tint = lo.grey)
-                IconBtnV(Icons.Rounded.Devices, openDevices, size = 48.dp, iconSize = 24.dp, tint = lo.signal)
-                IconBtnV(
-                    if (d.repeat == "one") Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
-                    { c.send(d.id, JSONObject().put("type", "repeat").put("mode", when (d.repeat) { "off" -> "all"; "all" -> "one"; else -> "off" })) },
-                    size = 48.dp, iconSize = 24.dp, tint = if (d.repeat != "off") lo.signal else lo.grey,
-                )
+                Row(Modifier.a11y("Playing on ${d.name}").pressable(RoundedCornerShape(24.dp), onClick = openDevices).minTouch().padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    IcV(Icons.Rounded.Devices, 24.dp, lo.signal)
+                    Spacer(Modifier.width(6.dp))
+                    Text(d.name, style = LoType.small.copy(fontWeight = FontWeight.SemiBold), color = lo.signal, maxLines = 1)
+                }
+                IconBtnV(Icons.Rounded.FormatListBulleted, { mode = if (mode == 2) 0 else 2 }, size = 48.dp, iconSize = 24.dp, tint = if (mode == 2) lo.signal else sub)
             }
         }
     }
