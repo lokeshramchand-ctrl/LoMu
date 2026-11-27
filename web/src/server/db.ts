@@ -47,6 +47,39 @@ function migrate(d: DatabaseSync) {
   d.exec('CREATE INDEX IF NOT EXISTS docs_uid_seq ON docs (uid, seq); CREATE INDEX IF NOT EXISTS docs_uid_kind ON docs (uid, kind, updated);');
 }
 
+const backupDir = path.join(dir, 'backups');
+const KEEP = 7;
+
+/** One consistent copy of the live database per day (VACUUM INTO is safe while it is in use); keeps the newest KEEP. */
+export function backupNow(d: DatabaseSync = db()): void {
+  const file = path.join(backupDir, `lomu-${new Date().toISOString().slice(0, 10)}.db`);
+  try {
+    fs.mkdirSync(backupDir, { recursive: true });
+    if (!fs.existsSync(file)) {
+      try {
+        d.prepare('VACUUM INTO ?').run(file);
+      } catch (e) {
+        fs.rmSync(file, { force: true }); // a half-written copy would block today's retry
+        throw e;
+      }
+    }
+    const old = fs.readdirSync(backupDir).filter((f) => /^lomu-\d{4}-\d{2}-\d{2}\.db$/.test(f)).sort().slice(0, -KEEP);
+    for (const f of old) fs.rmSync(path.join(backupDir, f), { force: true });
+  } catch (e) {
+    console.error('[lomu] backup failed', e);
+  }
+}
+
+/** Unix ms of the newest backup, or null when there is none. */
+export function lastBackup(): number | null {
+  try {
+    const t = fs.readdirSync(backupDir).filter((f) => f.endsWith('.db')).map((f) => fs.statSync(path.join(backupDir, f)).mtimeMs);
+    return t.length ? Math.max(...t) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function db(): DatabaseSync {
   if (g.__lomuDb) return g.__lomuDb;
   fs.mkdirSync(dir, { recursive: true });
@@ -69,6 +102,8 @@ export function db(): DatabaseSync {
   `);
   migrate(d);
   g.__lomuDb = d;
+  backupNow(d);
+  setInterval(() => g.__lomuDb && backupNow(g.__lomuDb), 6 * 3600_000).unref(); // 6 h so a server running for days still rolls over at midnight
   return d;
 }
 
