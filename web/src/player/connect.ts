@@ -20,6 +20,7 @@ export type Device = {
   shuffle?: boolean;
   repeat?: 'off' | 'all' | 'one';
   queueLen?: number;
+  queue?: Track[];
 };
 
 type ConnectState = {
@@ -201,6 +202,11 @@ function exec(cmd: Record<string, any>, from: string) {
         else P.enqueue(ts);
       }
       break;
+    case 'skipto': {
+      const to = P.index + Math.round(Number(cmd.offset));
+      if (Number.isFinite(to) && to > P.index && to < P.queue.length) P.jump(to);
+      break;
+    }
     case 'handoff':
       if (typeof cmd.to === 'string' && cmd.to !== useConnect.getState().self) handoffTo(cmd.to);
       break;
@@ -232,6 +238,7 @@ function stateBody() {
     shuffle: s.shuffle,
     repeat: s.repeat,
     queueLen: s.queue.length,
+    queue: s.queue.slice(s.index + 1, s.index + 31),
   };
 }
 
@@ -249,7 +256,7 @@ function onPlayerChange() {
   if (s.playing && !wasPlaying && useConnect.getState().target) useConnect.setState({ target: null });
   wasPlaying = s.playing;
   const t = currentTrack(s);
-  const key = [t?.id, s.playing, s.shuffle, s.repeat, s.volume, s.muted, s.queue.length].join('|');
+  const key = [t?.id, s.playing, s.shuffle, s.repeat, s.volume, s.muted, s.queue.length, s.queue[s.index + 1]?.id].join('|');
   // A jump in position that playback alone cannot explain is a seek: tell the others.
   const jumped = Math.abs(s.position - (lastPos.pos + (s.playing ? (Date.now() - lastPos.at) / 1000 : 0))) > 2.5;
   if (key === lastKey && !jumped) return;

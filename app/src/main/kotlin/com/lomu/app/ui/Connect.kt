@@ -29,6 +29,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.lazy.itemsIndexed
 import kotlinx.coroutines.delay
 import org.json.JSONObject
 
@@ -130,8 +131,12 @@ fun RemotePlayer(d: Dev, onClose: () -> Unit) = CompositionLocalProvider(LocalLo
                         c.send(d.id, JSONObject().put("type", "repeat").put("mode", when (d.repeat) { "off" -> "all"; "all" -> "one"; else -> "off" }))
                     }
                 }
-                Box(Modifier.weight(1f).fillMaxWidth(), Alignment.Center) {
-                    Text("The queue is on ${d.name}", style = LoType.body, color = sub)
+                if (d.queue.isEmpty()) Box(Modifier.weight(1f).fillMaxWidth(), Alignment.Center) {
+                    Text("Nothing is queued on ${d.name}", style = LoType.body, color = sub)
+                } else androidx.compose.foundation.lazy.LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
+                    itemsIndexed(d.queue) { i, t ->
+                        MediaRow(t.title, t.artists.joinToString(", ") { it.name }, t.thumbnailUrl, pad = 0.dp) { c.send(d.id, JSONObject().put("type", "skipto").put("offset", i + 1)) }
+                    }
                 }
             } else {
                 Box(
