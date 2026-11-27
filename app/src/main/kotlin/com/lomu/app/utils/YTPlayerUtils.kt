@@ -166,12 +166,6 @@ object YTPlayerUtils {
         val format: PlayerResponse.StreamingData.Format,
         val streamUrl: String,
         val streamExpiresInSeconds: Int,
-        /** True when the stream is sourced from JioSaavn (not YouTube). */
-        val isSaavnStream: Boolean = false,
-        /** True when the stream is lossless FLAC sourced from TIDAL (hifi-api). */
-        val isTidalStream: Boolean = false,
-        /** True when the stream is sourced from an 8spine module. */
-        val isSpineStream: Boolean = false,
     )
 
     private data class CachedPlayback(
