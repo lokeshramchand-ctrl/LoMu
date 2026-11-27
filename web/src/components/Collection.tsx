@@ -1,12 +1,13 @@
 'use client';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ArtistRef, Track } from '@/lib/types';
 import { usePlayer } from '@/player/store';
 import { Cover } from './Art';
 import { Icon } from './Icon';
 import { Bento } from './Bento';
 import { TrackRow } from './Cards';
+import { toast } from './Toast';
 
 /** "1:45:13" for a total running time in seconds. */
 export function runTime(seconds: number) {
@@ -15,6 +16,40 @@ export function runTime(seconds: number) {
   const m = Math.floor((s % 3600) / 60);
   const sec = s % 60;
   return h ? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}` : `${m}:${String(sec).padStart(2, '0')}`;
+}
+
+/** Desktop app only: "Save offline" for a list. Hidden in the browser, where the server keeps no audio on disk. */
+function SaveOffline({ tracks }: { tracks: Track[] }) {
+  const [state, setState] = useState<{ enabled: boolean; saved: number }>({ enabled: false, saved: 0 });
+  const ids = tracks.map((t) => t.id);
+  const key = ids.join(',');
+  useEffect(() => {
+    if (!key) return;
+    let live = true;
+    const load = () => fetch(`/api/offline?ids=${key}`).then((r) => r.json()).then((d) => live && setState(d)).catch(() => {});
+    load();
+    const t = setInterval(load, 5000);
+    return () => {
+      live = false;
+      clearInterval(t);
+    };
+  }, [key]);
+  if (!state.enabled || !ids.length) return null;
+  const done = state.saved >= ids.length;
+  return (
+    <button
+      className="btn sm"
+      disabled={done}
+      onClick={() =>
+        fetch('/api/offline', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ids }) })
+          .then((r) => r.json())
+          .then((d) => toast(d.queued ? `Saving ${d.queued} songs for offline` : 'Already saved or saving'))
+          .catch(() => toast('Could not start the download'))
+      }
+    >
+      {done ? 'Saved offline' : state.saved ? `Save offline (${state.saved}/${ids.length})` : 'Save offline'}
+    </button>
+  );
 }
 
 /**
@@ -89,6 +124,7 @@ export function Collection({
           </div>
         </section>
 
+        <SaveOffline tracks={tracks} />
         {!tracks.length && <div className="aempty">{empty}</div>}
         {tracks.length > 0 && (
           <div className="alist">
