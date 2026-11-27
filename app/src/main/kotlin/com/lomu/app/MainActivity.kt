@@ -24,10 +24,8 @@ import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.lomu.app.db.MusicDatabase
-import com.lomu.app.lyrics.LyricsHelper
 import com.lomu.app.playback.MusicService
 import com.lomu.app.playback.PlayerConnection
-import com.lomu.app.ui.LocalLyrics
 import com.lomu.app.ui.LocalPlayer
 import com.lomu.app.ui.LoMuRoot
 import com.lomu.app.ui.LoMuTheme
@@ -37,7 +35,6 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     @Inject lateinit var database: MusicDatabase
-    @Inject lateinit var lyricsHelper: LyricsHelper
     @Inject lateinit var syncClient: com.lomu.app.sync.SyncClient
     @Inject lateinit var importer: com.lomu.app.sync.YtmImporter
     @Inject lateinit var connectClient: com.lomu.app.sync.ConnectClient
@@ -82,7 +79,7 @@ class MainActivity : ComponentActivity() {
         val prefs = getSharedPreferences("lomu", MODE_PRIVATE)
         setContent {
             LoMuTheme {
-                CompositionLocalProvider(LocalPlayer provides connection, LocalLyrics provides lyricsHelper, com.lomu.app.ui.LocalSync provides syncClient, com.lomu.app.ui.LocalConnect provides connectClient, com.lomu.app.ui.LocalImporter provides importer) {
+                CompositionLocalProvider(LocalPlayer provides connection, com.lomu.app.ui.LocalSync provides syncClient, com.lomu.app.ui.LocalConnect provides connectClient, com.lomu.app.ui.LocalImporter provides importer) {
                     LoMuRoot(
                         seenWelcome = prefs.getBoolean("seenWelcome", false),
                         onWelcomeDone = { prefs.edit().putBoolean("seenWelcome", true).apply() },
