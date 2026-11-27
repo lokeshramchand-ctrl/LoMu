@@ -17,7 +17,7 @@ const glyph = (d: Device) => (d.kind === 'android' ? 'phone' : 'laptop');
 /** Button + popover listing the devices on this account; picking one moves playback there. */
 export function DevicesButton({ className = 'icon-btn', down = false }: { className?: string; down?: boolean }) {
   const [open, setOpen] = useState(false);
-  const { devices, active, self, online, target } = useConnect();
+  const { devices, self, online, target } = useConnect();
   const ref = useRef<HTMLDivElement>(null);
   const others = devices.filter((d) => d.id !== self);
   const remote = devices.find((d) => d.id === target);
