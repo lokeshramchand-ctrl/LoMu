@@ -570,6 +570,17 @@ object UiPrefs {
     fun showNew(ctx: android.content.Context): Boolean =
         newTab ?: ctx.getSharedPreferences("lomu", android.content.Context.MODE_PRIVATE).getBoolean("showNewTab", false)
 
+    private var keepOffline by androidx.compose.runtime.mutableStateOf<Boolean?>(null)
+
+    @Composable
+    fun keepMixesOffline(ctx: android.content.Context): Boolean =
+        keepOffline ?: ctx.getSharedPreferences("lomu", android.content.Context.MODE_PRIVATE).getBoolean("keepMixesOffline", false)
+
+    fun setKeepMixesOffline(ctx: android.content.Context, on: Boolean) {
+        keepOffline = on
+        ctx.getSharedPreferences("lomu", android.content.Context.MODE_PRIVATE).edit().putBoolean("keepMixesOffline", on).apply()
+    }
+
     fun setShowNew(ctx: android.content.Context, on: Boolean) {
         newTab = on
         ctx.getSharedPreferences("lomu", android.content.Context.MODE_PRIVATE).edit().putBoolean("showNewTab", on).apply()
