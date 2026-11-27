@@ -1,6 +1,5 @@
 'use client';
 import { Suspense, useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSearch, useSuggest } from '@/lib/api';
 import { artistNames, hrefFor } from '@/lib/format';

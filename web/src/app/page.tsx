@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useExplore, useHome, useMood, useRecs } from '@/lib/api';
 import { artistNames } from '@/lib/format';
 import Link from 'next/link';
