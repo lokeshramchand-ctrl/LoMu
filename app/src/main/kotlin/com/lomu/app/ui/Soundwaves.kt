@@ -87,6 +87,7 @@ fun HomeScreen() {
     val noQueue = remember { kotlinx.coroutines.flow.MutableStateFlow<com.lomu.app.sync.SyncClient.RemoteQueue?>(null) }
     val remoteQueue by (sync?.remoteQueue ?: noQueue).collectAsState()
     val lo = LocalLo.current
+    val ctx = androidx.compose.ui.platform.LocalContext.current
     // Start from the cached shelves so Home does not flash the open feed before the personal picks are built.
     var recsLoaded by remember { mutableStateOf(sync == null) }
     // The shelves are kept until a newer non-empty set arrives. (produceState with keys put the value back to the
@@ -97,6 +98,8 @@ fun HomeScreen() {
         val fresh = runCatching { sync?.recs() }.getOrNull().orEmpty()
         if (fresh.isNotEmpty()) recsRaw = fresh
         recsLoaded = true
+        val mixTitle = Regex("^(Daily Mix.*|Discover Weekly|(Morning|Afternoon|Evening|Late Night) Mix)$")
+        runCatching { (ctx.applicationContext as com.lomu.app.App).downloadUtilProvider.get().keepMixesOffline(fresh.filter { mixTitle.matches(it.title) }.flatMap { it.tracks }) }
     }
     // Blocking an artist hides them at once, before the next rebuild of the mixes.
     val blockedNow by (sync?.blocked ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptySet<String>()) }).collectAsState()
