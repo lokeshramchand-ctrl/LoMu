@@ -1,6 +1,6 @@
 import { getUser, requireUser } from '@/server/auth';
 import { connect } from '@/server/connect';
-import { hubConnect } from '@/server/hub';
+import { hubConfigured, hubConnect } from '@/server/hub';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +25,7 @@ export async function GET(req: Request) {
   const enc = new TextEncoder();
   let off = () => {};
   let ping: ReturnType<typeof setInterval>;
+  let retryHub: ReturnType<typeof setTimeout> | undefined;
   const stream = new ReadableStream({
     start(c) {
       const send = (event: string, data: unknown) => {
@@ -58,7 +59,20 @@ export async function GET(req: Request) {
           /* closed */
         }
       }, Number(process.env.LOMU_PING_MS) || 20_000);
+      // Hub unreachable right now: end this stream soon so the client reconnects and tries the hub again.
+      if (hubConfigured()) {
+        retryHub = setTimeout(() => {
+          off();
+          clearInterval(ping);
+          try {
+            c.close();
+          } catch {
+            /* already closed */
+          }
+        }, 15_000);
+      }
       req.signal.addEventListener('abort', () => {
+        clearTimeout(retryHub);
         off();
         clearInterval(ping);
         try {
@@ -69,6 +83,7 @@ export async function GET(req: Request) {
       });
     },
     cancel() {
+      clearTimeout(retryHub);
       off();
       clearInterval(ping);
     },
