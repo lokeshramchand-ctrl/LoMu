@@ -343,6 +343,23 @@ constructor(
         downloads.value = result
     }
 
+    /**
+     * Settings -> "Keep mixes offline": downloads the songs of the current mixes (Wi-Fi only) and removes the ones this
+     * function added earlier that have rotated out. Liked songs and downloads made by hand are never removed.
+     */
+    suspend fun keepMixesOffline(tracks: List<com.lomu.app.models.MediaMetadata>) {
+        val prefs = appContext.getSharedPreferences("lomu", Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("keepMixesOffline", false) || connectivityManager.isActiveNetworkMetered) return
+        val wanted = tracks.distinctBy { it.id }.take(250)
+        val ids = wanted.map { it.id }.toSet()
+        val mine = prefs.getStringSet("offlineMixIds", emptySet()).orEmpty()
+        val have = downloads.value
+        val added = wanted.filter { have[it.id] == null }
+        downloadSongs(appContext, added.map { DownloadTarget(it.id, it.title) }, have)
+        removeDownloads(appContext, (mine - ids - database.likedSongIds().first().toSet()).toList())
+        prefs.edit().putStringSet("offlineMixIds", (mine intersect ids) + added.map { it.id }).apply()
+    }
+
     fun getDownload(songId: String): Flow<Download?> = downloads.map { it[songId] }
 
     fun release() {
