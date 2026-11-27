@@ -687,6 +687,15 @@ fun SettingsScreen() {
                 androidx.compose.material3.Switch(UiPrefs.showNew(ctx), { UiPrefs.setShowNew(ctx, it) })
             }
         }
+        Group("Offline") {
+            val ctx = LocalContext.current
+            Cell {
+                IconTile(Ph.Download, Color(0xFF34C759))
+                Spacer(Modifier.width(14.dp))
+                Text("Keep mixes offline (Wi-Fi)", style = LoType.body, color = lo.ink, modifier = Modifier.weight(1f))
+                androidx.compose.material3.Switch(UiPrefs.keepMixesOffline(ctx), { UiPrefs.setKeepMixesOffline(ctx, it) })
+            }
+        }
         Group("Library") {
             Cell(Modifier.pressable(RoundedCornerShape(0.dp)) { nav.push(Screen.Import) }) {
                 IconTile(Ph.Download, Color(0xFF34C759))
