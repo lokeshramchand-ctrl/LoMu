@@ -20,11 +20,6 @@ Nothing here could be checked while the phone was away. Do them in order; each t
 2. The next songs should be one per artist, nothing skipped or blocked, and lean toward artists you play at this hour (compare with the matching "Morning / Afternoon / Evening / Late Night Mix" on Home).
 3. Repeat at another time of day; the order should change.
 
-## 3. Lyrics (never checked on the phone)
-1. Play a song with lyrics, open the lyrics (speech-bubble icon, bottom left of the player).
-2. Lines should follow the song and scroll; try a song with no lyrics (should say so, not spin).
-3. Airplane mode on a song already played: lyrics already shown should still be there.
-
 ## 4. LoMu Connect (never checked on the phone)
 1. Sign in to the same account on the browser (LAN address) and on the phone.
 2. Phone: Home > devices icon (top right). The browser should be listed.
