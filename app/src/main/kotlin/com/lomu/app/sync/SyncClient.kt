@@ -755,15 +755,19 @@ class SyncClient @Inject constructor(
         return plays to likes
     }
 
-    private var autoplayAff: Pair<Long, Affinity>? = null
+    private var autoplayAff: Triple<Long, Affinity, List<Pair<Slot, Affinity>>>? = null
 
-    /** The listener's taste for ranking autoplay; rebuilt at most every 10 minutes because it reads the whole play log. */
-    suspend fun autoplayAffinity(): Affinity? {
-        autoplayAff?.takeIf { System.currentTimeMillis() - it.first < 600_000 }?.let { return it.second }
-        val (plays, likes) = loadDocs()
-        if (plays.isEmpty() && likes.isEmpty()) return null
+    /** Overall taste plus the taste of the current part of the day, for ranking autoplay. Rebuilt at most every 10 minutes: it reads the whole play log. */
+    suspend fun autoplayAffinity(): Pair<Affinity, Affinity?>? {
         val now = System.currentTimeMillis()
-        return affinity(plays, likes, now, blockedArtists().keys).also { autoplayAff = now to it }
+        val cached = autoplayAff?.takeIf { now - it.first < 600_000 } ?: run {
+            val (plays, likes) = loadDocs()
+            if (plays.isEmpty() && likes.isEmpty()) return null
+            val blocked = blockedArtists().keys
+            Triple(now, affinity(plays, likes, now, blocked), slotAffinities(plays, now, blocked)).also { autoplayAff = it }
+        }
+        val slot = slotOf(hourOf(now)).id
+        return cached.second to cached.third.firstOrNull { it.first.id == slot }?.second
     }
 
     private suspend fun buildRecs(): List<RecShelf> {
