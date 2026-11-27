@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 const USER = process.env.LOMU_USER ?? 'admin';
-const PASS = process.env.LOMU_PASS ?? 'REDACTED';
+const PASS = process.env.LOMU_PASS ?? ''; // set LOMU_PASS; never commit it
 const SHOTS = process.env.LOMU_SHOTS ?? 'test-results/prod';
 test.describe.configure({ mode: 'serial' });
 
