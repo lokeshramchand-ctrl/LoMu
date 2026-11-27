@@ -48,8 +48,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.media3.common.Player
-import com.lomu.app.lyrics.LyricsEntry
-import com.lomu.app.lyrics.LyricsUtils
 import com.lomu.app.extensions.metadata
 import com.lomu.app.models.MediaMetadata
 import com.lomu.app.playback.PlayerConnection
@@ -130,7 +128,7 @@ private fun FullPlayerContent(onClose: () -> Unit) {
     val repeat by pc.repeatMode.collectAsState()
     val song by pc.currentSong.collectAsState(null)
     val m = meta
-    var mode by remember { mutableStateOf(0) } // 0 artwork, 1 lyrics, 2 playing next
+    var mode by remember { mutableStateOf(0) } // 0 artwork, 2 playing next
     val liked = song?.song?.liked == true
     val openMenu = LocalTrackMenu.current
     val haptic = rememberHaptic()
@@ -194,7 +192,7 @@ private fun FullPlayerContent(onClose: () -> Unit) {
                         }),
                     Alignment.Center,
                 ) {
-                    if (mode == 0) Box(Modifier.fillMaxSize().graphicsLayer { translationX = skipX.value * 0.7f; rotationZ = skipX.value / 60f }) { Artwork(art, playing, tint, m?.thumbnailUrl) } else LyricsPanel(pc, m)
+                    if (mode == 0) Box(Modifier.fillMaxSize().graphicsLayer { translationX = skipX.value * 0.7f; rotationZ = skipX.value / 60f }) { Artwork(art, playing, tint, m?.thumbnailUrl) }
                 }
                 Spacer(Modifier.height(18.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -222,7 +220,6 @@ private fun FullPlayerContent(onClose: () -> Unit) {
             }
             VolumeBar()
             Row(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 14.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-                IconBtnV(Icons.Rounded.ChatBubbleOutline, { mode = if (mode == 1) 0 else 1 }, size = 48.dp, iconSize = 24.dp, tint = if (mode == 1) lo.signal else sub)
                 IconBtnV(Icons.Rounded.Devices, LocalOpenDevices.current, size = 48.dp, iconSize = 24.dp, tint = sub)
                 IconBtnV(Icons.Rounded.FormatListBulleted, { mode = if (mode == 2) 0 else 2 }, size = 48.dp, iconSize = 24.dp, tint = if (mode == 2) lo.signal else sub)
             }
@@ -364,42 +361,6 @@ private fun VolumeBar() {
             Box(Modifier.offset(x = (maxWidth - vKnob) * vol).size(vKnob).background(lo.ink, CircleShape))
         }
         IcV(Icons.Rounded.VolumeUp, 16.dp, lo.grey)
-    }
-}
-
-@Composable
-private fun LyricsPanel(pc: PlayerConnection, m: MediaMetadata?) {
-    val lo = LocalLo.current
-    val helper = LocalLyrics.current
-    val state by load(m?.id) {
-        if (m == null || helper == null) Result.success(emptyList<LyricsEntry>())
-        else runCatching { LyricsUtils.parseLyrics(helper.getLyrics(m).lyrics) }
-    }
-    var pos by remember { mutableStateOf(0L) }
-    LaunchedEffect(pc) { while (true) { pos = pc.player.currentPosition; delay(200) } }
-    when (val st = state) {
-        is Load.Loading -> Loading()
-        is Load.Err -> EmptyState(Ph.Lyrics, "No lyrics found")
-        is Load.Ok -> {
-            val lines = st.value
-            if (lines.isEmpty()) EmptyState(Ph.Lyrics, "No lyrics found", "Lyrics appear here when a synced version exists.")
-            else {
-                val current = lines.indexOfLast { it.time <= pos }.coerceAtLeast(0)
-                val listState = rememberLazyListState()
-                LaunchedEffect(current) { listState.animateScrollToItem((current - 2).coerceAtLeast(0)) }
-                LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                    itemsIndexed(lines) { i, l ->
-                        Text(
-                            l.text.ifBlank { "♪" },
-                            style = LoType.playerTitle.copy(fontSize = 28.sp, lineHeight = 34.sp),
-                            color = if (i == current) lo.ink else lo.grey.copy(alpha = 0.55f),
-                            textAlign = TextAlign.Start,
-                            modifier = Modifier.fillMaxWidth().pressable(RoundedCornerShape(10.dp)) { pc.seekTo(l.time) }.padding(vertical = 8.dp),
-                        )
-                    }
-                }
-            }
-        }
     }
 }
 

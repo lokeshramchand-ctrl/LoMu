@@ -8,7 +8,7 @@ while read -r _ local_sha _ remote_sha; do
   [ "$local_sha" = "$zero" ] && continue
   base="$remote_sha"
   [ "$base" = "$zero" ] && base=$(git merge-base "$local_sha" origin/main 2>/dev/null || echo "")
-  if [ -z "$base" ] || git diff --name-only "$base" "$local_sha" 2>/dev/null | grep -qE '^(app|innertube|betterlyrics|lrclib|gradle)/|^(build|settings)\.gradle\.kts$|^gradle\.properties$|^version\.properties$'; then
+  if [ -z "$base" ] || git diff --name-only "$base" "$local_sha" 2>/dev/null | grep -qE '^(app|innertube|gradle)/|^(build|settings)\.gradle\.kts$|^gradle\.properties$|^version\.properties$'; then
     touched=1
   fi
 done
