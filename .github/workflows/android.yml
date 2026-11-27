@@ -46,6 +46,10 @@ jobs:
           mkdir -p ~/.android
           echo "$KEYSTORE" | base64 -d > ~/.android/debug.keystore
 
+      - name: Show the signing key fingerprint (must match the phone's: 86:0C:89:D8...)
+        if: steps.key.outputs.have == 'true'
+        run: keytool -list -v -keystore ~/.android/debug.keystore -storepass android | grep -E "Alias|SHA256|type"; echo "ANDROID_USER_HOME=$ANDROID_USER_HOME"
+
       - name: Unit tests and APK
         run: ./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon
         if: steps.key.outputs.have == 'true'
