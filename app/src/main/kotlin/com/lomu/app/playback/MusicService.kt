@@ -1534,10 +1534,10 @@ class MusicService :
 
     /** Autoplay in the listener's taste: skipped and blocked tracks out, liked artists first (same ranking as the web server). */
     private suspend fun personalise(items: List<MediaItem>, seedId: String): List<MediaItem> = runCatching {
-        val aff = withContext(Dispatchers.IO) { syncClient.autoplayAffinity() } ?: return@runCatching items
+        val (aff, slotAff) = withContext(Dispatchers.IO) { syncClient.autoplayAffinity() } ?: return@runCatching items
         val byId = items.associateBy { it.mediaId }
         val recent = (0..player.currentMediaItemIndex).map { player.getMediaItemAt(it).mediaId }.takeLast(30).toSet()
-        com.lomu.app.sync.nextUpRank(items.mapNotNull { it.metadata }, seedId, recent, aff).mapNotNull { byId[it.id] }.ifEmpty { items }
+        com.lomu.app.sync.nextUpRank(items.mapNotNull { it.metadata }, seedId, recent, aff, slotAff).mapNotNull { byId[it.id] }.ifEmpty { items }
     }.getOrDefault(items)
 
     fun startRadioSeamlessly() {
