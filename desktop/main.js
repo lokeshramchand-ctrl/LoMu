@@ -265,14 +265,6 @@ function offerRestart(version) {
 function setupUpdates() {
   if (!app.isPackaged) return;
   autoUpdater.autoDownload = true;
-  // The repo is private: releases are only readable with a GitHub token that can read this repo's contents
-  // (fine-grained, read-only), kept in <userData>/update-token.txt.
-  try {
-    const t = fs.readFileSync(path.join(userData(), 'update-token.txt'), 'utf8').trim();
-    if (t) autoUpdater.addAuthHeader(`token ${t}`);
-  } catch {
-    updLog('no update-token.txt: updates from the private repo will fail with 404');
-  }
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.logger = { info: updLog, warn: updLog, error: updLog, debug: () => {} };
   autoUpdater.on('update-available', (i) => updLog(`update ${i.version} found, downloading`));
