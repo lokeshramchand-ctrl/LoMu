@@ -2,6 +2,8 @@
 # After a push that changes the Android app, rebuild it and update the phone in place.
 # Runs detached so the push is never delayed or blocked; progress is in .git/phone-update.log.
 # Enable once per clone:  git config core.hooksPath .githooks
+# The phone now updates itself from GitHub Releases (a dev build has no build number and cannot). Opt in with LOMU_ADB_PUSH=1.
+[ "${LOMU_ADB_PUSH:-}" = 1 ] || exit 0
 zero=0000000000000000000000000000000000000000
 touched=0
 while read -r _ local_sha _ remote_sha; do
