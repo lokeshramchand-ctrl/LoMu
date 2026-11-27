@@ -61,7 +61,8 @@
     "publish": {
       "provider": "github",
       "owner": "lokeshramchand-ctrl",
-      "repo": "TaskLab",
+      "repo": "LoMu",
+      "private": true,
       "releaseType": "release"
     }
   },
