@@ -73,6 +73,42 @@ export function maybeFill(id: string, codec: Codec) {
   }, 12_000);
 }
 
+const queue: { id: string; codec: Codec }[] = [];
+let workers = 0;
+
+/** Explicit "save offline": downloads the songs two at a time. Returns how many were queued (skips saved and in-flight ones). */
+export function download(ids: string[], codec: Codec): number {
+  if (!audioCacheEnabled()) return 0;
+  let n = 0;
+  for (const id of ids.slice(0, 500)) {
+    const key = `${id}.${codec}`;
+    if (!/^[\w-]{11}$/.test(id) || filling.has(key) || cachedFile(id, codec)) continue;
+    filling.add(key);
+    queue.push({ id, codec });
+    n++;
+  }
+  while (workers < 2 && workers < queue.length) {
+    workers++;
+    void drain();
+  }
+  return n;
+}
+
+async function drain() {
+  for (let j = queue.shift(); j; j = queue.shift()) {
+    // shortcut: saved songs are evicted like any other once the folder passes LOMU_AUDIO_CACHE_MB; raise it for a big library
+    await fill(j.id, j.codec)
+      .catch((e) => console.error('[audio-cache]', j.id, e instanceof Error ? e.message : e))
+      .finally(() => filling.delete(`${j.id}.${j.codec}`));
+  }
+  workers--;
+}
+
+/** How many of these songs are on disk already (without touching their eviction time). */
+export function savedCount(ids: string[], codec: Codec): number {
+  return ids.filter((id) => /^[\w-]{11}$/.test(id) && fs.existsSync(file(id, codec))).length;
+}
+
 async function fill(id: string, codec: Codec) {
   fs.mkdirSync(dir(), { recursive: true });
   const part = file(id, codec) + '.part';
