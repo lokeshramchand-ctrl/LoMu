@@ -22,4 +22,15 @@ class NextUpTest {
         val out = nextUpRank(list, "seed", setOf("recent"), aff).map { it.id }
         assertEquals(listOf("f1", "f2", "f3", "a"), out)
     }
+
+    @Test
+    fun artistsYouPlayAtThisHourComeFirst() {
+        val now = 1_000_000_000L
+        val aff = affinity(listOf(PlayDoc(song("x", "Daytime"), now, 200_000, completed = true, skipped = false)), emptyList(), now)
+        val nightPlay = PlayDoc(song("y", "Nightowl"), now, 200_000, completed = true, skipped = false)
+        val night = affinity(listOf(nightPlay, nightPlay), emptyList(), now)
+        val list = listOf(song("a", "Daytime"), song("b", "Nightowl"))
+        assertEquals(listOf("a", "b"), nextUpRank(list, "seed", emptySet(), aff).map { it.id })
+        assertEquals(listOf("b", "a"), nextUpRank(list, "seed", emptySet(), aff, night).map { it.id })
+    }
 }
