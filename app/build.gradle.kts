@@ -168,8 +168,6 @@ dependencies {
     ksp(libs.hilt.compiler)
 
     implementation(project(":innertube"))
-    implementation(project(":lrclib"))
-    implementation(project(":betterlyrics"))
 
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)

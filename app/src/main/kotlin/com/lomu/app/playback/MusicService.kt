@@ -136,8 +136,6 @@ import java.util.concurrent.ConcurrentHashMap
 import com.lomu.app.db.MusicDatabase
 import com.lomu.app.db.entities.Event
 import com.lomu.app.db.entities.FormatEntity
-import com.lomu.app.db.entities.LyricsEntity
-import com.lomu.app.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
 import com.lomu.app.db.entities.RelatedSongMap
 import com.lomu.app.db.entities.Song
 import com.lomu.app.di.DownloadCache
@@ -157,7 +155,6 @@ import com.lomu.app.extensions.toEnum
 import com.lomu.app.extensions.toMediaItem
 import com.lomu.app.extensions.toPersistQueue
 import com.lomu.app.extensions.toQueue
-import com.lomu.app.lyrics.LyricsHelper
 import com.lomu.app.models.MediaMetadata
 import com.lomu.app.models.PersistPlayerState
 import com.lomu.app.models.PersistQueue
@@ -229,9 +226,6 @@ class MusicService :
     PlaybackStatsListener.Callback {
     @Inject
     lateinit var database: MusicDatabase
-
-    @Inject
-    lateinit var lyricsHelper: LyricsHelper
 
     @Inject
     lateinit var syncClient: com.lomu.app.sync.SyncClient
@@ -737,28 +731,6 @@ class MusicService :
 
         currentSong.debounce(1000).collect(scope) { song ->
             updateNotification()
-        }
-
-        combine(
-            currentMediaMetadata.distinctUntilChangedBy { it?.id },
-            dataStore.data.map { it[DataSaverEnabledKey] != true }.distinctUntilChanged(),
-        ) { mediaMetadata, dataSaverDisabled ->
-            mediaMetadata to dataSaverDisabled
-        }.collectLatest(scope) { (mediaMetadata, dataSaverDisabled) ->
-            if (dataSaverDisabled && mediaMetadata != null && database.lyrics(mediaMetadata.id).first() == null) {
-                val lyricsWithProvider = lyricsHelper.getLyrics(mediaMetadata)
-                if (lyricsWithProvider.lyrics != LYRICS_NOT_FOUND) {
-                    database.query {
-                        upsert(
-                            LyricsEntity(
-                                id = mediaMetadata.id,
-                                lyrics = lyricsWithProvider.lyrics,
-                                provider = lyricsWithProvider.provider,
-                            ),
-                        )
-                    }
-                }
-            }
         }
 
         dataStore.data
