@@ -2,7 +2,7 @@
 import { use } from 'react';
 import { useAlbum } from '@/lib/api';
 import { Collection, PageError, PageSkeleton } from '@/components/Collection';
-import { ShelfRow } from '@/components/Cards';
+import { ShelfTile } from '@/components/Cards';
 import { Icon } from '@/components/Icon';
 import { useLibrary } from '@/player/library';
 
@@ -26,18 +26,20 @@ export default function AlbumPage({ params }: { params: Promise<{ id: string }> 
         numbered
         actions={
           <button
-            className="btn"
+            className={`icon-btn big${saved ? ' on' : ''}`}
+            aria-label={saved ? 'Remove from library' : 'Add to library'}
+            title={saved ? 'Remove from your library' : 'Save to your library'}
             onClick={() =>
               useLibrary.getState().toggleSaved({ kind: 'album', id: data.id, title: data.title, artists: data.artists, year: data.year, thumb: data.thumb })
             }
           >
-            <Icon name={saved ? 'check' : 'plus'} size={16} /> {saved ? 'Saved' : 'Save'}
+            <Icon name={saved ? 'checkCircleFill' : 'plusCircle'} size={32} />
           </button>
         }
+        extra={data.more.map((s, i) => (
+          <ShelfTile key={s.title} shelf={s} />
+        ))}
       />
-      {data.more.map((s) => (
-        <ShelfRow key={s.title} shelf={s} />
-      ))}
     </>
   );
 }

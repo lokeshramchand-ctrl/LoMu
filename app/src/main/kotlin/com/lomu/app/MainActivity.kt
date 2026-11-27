@@ -24,10 +24,8 @@ import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.lomu.app.db.MusicDatabase
-import com.lomu.app.lyrics.LyricsHelper
 import com.lomu.app.playback.MusicService
 import com.lomu.app.playback.PlayerConnection
-import com.lomu.app.ui.LocalLyrics
 import com.lomu.app.ui.LocalPlayer
 import com.lomu.app.ui.LoMuRoot
 import com.lomu.app.ui.LoMuTheme
@@ -37,9 +35,9 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     @Inject lateinit var database: MusicDatabase
-    @Inject lateinit var lyricsHelper: LyricsHelper
     @Inject lateinit var syncClient: com.lomu.app.sync.SyncClient
     @Inject lateinit var importer: com.lomu.app.sync.YtmImporter
+    @Inject lateinit var connectClient: com.lomu.app.sync.ConnectClient
 
     private var connection by mutableStateOf<PlayerConnection?>(null)
 
@@ -47,6 +45,7 @@ class MainActivity : ComponentActivity() {
         override fun onServiceConnected(name: ComponentName, service: IBinder) {
             if (service is MusicService.MusicBinder) {
                 connection = PlayerConnection(this@MainActivity, service, database, lifecycleScope)
+                connectClient.attach(connection)
             }
         }
 
@@ -71,6 +70,7 @@ class MainActivity : ComponentActivity() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 while (true) {
                     syncClient.sync()
+                    connectClient.start() // no-op while already connected or signed out
                     delay(60_000)
                 }
             }
@@ -79,7 +79,7 @@ class MainActivity : ComponentActivity() {
         val prefs = getSharedPreferences("lomu", MODE_PRIVATE)
         setContent {
             LoMuTheme {
-                CompositionLocalProvider(LocalPlayer provides connection, LocalLyrics provides lyricsHelper, com.lomu.app.ui.LocalSync provides syncClient, com.lomu.app.ui.LocalImporter provides importer) {
+                CompositionLocalProvider(LocalPlayer provides connection, com.lomu.app.ui.LocalSync provides syncClient, com.lomu.app.ui.LocalConnect provides connectClient, com.lomu.app.ui.LocalImporter provides importer) {
                     LoMuRoot(
                         seenWelcome = prefs.getBoolean("seenWelcome", false),
                         onWelcomeDone = { prefs.edit().putBoolean("seenWelcome", true).apply() },
@@ -89,7 +89,22 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** While this phone steers another device, its volume buttons change that device's volume. */
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        val up = event.keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP
+        if ((up || event.keyCode == android.view.KeyEvent.KEYCODE_VOLUME_DOWN) && event.action == android.view.KeyEvent.ACTION_DOWN) {
+            if (connectClient.nudgeRemoteVolume(if (up) 0.06 else -0.06)) return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    override fun onStop() {
+        connectClient.stopIfIdle()
+        super.onStop()
+    }
+
     override fun onDestroy() {
+        connectClient.attach(null)
         runCatching { unbindService(serviceConnection) }
         connection?.dispose()
         connection = null

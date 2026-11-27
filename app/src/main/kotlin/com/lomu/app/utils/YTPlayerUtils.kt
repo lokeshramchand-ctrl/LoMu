@@ -166,12 +166,6 @@ object YTPlayerUtils {
         val format: PlayerResponse.StreamingData.Format,
         val streamUrl: String,
         val streamExpiresInSeconds: Int,
-        /** True when the stream is sourced from JioSaavn (not YouTube). */
-        val isSaavnStream: Boolean = false,
-        /** True when the stream is lossless FLAC sourced from TIDAL (hifi-api). */
-        val isTidalStream: Boolean = false,
-        /** True when the stream is sourced from an 8spine module. */
-        val isSpineStream: Boolean = false,
     )
 
     private data class CachedPlayback(
@@ -214,6 +208,10 @@ object YTPlayerUtils {
         // guest session or re-attempting as-is can't fix a region block, so
         // don't waste the one retry on it either way.
         val isGeoRestricted = BotDetectionMitigator.isGeoError(firstAttempt.exceptionOrNull()?.message)
+
+        // A cancelled lookup (the same song asked for twice, or the user skipped on) is not a failure of this phone's
+        // connection: no session rotation, no retry.
+        if (firstAttempt.exceptionOrNull() is kotlinx.coroutines.CancellationException) return firstAttempt
 
         if (firstAttempt.isFailure && !isGeoRestricted) {
             // visitorData rides in every request's client context independent of
@@ -681,6 +679,7 @@ object YTPlayerUtils {
             expiresInSeconds,
         )
     }.onFailure { e ->
+        if (e is kotlinx.coroutines.CancellationException) return@onFailure // cancelled, not broken: nothing to log
         Timber.tag(logTag).e(e, "Playback resolution failed")
         PlaybackLogManager.log(PlaybackLogLevel.ERROR, "Playback failed", "${e::class.simpleName}: ${e.message}")
         

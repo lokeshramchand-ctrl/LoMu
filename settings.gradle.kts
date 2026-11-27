@@ -20,5 +20,3 @@ dependencyResolutionManagement {
 rootProject.name = "lomu"
 include(":app")
 include(":innertube")
-include(":lrclib")
-include(":betterlyrics")

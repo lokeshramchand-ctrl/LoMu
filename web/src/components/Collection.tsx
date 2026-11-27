@@ -1,13 +1,61 @@
 'use client';
-import Link from 'next/link';
-import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import type { ArtistRef, Track } from '@/lib/types';
 import { usePlayer } from '@/player/store';
 import { Cover } from './Art';
 import { Icon } from './Icon';
+import { Bento } from './Bento';
 import { TrackRow } from './Cards';
+import { toast } from './Toast';
 
-/** Shared header + tracklist for albums and playlists. */
+/** "1:45:13" for a total running time in seconds. */
+export function runTime(seconds: number) {
+  const s = Math.max(0, Math.round(seconds));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return h ? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}` : `${m}:${String(sec).padStart(2, '0')}`;
+}
+
+/** Desktop app only: "Save offline" for a list. Hidden in the browser, where the server keeps no audio on disk. */
+function SaveOffline({ tracks }: { tracks: Track[] }) {
+  const [state, setState] = useState<{ enabled: boolean; saved: number }>({ enabled: false, saved: 0 });
+  const ids = tracks.map((t) => t.id);
+  const key = ids.join(',');
+  useEffect(() => {
+    if (!key) return;
+    let live = true;
+    const load = () => fetch(`/api/offline?ids=${key}`).then((r) => r.json()).then((d) => live && setState(d)).catch(() => {});
+    load();
+    const t = setInterval(load, 5000);
+    return () => {
+      live = false;
+      clearInterval(t);
+    };
+  }, [key]);
+  if (!state.enabled || !ids.length) return null;
+  const done = state.saved >= ids.length;
+  return (
+    <button
+      className="btn sm"
+      disabled={done}
+      onClick={() =>
+        fetch('/api/offline', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ids }) })
+          .then((r) => r.json())
+          .then((d) => toast(d.queued ? `Saving ${d.queued} songs for offline` : 'Already saved or saving'))
+          .catch(() => toast('Could not start the download'))
+      }
+    >
+      {done ? 'Saved offline' : state.saved ? `Save offline (${state.saved}/${ids.length})` : 'Save offline'}
+    </button>
+  );
+}
+
+/**
+ * Shared page for albums, playlists and generated mixes, after the Soundwaves reference: round controls on top, one
+ * pastel card (small label, title, cover, song count with running time, black shuffle button), then plain song rows.
+ */
 export function Collection({
   kind,
   title,
@@ -17,12 +65,13 @@ export function Collection({
   description,
   tracks,
   source,
-  numbered,
   actions,
   playlistId,
   cover,
   empty,
   heading,
+  eyebrow,
+  extra,
 }: {
   kind: string;
   title: string;
@@ -38,82 +87,77 @@ export function Collection({
   cover?: React.ReactNode;
   empty?: React.ReactNode;
   heading?: React.ReactNode;
+  eyebrow?: string;
+  extra?: React.ReactNode;
 }) {
+  const router = useRouter();
   const [more, setMore] = useState(false);
+  const total = tracks.reduce((n, t) => n + (t.duration || 0), 0);
+  const fill = `var(--tile-${(Math.abs([...title].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) | 0, 7)) % 4) + 1})`;
+  const label = eyebrow ?? (artists?.length ? artists.map((a) => a.name).join(', ') : 'Selected for you');
   return (
-    <div className="fade-in">
-      <header className="ch card pad">
-        {thumb && <div className="amb" aria-hidden style={{ backgroundImage: `url(${thumb})` }} />}
-        <div className="art">{cover ?? <Cover src={thumb} size="100%" radius={14} />}</div>
-        <div className="info">
-          <div className="eyebrow">{kind}</div>
-          {heading ?? <h1 className="h1 ttl clamp2">{title}</h1>}
-          {artists && artists.length > 0 && (
-            <div className="by">
-              {artists.map((a, i) => (
-                <span key={i}>
-                  {i > 0 && ', '}
-                  {a.id ? <Link href={`/artist/${a.id}`}>{a.name}</Link> : a.name}
-                </span>
-              ))}
-            </div>
-          )}
-          {meta && <div className="muted small meta">{meta}</div>}
-          {description && (
-            <div className="descwrap">
-              <p className={`muted desc${more ? '' : ' clamp2'}`}>{description}</p>
-              {description.length > 140 && (
-                <button className="morebtn" onClick={() => setMore(!more)}>
-                  {more ? 'Show less' : 'More'}
-                </button>
-              )}
-            </div>
-          )}
-          <div className="row" style={{ marginTop: 18, flexWrap: 'wrap' }}>
-            <button className="btn primary" disabled={!tracks.length} onClick={() => usePlayer.getState().play(tracks, 0, { source })}>
-              <Icon name="play" size={14} /> Play
-            </button>
-            <button className="btn" disabled={!tracks.length} onClick={() => usePlayer.getState().play(tracks, 0, { source, shuffle: true })}>
-              <Icon name="shuffle" size={16} /> Shuffle
-            </button>
-            {actions}
-          </div>
+    <Bento className="fade-in">
+      <div className="acol">
+        <div className="abar">
+          {actions && <div className="apill">{actions}</div>}
+          <div className="grow" />
+          <button className="aclose" aria-label="Close" onClick={() => router.back()}>
+            <Icon name="close" size={18} />
+          </button>
         </div>
-      </header>
-      {!tracks.length && empty}
-      <div className="tl">
-        {tracks.map((t, i) => (
-          <TrackRow key={`${t.id}-${i}`} track={t} index={i} list={tracks} showIndex={numbered} showArt={!numbered} playlistId={playlistId} />
-        ))}
+
+        <section className="acard" style={{ background: fill }} aria-label={`${kind} header`}>
+          <div className="alab clamp1">{label}</div>
+          {heading ?? <h1 className="atitle clamp2">{title}</h1>}
+          <button className="aart" aria-label={`Play ${title}`} disabled={!tracks.length} onClick={() => usePlayer.getState().play(tracks, 0, { source })}>
+            {cover ?? <Cover src={thumb} size="100%" radius={28} />}
+          </button>
+          <div className="afoot">
+            <span className="aicon"><Icon name="waveform" size={22} /></span>
+            <div className="grow">
+              <b>{tracks.length} {tracks.length === 1 ? 'song' : 'songs'}</b>
+              <span>{total ? runTime(total) : meta}</span>
+            </div>
+            <button className="ashuf" aria-label="Shuffle play" title="Shuffle" disabled={!tracks.length} onClick={() => usePlayer.getState().play(tracks, 0, { source, shuffle: true })}>
+              <Icon name="shuffle" size={22} />
+            </button>
+          </div>
+        </section>
+
+        <SaveOffline tracks={tracks} />
+        {!tracks.length && <div className="aempty">{empty}</div>}
+        {tracks.length > 0 && (
+          <div className="alist">
+            {tracks.map((t, i) => (
+              <TrackRow key={`${t.id}-${i}`} track={t} index={i} list={tracks} showArt playlistId={playlistId} />
+            ))}
+          </div>
+        )}
+
+        {description && (
+          <div className="adesc">
+            <p className={`ph-desc${more ? '' : ' clamp4'}`}>{description}</p>
+            {description.length > 140 && (
+              <button className="ph-more" onClick={() => setMore(!more)}>
+                {more ? 'Show less' : 'Show full description'}
+              </button>
+            )}
+          </div>
+        )}
       </div>
-      <style jsx>{`
-        .ch { position: relative; overflow: hidden; display: flex; align-items: flex-end; gap: 28px; flex-wrap: wrap; }
-        .amb { position: absolute; inset: -20%; background-size: cover; background-position: center; filter: blur(60px) saturate(1.4); opacity: .16; pointer-events: none; }
-        .art, .info { position: relative; }
-        .descwrap { margin-top: 10px; }
-        .descwrap .desc { margin: 0; }
-        .morebtn { margin-top: 4px; color: var(--signal); font-weight: 500; font-size: 13px; }
-        .art { width: 208px; height: 208px; flex: none; }
-        .info { flex: 1; min-width: 240px; }
-        .ttl { margin: 6px 0 6px; font-size: clamp(1.6rem, 3vw, 2.4rem); }
-        .by { font-size: 15px; font-weight: 500; }
-        .by :global(a:hover) { text-decoration: underline; }
-        .meta { margin-top: 4px; }
-        .desc { max-width: 640px; margin: 10px 0 0; font-size: 13.5px; }
-        .tl { margin-top: 18px; display: flex; flex-direction: column; gap: 1px; }
-        @media (max-width: 900px) { .art { width: 148px; height: 148px; } .ch { gap: 18px; } }
-      `}</style>
-    </div>
+      {extra}
+    </Bento>
   );
 }
 
 export function PageError({ error, retry }: { error: unknown; retry?: () => void }) {
+  if (error) console.error(error); // details stay in the console, not on the page
   return (
     <div className="callout err" style={{ maxWidth: 560 }}>
       <Icon name="warn" size={20} />
       <div className="grow">
-        <b>Couldn&apos;t load this page</b>
-        <div className="small">{error instanceof Error ? error.message : String(error ?? 'Unknown error')}</div>
+        <b>This page did not load</b>
+        <div className="small">Check your connection and try again.</div>
       </div>
       {retry && (
         <button className="btn sm" onClick={retry}>
@@ -126,10 +170,10 @@ export function PageError({ error, retry }: { error: unknown; retry?: () => void
 
 export function PageSkeleton() {
   return (
-    <div className="card pad" style={{ display: 'flex', gap: 28, alignItems: 'flex-end' }}>
-      <div className="skeleton" style={{ width: 208, height: 208, borderRadius: 14 }} />
+    <div className="tile" style={{ flexDirection: 'row', gap: 24, alignItems: 'flex-end' }}>
+      <div className="skeleton" style={{ width: 232, height: 232, borderRadius: 4 }} />
       <div style={{ flex: 1 }}>
-        <div className="skeleton" style={{ width: '55%', height: 38, borderRadius: 8 }} />
+        <div className="skeleton" style={{ width: '55%', height: 64, borderRadius: 8 }} />
         <div className="skeleton" style={{ width: '25%', height: 16, borderRadius: 6, marginTop: 14 }} />
       </div>
     </div>

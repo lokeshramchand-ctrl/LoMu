@@ -250,14 +250,8 @@ constructor(
                 }
             }
 
-            // For YouTube streams: append the &range= param so the download cache can
-            // handle progressive HTTP range requests. For JioSaavn/TIDAL/spine streams
-            // the CDN doesn't need it and contentLength is null, so skip it.
-            val streamUrl = if (playbackData.isSaavnStream || playbackData.isTidalStream || playbackData.isSpineStream) {
-                playbackData.streamUrl
-            } else {
-                "${playbackData.streamUrl}&range=0-${format.contentLength ?: 10_000_000}"
-            }
+            // Append &range= so the download cache can handle progressive HTTP range requests.
+            val streamUrl = "${playbackData.streamUrl}&range=0-${format.contentLength ?: 10_000_000}"
 
             // Absolute deadline, not a bare duration — the read above compares this
             // against System.currentTimeMillis(). MusicService's resolver already
@@ -347,6 +341,23 @@ constructor(
             result[cursor.download.request.id] = cursor.download
         }
         downloads.value = result
+    }
+
+    /**
+     * Settings -> "Keep mixes offline": downloads the songs of the current mixes (Wi-Fi only) and removes the ones this
+     * function added earlier that have rotated out. Liked songs and downloads made by hand are never removed.
+     */
+    suspend fun keepMixesOffline(tracks: List<com.lomu.app.models.MediaMetadata>) {
+        val prefs = appContext.getSharedPreferences("lomu", Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("keepMixesOffline", false) || connectivityManager.isActiveNetworkMetered) return
+        val wanted = tracks.distinctBy { it.id }.take(250)
+        val ids = wanted.map { it.id }.toSet()
+        val mine = prefs.getStringSet("offlineMixIds", emptySet()).orEmpty()
+        val have = downloads.value
+        val added = wanted.filter { have[it.id] == null }
+        downloadSongs(appContext, added.map { DownloadTarget(it.id, it.title) }, have)
+        removeDownloads(appContext, (mine - ids - database.likedSongIds().first().toSet()).toList())
+        prefs.edit().putStringSet("offlineMixIds", (mine intersect ids) + added.map { it.id }).apply()
     }
 
     fun getDownload(songId: String): Flow<Download?> = downloads.map { it[songId] }

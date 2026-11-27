@@ -13,19 +13,28 @@ export type Affinity = {
   heavilyPlayed: Set<string>; // completed 3+ times: not "new" any more
   skipped: Set<string>; // early-skipped recently and never liked
   knownArtists: Set<string>;
+  playCount: number; // size of the play log: a big import must rebuild today's mixes
+  favorites: Track[]; // strongest tracks overall (positive score), best first: the "familiar" pool of the daily mix
+  positives: Track[]; // every positive track (top 5000), for mood filters
+  rewind: { track: Track; plays: number; last: number }[]; // played to the end 3+ times, not heard for 45+ days
+  blocked: Set<string>; // lower-case artists the user never wants recommended
 };
 
 const DAY = 86_400_000;
 const decay = (ageMs: number, halfLifeDays: number) => Math.pow(0.5, Math.max(0, ageMs) / DAY / halfLifeDays);
 const name = (t: Track) => t.artists[0]?.name.toLowerCase() ?? '';
 
-export function affinity(plays: PlayDoc[], likes: LikeDoc[], now: number): Affinity {
+/** True when any credited artist is one the user blocked. */
+export const blockedTrack = (aff: { blocked: Set<string> }, t: Track) => t.artists.some((a) => aff.blocked.has(a.name.toLowerCase()));
+
+export function affinity(plays: PlayDoc[], likes: LikeDoc[], now: number, blocked: Set<string> = new Set()): Affinity {
   const trackScore = new Map<string, number>();
   const artistScore = new Map<string, number>();
   const byId = new Map<string, Track>();
   const completions = new Map<string, number>();
   const recentSkips = new Map<string, number>();
   const monthPlays = new Map<string, number>();
+  const lastPlayed = new Map<string, number>();
   const likedIds = new Set(likes.map((l) => l.track.id));
 
   const add = (t: Track, w: number) => {
@@ -37,43 +46,81 @@ export function affinity(plays: PlayDoc[], likes: LikeDoc[], now: number): Affin
   for (const p of plays) {
     const age = now - p.at;
     const d = decay(age, 14);
+    lastPlayed.set(p.track.id, Math.max(lastPlayed.get(p.track.id) ?? 0, p.at));
     if (p.completed) {
-      add(p.track, d); // finishing a song is the strongest implicit "yes"
+      // Finishing a song is the strongest implicit "yes". A slow second clock keeps long-time favourites alive: a song
+      // played on repeat for months is taste, not a phase, even if it has been quiet for a few weeks.
+      // A third, very slow clock (about two years) lets years-old history, such as an imported Spotify archive, still
+      // say who you are: a favourite artist from 2019 stays known and seeds mixes, without outweighing what you play now.
+      add(p.track, d + 0.25 * decay(age, 150) + 0.1 * decay(age, 700));
       completions.set(p.track.id, (completions.get(p.track.id) ?? 0) + 1);
       if (age < 30 * DAY) monthPlays.set(p.track.id, (monthPlays.get(p.track.id) ?? 0) + 1);
     } else if (p.skipped) {
       add(p.track, -1.2 * d);
       if (age < 21 * DAY) recentSkips.set(p.track.id, (recentSkips.get(p.track.id) ?? 0) + 1);
     } else {
-      add(p.track, 0.3 * d); // listened for a while but not to the end
+      // Listened for a while but not to the end: the further in, the stronger the "yes" (flat 0.3 when the length is unknown).
+      const dur = (p.track.duration ?? 0) * 1000;
+      add(p.track, (dur > 0 ? Math.min(0.7, Math.max(0.1, (p.playedMs / dur) * 0.8)) : 0.3) * d);
     }
   }
-  for (const l of likes) add(l.track, 2 * decay(now - l.at, 45));
+  // Library presence: saving a song is a deliberate act, and it outlasts a plain play.
+  for (const l of likes) add(l.track, 3 * decay(now - l.at, 90));
 
-  const ranked = [...trackScore.entries()].filter(([, s]) => s > 0).sort((a, b) => b[1] - a[1]);
-  const topTracks: Track[] = [];
-  const usedArtists = new Set<string>();
+  const ok = (id: string) => !blockedTrack({ blocked }, byId.get(id)!);
+  const ranked = [...trackScore.entries()].filter(([id, s]) => s > 0 && ok(id)).sort((a, b) => b[1] - a[1]);
+  // Seeds: the best song of each of your top artists first (someone you play across forty songs would otherwise lose to a
+  // single hot track), then the strongest remaining tracks, at most two per artist, strongest first.
+  const bestByLead = new Map<string, string>();
   for (const [id] of ranked) {
-    const t = byId.get(id)!;
-    if (usedArtists.has(name(t)) && topTracks.length < 3) continue; // spread the first few seeds
-    usedArtists.add(name(t));
-    topTracks.push(t);
-    if (topTracks.length >= 12) break;
+    const a = name(byId.get(id)!);
+    if (a && !bestByLead.has(a)) bestByLead.set(a, id);
   }
+  const picked: string[] = [];
+  const perArtist = new Map<string, number>();
+  const pick = (id: string) => {
+    const a = name(byId.get(id)!);
+    if (picked.includes(id) || (perArtist.get(a) ?? 0) >= 2) return;
+    picked.push(id);
+    perArtist.set(a, (perArtist.get(a) ?? 0) + 1);
+  };
+  for (const [a] of [...artistScore.entries()].filter(([, s]) => s > 0).sort((x, y) => y[1] - x[1])) {
+    const id = bestByLead.get(a);
+    if (id) pick(id);
+    if (picked.length >= 12) break;
+  }
+  for (const [id] of ranked) {
+    if (picked.length >= 20) break;
+    pick(id);
+  }
+  const topTracks: Track[] = picked.sort((x, y) => (trackScore.get(y) ?? 0) - (trackScore.get(x) ?? 0)).map((id) => byId.get(id)!);
 
   const onRepeat = [...monthPlays.entries()]
+    .filter(([id]) => ok(id))
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 20)
+    .slice(0, 50)
     .map(([id]) => byId.get(id)!);
+
+  const favorites = ranked.slice(0, 80).map(([id]) => byId.get(id)!);
+  const rewind = [...completions.entries()]
+    .filter(([id, n]) => n >= 3 && ok(id) && !recentSkips.has(id) && now - (lastPlayed.get(id) ?? now) > 45 * DAY)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 80)
+    .map(([id, n]) => ({ track: byId.get(id)!, plays: n, last: lastPlayed.get(id)! }));
 
   return {
     trackScore,
+    favorites,
     artistScore,
     topTracks,
     onRepeat,
     heavilyPlayed: new Set([...completions].filter(([, n]) => n >= 3).map(([id]) => id)),
     skipped: new Set([...recentSkips].filter(([id, n]) => n >= 1 && !likedIds.has(id)).map(([id]) => id)),
     knownArtists: new Set([...artistScore].filter(([, s]) => s > 0).map(([a]) => a)),
+    playCount: plays.length,
+    positives: ranked.slice(0, 5000).map(([id]) => byId.get(id)!),
+    rewind,
+    blocked,
   };
 }
 
@@ -88,7 +135,7 @@ export function rankCandidates(seeds: Track[], cands: Map<string, Track[]>, aff:
   seeds.forEach((seed, si) => {
     const seedWeight = 1 / (1 + si * 0.25);
     (cands.get(seed.id) ?? []).forEach((t, rank, list) => {
-      if (seedIds.has(t.id) || aff.skipped.has(t.id) || aff.heavilyPlayed.has(t.id)) return;
+      if (seedIds.has(t.id) || aff.skipped.has(t.id) || aff.heavilyPlayed.has(t.id) || blockedTrack(aff, t)) return;
       byId.set(t.id, t);
       const positional = 1 - (rank / Math.max(1, list.length)) * 0.5;
       score.set(t.id, (score.get(t.id) ?? 0) + seedWeight * positional);
@@ -114,4 +161,338 @@ export function diversify(list: Track[], cap: number): Track[] {
     out.push(t);
   }
   return out;
+}
+
+/* ---------------------------------------------------------------- daily mix */
+
+/** Local calendar day, e.g. 2026-11-21: the mix is rebuilt when this changes. */
+export const dayKey = (now: number) => {
+  const d = new Date(now);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+/** Small deterministic PRNG (mulberry32), so a given day always shuffles the same way. */
+export function seeded(seed: string): () => number {
+  let h = 1779033703 ^ seed.length;
+  for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 3432918353), (h = (h << 13) | (h >>> 19));
+  let a = h >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Picks `n` of `list`, favouring the front (weights fall off with rank) but never in the same order two days running. */
+function pickWeighted<T>(list: T[], n: number, rnd: () => number): T[] {
+  const pool = list.map((t, i) => ({ t, k: Math.pow(rnd(), 1 / (1 + 1.5 / (1 + i * 0.15))) }));
+  return pool.sort((a, b) => b.k - a.k).slice(0, n).map((x) => x.t);
+}
+
+/**
+ * The daily mix: a playlist, not a list. Three pools are blended in a fixed rhythm
+ * (familiar favourite, fresh track from a known artist, fresh track, ... with a discovery every fifth slot),
+ * so it opens with something you love, never runs two tracks by one artist back to back, and
+ * eases from comfortable to new and back. Deterministic per day.
+ */
+export type MixScope = {
+  salt?: string; // keeps each themed mix's shuffle different
+  familiar?: Track[]; // the history pool (defaults to all favourites)
+  known?: Set<string>; // lower-case artists that count as "known" for this mix
+  exclude?: Set<string>; // tracks already placed in a sibling mix
+};
+
+export function dailyMix(aff: Affinity, ranked: Track[], day: string, size = 40, scope: MixScope = {}): Track[] {
+  const rnd = seeded('mix:' + day + (scope.salt ?? ''));
+  const ex = scope.exclude;
+  const bad = (t: Track) => aff.skipped.has(t.id) || !!ex?.has(t.id) || blockedTrack(aff, t);
+  const knownSet = scope.known ?? aff.knownArtists;
+  const familiar = pickWeighted((scope.familiar ?? aff.favorites).filter((t) => !bad(t)), Math.round(size * 0.4), rnd);
+  const fresh = ranked.filter((t) => !bad(t));
+  const known = fresh.filter((t) => t.artists.some((a) => knownSet.has(a.name.toLowerCase())));
+  const unknown = fresh.filter((t) => t.artists.every((a) => !knownSet.has(a.name.toLowerCase())));
+  const used = new Set(familiar.map((t) => t.id));
+  const take = (src: Track[], n: number) => {
+    const out: Track[] = [];
+    for (const t of pickWeighted(src.filter((x) => !used.has(x.id)), n * 2, rnd)) {
+      if (out.length >= n) break;
+      used.add(t.id);
+      out.push(t);
+    }
+    return out;
+  };
+  const known2 = take(known, Math.round(size * 0.4));
+  const disc = take(unknown, Math.round(size * 0.2));
+  const spill = take(fresh, size); // tops up whichever pool ran short
+
+  // Rhythm: F K F K D, repeated. A pool that runs dry hands its slot to the next one.
+  const q = { F: [...familiar], K: [...known2], D: [...disc], S: spill };
+  const rhythm: ('F' | 'K' | 'D')[] = ['F', 'K', 'F', 'K', 'D'];
+  const out: Track[] = [];
+  const lead = (t: Track) => name(t);
+  const total = familiar.length + known2.length + disc.length + spill.length;
+  for (let i = 0; out.length < size && out.length < total && i < size * 4; i++) {
+    const order = [rhythm[i % rhythm.length], 'F', 'K', 'D', 'S'] as ('F' | 'K' | 'D' | 'S')[];
+    for (const k of order) {
+      const idx = q[k].findIndex((t) => !out.length || lead(t) !== lead(out[out.length - 1]));
+      if (idx < 0) continue;
+      out.push(q[k].splice(idx, 1)[0]);
+      break;
+    }
+  }
+  return out;
+}
+
+/* ------------------------------------------------------- five themed daily mixes */
+
+/**
+ * Groups seed tracks into at most `k` tastes. Two seeds belong together when they share an artist or when YouTube's
+ * radios for them return the same songs (the closest thing to "same genre" the catalogue exposes). Greedy merging,
+ * with a small penalty on size so one huge cluster does not swallow everything.
+ */
+export function clusterSeeds(seeds: Track[], cands: Map<string, Track[]>, k = 5): Track[][] {
+  type C = { seeds: Track[]; ids: Set<string>; artists: Set<string> };
+  const cs: C[] = seeds.map((s) => ({
+    seeds: [s],
+    ids: new Set((cands.get(s.id) ?? []).map((t) => t.id)),
+    artists: new Set(s.artists.map((a) => a.name.toLowerCase())),
+  }));
+  const sim = (a: C, b: C) => {
+    const same = [...a.artists].some((x) => b.artists.has(x));
+    let n = 0;
+    for (const id of a.ids) if (b.ids.has(id)) n++;
+    const overlap = n / Math.max(1, Math.min(a.ids.size, b.ids.size));
+    return ((same ? 2 : 0) + overlap) / (1 + 0.15 * (a.seeds.length + b.seeds.length));
+  };
+  while (cs.length > k) {
+    let bi = 0, bj = 1, best = -1;
+    for (let i = 0; i < cs.length; i++)
+      for (let j = i + 1; j < cs.length; j++) {
+        const s = sim(cs[i], cs[j]);
+        if (s > best) (best = s), (bi = i), (bj = j);
+      }
+    const a = cs[bi], b = cs.splice(bj, 1)[0];
+    a.seeds.push(...b.seeds);
+    b.ids.forEach((x) => a.ids.add(x));
+    b.artists.forEach((x) => a.artists.add(x));
+  }
+  return cs.map((c) => c.seeds);
+}
+
+export type ThemedMix = { title: string; subtitle: string; items: Track[] };
+
+/** "Arijit Singh, Pritam and more": the artists a cluster leans on most. */
+function mixName(group: Track[], aff: Affinity): string {
+  const score = new Map<string, { n: string; s: number }>();
+  for (const t of group) {
+    const a = t.artists[0]?.name;
+    if (!a) continue;
+    const e = score.get(a.toLowerCase()) ?? { n: a, s: 0 };
+    e.s += aff.trackScore.get(t.id) ?? 0;
+    score.set(a.toLowerCase(), e);
+  }
+  const top = [...score.values()].sort((a, b) => b.s - a.s).slice(0, 3).map((x) => x.n);
+  return top.length ? top.join(', ') + ' and more' : 'Your taste';
+}
+
+/**
+ * Up to five mixes for the day, like Daily Mix 1..5. Each one is a taste cluster: songs you already play from those
+ * artists, plus the consensus of the cluster's radios (same artists first, then neighbours). No song appears in two mixes.
+ */
+export function dailyMixes(aff: Affinity, cands: Map<string, Track[]>, day: string, count = 5, size = 40): ThemedMix[] {
+  const seeds = aff.topTracks.slice(0, 20);
+  const weight = (g: Track[]) => g.reduce((n, t) => n + (aff.trackScore.get(t.id) ?? 0), 0);
+  // Seeds whose radio came back empty cannot be grouped by sound: they join a group afterwards.
+  const withRadio = seeds.filter((t) => (cands.get(t.id)?.length ?? 0) > 0);
+  const without = seeds.filter((t) => !withRadio.includes(t));
+  let groups = clusterSeeds(withRadio.length ? withRadio : seeds, cands, count);
+  if (withRadio.length) without.forEach((t, i) => groups[i % groups.length].push(t));
+  // Fewer tastes than mixes: split the biggest group in two until there are enough.
+  while (groups.length < count) {
+    groups.sort((a, b) => b.length - a.length);
+    if (groups[0].length < 2) break;
+    const [x, y] = clusterSeeds(groups[0], cands, 2);
+    groups = [x, y, ...groups.slice(1)];
+  }
+  groups.sort((a, b) => weight(b) - weight(a));
+
+  const globalRanked = rankCandidates(seeds, cands, aff); // top-up pool when a group's own radios run short
+  // A thin pool is shared fairly: no mix may use more than its share, so the last one is not left with scraps.
+  const pool = new Set([...globalRanked.map((t) => t.id), ...aff.favorites.map((t) => t.id)]).size;
+  const each = Math.max(12, Math.min(size, Math.floor(pool / Math.max(1, groups.length))));
+  const taken = new Set<string>();
+  const out: ThemedMix[] = [];
+  groups.forEach((g, i) => {
+    const artists = new Set<string>();
+    for (const t of g) for (const a of t.artists) artists.add(a.name.toLowerCase());
+    // Artists that keep showing up in this cluster's radios belong to its sound too.
+    const seen = new Map<string, number>();
+    for (const s of g) for (const t of cands.get(s.id) ?? []) for (const a of t.artists) seen.set(a.name.toLowerCase(), (seen.get(a.name.toLowerCase()) ?? 0) + 1);
+    for (const [a, n] of seen) if (n >= 2 && aff.knownArtists.has(a)) artists.add(a);
+    const familiar = aff.favorites.filter((t) => t.artists.some((a) => artists.has(a.name.toLowerCase())));
+    const own = rankCandidates(g, cands, aff);
+    const ownIds = new Set(own.map((t) => t.id));
+    const ranked = [...own, ...globalRanked.filter((t) => !ownIds.has(t.id))];
+    const items = dailyMix(aff, ranked, day, each, { salt: `#${i}`, familiar, known: artists, exclude: taken }).map((t) => ({ ...t, why: explain(t, aff, cands, g) }));
+    if (items.length < 8) return;
+    items.forEach((t) => taken.add(t.id));
+    out.push({ title: '', subtitle: mixName(g, aff), items });
+  });
+  return out.map((m, i) => ({ ...m, title: `Daily Mix ${i + 1}` }));
+}
+
+/* ------------------------------------------------------------ time-of-day mixes */
+
+export type SlotId = 'morning' | 'afternoon' | 'evening' | 'night';
+export type Slot = { id: SlotId; title: string; from: number; to: number };
+export const SLOTS: Slot[] = [
+  { id: 'morning', title: 'Morning Mix', from: 5, to: 11 },
+  { id: 'afternoon', title: 'Afternoon Mix', from: 11, to: 17 },
+  { id: 'evening', title: 'Evening Mix', from: 17, to: 22 },
+  { id: 'night', title: 'Late Night Mix', from: 22, to: 5 },
+];
+
+export const slotOf = (hour: number): Slot => SLOTS.find((s) => (s.from < s.to ? hour >= s.from && hour < s.to : hour >= s.from || hour < s.to)) ?? SLOTS[3];
+
+/** Local hour of an instant. `tzOffsetMin` is `Date.getTimezoneOffset()` of the viewer (the server may sit in another zone). */
+export const hourOf = (at: number, tzOffsetMin?: number) => (tzOffsetMin === undefined ? new Date(at).getHours() : new Date(at - tzOffsetMin * 60_000).getUTCHours());
+
+const MIN_SLOT_PLAYS = 25;
+const SLOT_PHRASE: Record<SlotId, string> = { morning: 'in the morning', afternoon: 'in the afternoon', evening: 'in the evening', night: 'late at night' };
+
+/** The taste profile of each part of the day that has enough listening behind it. */
+export function slotAffinities(plays: PlayDoc[], now: number, tzOffsetMin?: number, blocked: Set<string> = new Set()): { slot: Slot; aff: Affinity }[] {
+  const by = new Map<SlotId, PlayDoc[]>();
+  for (const p of plays) {
+    const id = slotOf(hourOf(p.at, tzOffsetMin)).id;
+    by.set(id, [...(by.get(id) ?? []), p]);
+  }
+  return SLOTS.filter((s) => (by.get(s.id) ?? []).filter((p) => !p.skipped).length >= MIN_SLOT_PLAYS).map((slot) => ({ slot, aff: affinity(by.get(slot.id)!, [], now, blocked) }));
+}
+
+/**
+ * One mix per part of the day: what you actually play then. Songs you play mostly in that slot lead (a song spread evenly
+ * over the day is nobody's morning song), and the slot's own top tracks seed the fresh part. Skips from any hour count.
+ */
+export function timeMixes(aff: Affinity, slots: { slot: Slot; aff: Affinity }[], cands: Map<string, Track[]>, day: string, size = 30): (ThemedMix & { slot: SlotId })[] {
+  const out: (ThemedMix & { slot: SlotId })[] = [];
+  for (const { slot, aff: sa } of slots) {
+    const seeds = sa.topTracks.slice(0, 4);
+    const lift = (t: Track) => {
+      const mine = sa.trackScore.get(t.id) ?? 0;
+      const all = aff.trackScore.get(t.id) ?? 0;
+      return mine * (0.4 + (all > 0 ? Math.min(1, mine / all) : 1));
+    };
+    const familiar = [...sa.favorites].sort((a, b) => lift(b) - lift(a));
+    const ranked = rankCandidates(seeds, cands, sa);
+    const items = dailyMix(sa, ranked, day, size, { salt: 't:' + slot.id, familiar, known: sa.knownArtists, exclude: aff.skipped }).map((t) => ({
+      ...t,
+      why: (sa.trackScore.get(t.id) ?? 0) > 0 ? `You play this ${SLOT_PHRASE[slot.id]}` : explain(t, aff, cands, seeds),
+    }));
+    if (items.length >= 10) out.push({ title: slot.title, subtitle: mixName(familiar.slice(0, 12), sa), items, slot: slot.id });
+  }
+  return out;
+}
+
+/** Puts the part of the day it is now first and says so. */
+export function orderByNow<T extends { title: string; subtitle?: string }>(mixes: (T & { slot: SlotId })[], hour: number): T[] {
+  const now = slotOf(hour).id;
+  return [...mixes]
+    .sort((a, b) => Number(b.slot === now) - Number(a.slot === now))
+    .map(({ slot, ...m }) => ({ ...(m as unknown as T), subtitle: slot === now ? `Right now · ${m.subtitle ?? ''}`.replace(/ · $/, '') : m.subtitle }));
+}
+
+/* ------------------------------------------------------------- discover weekly */
+
+/** Monday of the week, as a day key: Discover Weekly changes when this does. */
+export const weekKey = (now: number) => {
+  const d = new Date(now);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return dayKey(d.getTime());
+};
+
+/**
+ * Songs by artists you have never played at all (not even a skip), taken from the consensus of your top tracks' radios,
+ * one or two per artist, the same list all week. Empty when the catalogue gave too little to fill a real playlist.
+ */
+export function discoverWeekly(aff: Affinity, cands: Map<string, Track[]>, week: string, size = 30): Track[] {
+  const seeds = aff.topTracks.slice(0, 20);
+  const fresh = rankCandidates(seeds, cands, aff).filter(
+    (t) => t.artists.length > 0 && t.artists.every((a) => !aff.artistScore.has(a.name.toLowerCase())) && !aff.skipped.has(t.id),
+  );
+  let pool = diversify(fresh, 1);
+  if (pool.length < size) pool = diversify(fresh, 2);
+  const picked = pickWeighted(pool, size, seeded('dw:' + week)).map((t) => ({ ...t, why: explain(t, aff, cands, seeds, true) }));
+  return picked.length >= 12 ? picked : [];
+}
+
+
+/* ----------------------------------------------------------------- why this song? */
+
+/**
+ * One short line on why a track is in a mix. Songs from your history say so; the rest name the artist you play or the
+ * song whose radio brought them (`fresh`: a new artist, so only the song is named).
+ */
+export function explain(t: Track, aff: Affinity, cands: Map<string, Track[]>, seeds: Track[], fresh = false): string {
+  const artist = t.artists[0]?.name;
+  if (aff.heavilyPlayed.has(t.id)) return 'One of your most-played songs';
+  if ((aff.trackScore.get(t.id) ?? 0) > 0) return 'From your listening';
+  const via = seeds.find((s) => (cands.get(s.id) ?? []).some((c) => c.id === t.id));
+  if (fresh) return via ? `New artist, like ${via.title}` : 'New artist, close to your taste';
+  if (artist && aff.knownArtists.has(artist.toLowerCase())) return `Because you play ${artist}`;
+  return via ? `Because you play ${via.title}` : 'Matches your taste';
+}
+
+/* ------------------------------------------------------------------ mood mixes */
+
+export type Mood = { id: string; title: string; subtitle: string; re: RegExp };
+/** YouTube gives no genre or year, so moods come from cues in the title ("Slowed + Reverb", "Unplugged", "BGM"). */
+export const MOODS: Mood[] = [
+  { id: 'slowed', title: 'Slowed & Reverb', subtitle: 'Slowed, reverb and lo-fi', re: /slowed|reverb|lo-?fi|sped up|nightcore|8d audio/i },
+  { id: 'acoustic', title: 'Unplugged & Acoustic', subtitle: 'Stripped back, unplugged and covers', re: /unplugged|acoustic|stripped|reprise|coke studio|\bcover\b|session/i },
+  { id: 'instrumental', title: 'Instrumentals & Themes', subtitle: 'Themes, BGM and instrumentals', re: /instrumental|\bbgm\b|\btheme\b|background score|\bost\b|piano version/i },
+];
+
+export type MoodPlan = { mood: Mood; seeds: Track[]; familiar: Track[] };
+
+/** Moods the history can fill (at least 8 matching songs you play), with their strongest songs as seeds. */
+export function moodPlan(aff: Affinity): MoodPlan[] {
+  return MOODS.map((mood) => {
+    const familiar = aff.positives.filter((t) => mood.re.test(t.title));
+    return { mood, seeds: familiar.slice(0, 3), familiar };
+  }).filter((m) => m.familiar.length >= 8);
+}
+
+export function moodMixes(aff: Affinity, plan: MoodPlan[], cands: Map<string, Track[]>, day: string, size = 30): ThemedMix[] {
+  const out: ThemedMix[] = [];
+  for (const { mood, seeds, familiar } of plan) {
+    const all = rankCandidates(seeds, cands, aff);
+    const matching = all.filter((t) => mood.re.test(t.title));
+    const ranked = matching.length >= 8 ? matching : all;
+    const items = dailyMix(aff, ranked, day, size, { salt: 'm:' + mood.id, familiar, known: aff.knownArtists }).map((t) => ({
+      ...t,
+      why: mood.re.test(t.title) && (aff.trackScore.get(t.id) ?? 0) > 0 ? `From your ${mood.title.toLowerCase()} listening` : explain(t, aff, cands, seeds),
+    }));
+    if (items.length >= 10) out.push({ title: mood.title, subtitle: mood.subtitle, items });
+  }
+  return out;
+}
+
+/* --------------------------------------------------------------- repeat rewind */
+
+const MONTH3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** Songs you played to the end again and again, then stopped playing: the same list all week. Needs no network. */
+export function repeatRewind(aff: Affinity, week: string, size = 40): Track[] {
+  if (aff.rewind.length < 10) return [];
+  const rnd = seeded('rw:' + week);
+  const byTrack = new Map(aff.rewind.map((r) => [r.track.id, r]));
+  const pool = diversify(aff.rewind.map((r) => r.track), 2);
+  return pickWeighted(pool, size, rnd).map((t) => {
+    const r = byTrack.get(t.id)!;
+    const d = new Date(r.last);
+    return { ...t, why: `You played this ${r.plays} times, last in ${MONTH3[d.getMonth()]} ${d.getFullYear()}` };
+  });
 }

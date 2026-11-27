@@ -1,6 +1,7 @@
 'use client';
 import { create } from 'zustand';
-import { useLibrary, type Play, type UserPlaylist } from './library';
+import { useLibrary, HISTORY_CAP, type Play, type UserPlaylist } from './library';
+import { noteQueueRows, startQueueSync } from './queue-sync';
 import type { AlbumCard, ArtistCard, PlaylistCard, Track } from '@/lib/types';
 
 /* Account + sync client. The library store stays the source of truth in the browser; this module
@@ -14,6 +15,8 @@ type AuthState = {
   status: 'loading' | 'setup' | 'login' | 'ready';
   user: string | null;
   needsCode: boolean;
+  admin: boolean; // may add and remove accounts
+  local: boolean; // Windows desktop app: its own server, no login screen, sync goes through the hub
   error: string | null;
   sync: 'off' | 'syncing' | 'live' | 'error';
   lastSync: number | null;
@@ -22,19 +25,40 @@ type AuthState = {
   logout: () => Promise<void>;
 };
 
+/* Everything this browser keeps about one person. When a different account signs in, it is wiped, so one person's
+   likes and history are never uploaded into another account, and the old sync cursor cannot make the new account
+   skip its own documents. (The device id and theme belong to the browser and stay.) */
+const ACCOUNT_KEY = 'lomu-account';
+const PER_ACCOUNT_KEYS = ['lomu-library', 'lomu-sync-seq', 'lomu-sleep', 'lomu-player', 'lomu-queue-at', 'lomu-queue-seen'];
+
+/** Returns true when the stored data belonged to someone else and was cleared (the page must reload to start clean). */
+export function adoptAccount(user: string): boolean {
+  if (typeof localStorage === 'undefined') return false;
+  const owner = localStorage.getItem(ACCOUNT_KEY);
+  if (owner === user.toLowerCase()) return false;
+  const reset = owner !== null; // first run after an update: nobody owned it yet, so keep it for the first account
+  if (reset) for (const k of PER_ACCOUNT_KEYS) localStorage.removeItem(k);
+  localStorage.setItem(ACCOUNT_KEY, user.toLowerCase());
+  return reset;
+}
+
 export const useAuth = create<AuthState>((set, get) => ({
   status: 'loading',
   user: null,
   needsCode: false,
+  admin: false,
+  local: false,
   error: null,
   sync: 'off',
   lastSync: null,
   async refresh() {
     try {
       const r = await fetch('/api/auth/status', { cache: 'no-store' });
-      const s = (await r.json()) as { setup: boolean; user: string | null; needsCode?: boolean };
+      const s = (await r.json()) as { setup: boolean; user: string | null; role?: 'admin' | 'user' | null; needsCode?: boolean; local?: boolean };
+      set({ local: !!s.local, admin: s.role === 'admin' });
       if (!s.setup) return set({ status: 'setup', user: null, needsCode: !!s.needsCode });
       if (s.user) {
+        if (!s.local && adoptAccount(s.user)) return location.reload();
         set({ status: 'ready', user: s.user });
         startSync();
         return;
@@ -53,13 +77,14 @@ export const useAuth = create<AuthState>((set, get) => ({
     const r = await fetch(`/api/auth/${mode}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username, password, code }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) return set({ error: j.error ?? 'Something went wrong' });
-    set({ status: 'ready', user: j.user ?? username });
+    if (!get().local && adoptAccount(j.user ?? username)) return location.reload();
+    set({ status: 'ready', user: j.user ?? username, admin: j.role === 'admin' });
     startSync();
   },
   async logout() {
     stopSync();
     await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
-    set({ status: 'login', user: null, sync: 'off' });
+    set({ status: 'login', user: null, admin: false, sync: 'off' });
   },
 }));
 
@@ -86,6 +111,7 @@ export function toDocs(prev: Snapshot | null, s = useLibrary.getState(), now = D
       [...Object.entries(s.albums), ...Object.entries(s.artists), ...Object.entries(s.savedPlaylists)].map(([id, v]) => [id, (v as { at: number }).at]),
     ),
     plays: new Set(s.history.map(playKey)),
+    blocked: new Map(Object.entries(s.blocked ?? {}).map(([k, v]) => [k, v.at])),
   };
   const docs: Doc[] = [];
   if (!prev) {
@@ -95,6 +121,7 @@ export function toDocs(prev: Snapshot | null, s = useLibrary.getState(), now = D
     for (const [id, v] of [...Object.entries(s.albums), ...Object.entries(s.artists), ...Object.entries(s.savedPlaylists)])
       docs.push({ kind: 'saved', key: id, value: v, updated: (v as { at: number }).at });
     for (const p of s.history) docs.push({ kind: 'play', key: playKey(p), value: p, updated: p.at });
+    for (const [k, v] of Object.entries(s.blocked ?? {})) docs.push({ kind: 'block', key: k, value: v, updated: v.at });
     return { docs, snap };
   }
   for (const [id, at] of snap.likes) if (!prev.likes.has(id)) docs.push({ kind: 'like', key: id, value: s.liked[id], updated: at });
@@ -105,18 +132,22 @@ export function toDocs(prev: Snapshot | null, s = useLibrary.getState(), now = D
   for (const [id, at] of snap.saved) if (!prev.saved.has(id)) docs.push({ kind: 'saved', key: id, value: savedAll[id], updated: at });
   for (const id of prev.saved.keys()) if (!snap.saved.has(id)) docs.push({ kind: 'saved', key: id, value: null, updated: now, deleted: true });
   for (const p of s.history) if (!prev.plays.has(playKey(p))) docs.push({ kind: 'play', key: playKey(p), value: p, updated: p.at });
+  for (const [k, at] of snap.blocked) if (!prev.blocked.has(k)) docs.push({ kind: 'block', key: k, value: s.blocked?.[k], updated: at });
+  for (const k of prev.blocked.keys()) if (!snap.blocked.has(k)) docs.push({ kind: 'block', key: k, value: null, updated: now, deleted: true });
   return { docs, snap };
 }
 
-export type Snapshot = { likes: Map<string, number>; playlists: Map<string, number>; saved: Map<string, number>; plays: Set<string> };
+export type Snapshot = { likes: Map<string, number>; playlists: Map<string, number>; saved: Map<string, number>; plays: Set<string>; blocked: Map<string, number> };
 
 export function applyRows(rows: Row[]) {
   if (!rows.length) return;
+  noteQueueRows(rows); // the 'queue' document is offered as "Continue listening", never applied
   useLibrary.setState((s) => {
     const liked = { ...s.liked };
     const albums = { ...s.albums };
     const artists = { ...s.artists };
     const savedPlaylists = { ...s.savedPlaylists };
+    const blocked = { ...s.blocked };
     let playlists = [...s.playlists];
     const history = [...s.history];
     const have = new Set(history.map(playKey));
@@ -135,13 +166,16 @@ export function applyRows(rows: Row[]) {
         const map = kind === 'album' ? albums : kind === 'artist' ? artists : savedPlaylists;
         if (r.deleted || !v) delete map[r.key];
         else (map as Record<string, unknown>)[r.key] = v;
+      } else if (r.kind === 'block') {
+        if (r.deleted || !r.value) delete blocked[r.key];
+        else blocked[r.key] = r.value as { name: string; at: number };
       } else if (r.kind === 'play' && !r.deleted && !have.has(r.key)) {
         history.push(r.value as Play);
         have.add(r.key);
       }
     }
     history.sort((a, b) => b.at - a.at);
-    return { liked, albums, artists, savedPlaylists, playlists, history: history.slice(0, 2000) };
+    return { liked, albums, artists, savedPlaylists, playlists, blocked, history: history.slice(0, HISTORY_CAP) };
   });
 }
 
@@ -151,6 +185,7 @@ let started = false;
 let applying = false;
 let snap: Snapshot | null = null;
 let unsub: (() => void) | null = null;
+let stopQueue: (() => void) | null = null;
 let events: EventSource | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let pulling: Promise<void> | null = null;
@@ -188,7 +223,7 @@ async function pull() {
   return pulling;
 }
 
-const emptySnap = (): Snapshot => ({ likes: new Map(), playlists: new Map(), saved: new Map(), plays: new Set() });
+const emptySnap = (): Snapshot => ({ likes: new Map(), playlists: new Map(), saved: new Map(), plays: new Set(), blocked: new Map() });
 
 async function pushPending() {
   const { docs, snap: next } = toDocs(snap);
@@ -221,6 +256,12 @@ export async function startSync() {
   snap = null;
   await pushPending().catch(() => {});
   unsub = useLibrary.subscribe(schedulePush);
+  stopQueue = startQueueSync(async (doc) => {
+    const r = await api('/api/sync', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ docs: [doc] }) });
+    if (!r.ok) throw new Error(String(r.status));
+    const { seq } = (await r.json()) as { seq: number };
+    if (seq - getSeq() === 1) localStorage.setItem(SEQ_KEY, String(seq)); // our own write: no need to pull it back
+  });
   const open = () => {
     events = new EventSource('/api/sync/events');
     events.addEventListener('seq', (e) => {
@@ -237,6 +278,8 @@ export async function startSync() {
 export function stopSync() {
   started = false;
   unsub?.();
+  stopQueue?.();
+  stopQueue = null;
   events?.close();
   if (timer) clearTimeout(timer);
 }

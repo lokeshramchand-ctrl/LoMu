@@ -4,11 +4,12 @@ import { Providers } from '@/components/Providers';
 import { StyleRegistry } from '@/components/StyleRegistry';
 import './globals.css';
 
+// SF Pro leads the font stack (globals.css) when its files are served; Inter is the open fallback that is always there.
 const sans = Inter({ subsets: ['latin'], variable: '--font-ui', display: 'swap' });
 
 export const metadata: Metadata = {
   title: { default: 'LoMu', template: '%s · LoMu' },
-  description: 'LoMu — your music, everywhere.',
+  description: 'LoMu is your music on every device.',
   applicationName: 'LoMu',
   manifest: '/manifest.webmanifest',
   icons: { icon: [{ url: '/favicon-48.png', sizes: '48x48' }, { url: '/icon-192.png', sizes: '192x192' }], apple: '/apple-icon.png' },
@@ -20,14 +21,14 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: 'cover',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f7f7f6' },
-    { media: '(prefers-color-scheme: dark)', color: '#0e0f11' },
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#0b0b0c' },
   ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={sans.variable}>
+    <html lang="en" className={sans.variable} data-theme="dark" suppressHydrationWarning>
       <body>
         <StyleRegistry>
           <Providers>{children}</Providers>

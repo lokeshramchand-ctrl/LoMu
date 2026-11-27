@@ -46,7 +46,7 @@ describe('topArtists', () => {
 
 describe('formatMinutes', () => {
   it('switches to hours', () => {
-    expect(formatMinutes(42)).toEqual({ value: '42', unit: 'min' });
-    expect(formatMinutes(120)).toEqual({ value: '2.0', unit: 'h' });
+    expect(formatMinutes(42)).toEqual({ value: '42', unit: 'minutes' });
+    expect(formatMinutes(120)).toEqual({ value: '2.0', unit: 'hours' });
   });
 });

@@ -1,6 +1,8 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
 import { api as authFetch } from '@/player/sync';
+import { useLibrary } from '@/player/library';
+import type { Wrapped } from './wrapped';
 import type { AlbumData, ArtistData, ExploreData, HomeData, Item, LyricsData, PlaylistData, SearchData, Shelf, Track } from './types';
 
 async function get<T>(url: string): Promise<T> {
@@ -15,8 +17,9 @@ async function get<T>(url: string): Promise<T> {
 const enc = encodeURIComponent;
 export const api = {
   home: () => get<HomeData>('/api/home'),
-  recs: () => get<Shelf[]>('/api/recs'),
+  recs: () => get<Shelf[]>(`/api/recs?tz=${new Date().getTimezoneOffset()}`),
   explore: () => get<ExploreData>('/api/explore'),
+  wrapped: (year: number | null) => get<{ wrapped: Wrapped | null }>(`/api/wrapped?year=${year ?? 'all'}&tz=${new Date().getTimezoneOffset()}`),
   mood: (browseId: string, params: string) => get<Shelf[]>(`/api/mood?browseId=${enc(browseId)}&params=${enc(params)}`),
   search: (q: string) => get<SearchData>(`/api/search?q=${enc(q)}`),
   suggest: (q: string) => get<{ queries: string[]; items: Item[] }>(`/api/suggest?q=${enc(q)}`),
@@ -25,6 +28,7 @@ export const api = {
   playlist: (id: string) => get<PlaylistData>(`/api/playlist/${enc(id)}`),
   nextUp: (id: string, recent: string[]) => get<Track[]>(`/api/recs/next?seed=${enc(id)}&recent=${enc(recent.join(','))}`),
   radio: (id: string) => get<Track[]>(`/api/radio/${enc(id)}`),
+  track: (id: string) => get<Track | null>(`/api/track/${enc(id)}`),
   related: (id: string) => get<Shelf[]>(`/api/related/${enc(id)}`),
   lyrics: (t: Track) =>
     get<LyricsData>(
@@ -33,7 +37,16 @@ export const api = {
 };
 
 const long = { staleTime: 10 * 60_000 };
-export const useRecs = () => useQuery({ queryKey: ['recs'], queryFn: api.recs, staleTime: 3 * 60_000 });
+/** Shelves without anything by an artist the user blocked: applies at once, before the server's own caches catch up. */
+export function hideBlocked(shelves: Shelf[], blocked: Record<string, unknown>): Shelf[] {
+  if (!Object.keys(blocked).length) return shelves;
+  return shelves.map((s) => ({ ...s, items: s.items.filter((i) => i.kind !== 'song' || !i.artists.some((a) => blocked[a.name.toLowerCase()])) }));
+}
+export const useRecs = () => {
+  const blocked = useLibrary((s) => s.blocked);
+  return useQuery({ queryKey: ['recs'], queryFn: api.recs, staleTime: 3 * 60_000, select: (d) => hideBlocked(d, blocked) });
+};
+export const useWrapped = (year: number | null) => useQuery({ queryKey: ['wrapped', year], queryFn: () => api.wrapped(year), staleTime: 5 * 60_000 });
 export const useHome = () => useQuery({ queryKey: ['home'], queryFn: api.home, ...long });
 export const useExplore = () => useQuery({ queryKey: ['explore'], queryFn: api.explore, ...long });
 export const useMood = (b: string, p: string) => useQuery({ queryKey: ['mood', p], queryFn: () => api.mood(b, p), enabled: !!p, ...long });

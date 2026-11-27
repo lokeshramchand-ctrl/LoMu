@@ -29,33 +29,48 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       >
         <div className="mk"><span className="mark" /><b>LoMu</b></div>
         <h1>{mode === 'setup' ? 'Create your account' : 'Welcome back'}</h1>
-        <p>{mode === 'setup' ? 'One account for you. It syncs this browser and your phone.' : 'Sign in to your LoMu.'}</p>
-        <input autoFocus placeholder="Username" autoComplete="username" value={u} onChange={(e) => setU(e.target.value)} />
+        {mode === 'setup' && <p>One account for you. It syncs this browser and your phone.</p>}
+        <label htmlFor="gate-user">Username</label>
+        <input id="gate-user" autoFocus name="username" spellCheck={false} autoComplete="username" value={u} onChange={(e) => setU(e.target.value)} />
+        <label htmlFor="gate-pass">Password</label>
         <input
+          id="gate-pass"
           type="password"
-          placeholder={mode === 'setup' ? 'Password (8+ characters)' : 'Password'}
+          name="password"
           autoComplete={mode === 'setup' ? 'new-password' : 'current-password'}
+          aria-describedby={mode === 'setup' ? 'gate-pass-rule' : undefined}
           value={p}
           onChange={(e) => setP(e.target.value)}
         />
-        {mode === 'setup' && needsCode && <input placeholder="Setup code (from the server config)" value={code} onChange={(e) => setCode(e.target.value)} />}
-        {error && <div className="err">{error}</div>}
+        {mode === 'setup' && <span id="gate-pass-rule" className="rule">At least 8 characters.</span>}
+        {mode === 'setup' && needsCode && (
+          <>
+            <label htmlFor="gate-code">Setup code</label>
+            <input id="gate-code" name="setup-code" spellCheck={false} autoComplete="off" value={code} onChange={(e) => setCode(e.target.value)} />
+            <span className="rule">It is in the server config.</span>
+          </>
+        )}
+        {error && <div className="err" role="alert">{error}</div>}
         <button disabled={busy || !u || !p}>{mode === 'setup' ? 'Create account' : 'Sign in'}</button>
       </form>
       <style jsx>{`
         .gate { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg); padding: 24px; z-index: 100; }
-        form { width: min(380px, 100%); display: flex; flex-direction: column; gap: 10px; padding: 28px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--lift); }
+        form { width: min(360px, 100%); display: flex; flex-direction: column; gap: 8px; padding: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--lift-hi); }
         .mk { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-        .mark { width: 28px; height: 28px; border-radius: 9px; background: var(--ink); }
-        .mk b { font-size: 17px; font-weight: 600; letter-spacing: -.04em; }
-        h1 { font-size: 1.6rem; font-weight: 600; line-height: 1.15; margin: 0; }
+        .mark { width: 24px; height: 24px; border-radius: var(--r-sm); background: var(--signal); }
+        .mk b { font-family: var(--font-display); font-size: 1.5rem; font-weight: 400; letter-spacing: -.02em; line-height: 1; color: var(--ink); }
+        h1 { font-size: 1.75rem; font-weight: 400; line-height: 1.1; margin: 0; letter-spacing: -.02em; }
         p { color: var(--muted); margin: 0 0 8px; }
-        input { height: 48px; padding: 0 16px; border-radius: 12px; border: 1px solid var(--border-2); background: var(--surface); color: var(--text); font: inherit; outline: none; transition: border-color .2s, box-shadow .2s; }
-        input:focus { border-color: var(--signal); box-shadow: 0 0 0 4px var(--signal-soft); }
-        button { height: 48px; border-radius: 999px; border: 0; background: var(--ink); color: var(--on-ink); font: inherit; font-weight: 500; cursor: pointer; margin-top: 4px; transition: transform .3s var(--spring); }
+        label { font-size: .8125rem; font-weight: 500; color: var(--muted); margin-top: 6px; }
+        .rule { font-size: .75rem; color: var(--muted); }
+        input { height: 36px; padding: 0 12px; border-radius: var(--r-sm); font-size: 13px; border: 1px solid var(--border-2); background: var(--surface); color: var(--text); font: inherit; transition: border-color .2s, box-shadow .2s; }
+        input:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+        input:focus { border-color: var(--signal); box-shadow: 0 0 0 2px var(--signal-soft); }
+        button { height: 36px; border-radius: var(--r); border: 0; background: var(--signal); color: var(--on-signal); font: inherit; font-weight: 600; cursor: pointer; margin-top: 4px; transition: background .15s, transform .1s ease-out; }
+        button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
         button:active { transform: scale(.97); }
         button:disabled { opacity: .4; cursor: not-allowed; }
-        .err { color: var(--red-t); font-size: 13px; background: var(--red-soft); padding: 10px 12px; border-radius: 10px; }
+        .err { color: var(--red-t); font-size: 13px; background: var(--red-soft); padding: 8px 10px; border-radius: var(--r-sm); }
       `}</style>
     </div>
   );

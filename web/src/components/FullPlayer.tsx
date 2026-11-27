@@ -9,6 +9,7 @@ import type { Track } from '@/lib/types';
 import { Cover } from './Art';
 import { Icon } from './Icon';
 import { Seek } from './PlayerBar';
+import { useConnect, remoteDevice, sendCommand } from '@/player/connect';
 import { Bars } from './Cards';
 import { useMenu } from './Menu';
 
@@ -39,9 +40,7 @@ export function FullPlayer() {
     <div className={`fp${expanded ? ' open' : ''}`} aria-hidden={!expanded} role="dialog" aria-label="Now playing">
       <div className="ambient" aria-hidden style={track.thumb ? { backgroundImage: `url(${track.thumb})` } : undefined} />
       <header className="top">
-        <button className="icon-btn bordered" aria-label="Close player" onClick={() => P.setExpanded(false)}>
-          <Icon name="down" />
-        </button>
+        <span className="icon-btn" aria-hidden style={{ visibility: 'hidden' }} />
         <div className="eyebrow">Now playing</div>
         <button className="icon-btn bordered" aria-label="More" onClick={(e) => useMenu.getState().open(track, e)}>
           <Icon name="more" />
@@ -110,22 +109,24 @@ export function FullPlayer() {
       <style jsx>{`
         .fp { overflow: hidden; position: fixed; inset: 0; z-index: 70; display: flex; flex-direction: column; background: var(--bg); transform: translateY(102%); transition: transform .5s var(--ease-out); visibility: hidden; }
         .fp.open { transform: none; visibility: visible; }
-        .ambient { position: absolute; inset: -10%; z-index: 0; background-size: cover; background-position: center; filter: blur(70px) saturate(1.4); opacity: .2; transform: scale(1.1); pointer-events: none; transition: background-image .6s; }
+        .ambient { position: absolute; inset: -10%; z-index: 0; background-size: cover; background-position: center; filter: blur(90px) saturate(1.6); opacity: .55; transform: scale(1.1); pointer-events: none; transition: background-image .6s; }
+        .fp::after { content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none; background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 20%, transparent), color-mix(in srgb, var(--bg) 85%, transparent)); }
         .top, .body { position: relative; z-index: 1; }
-        .top { display: flex; align-items: center; justify-content: space-between; padding: 14px var(--gutter); height: var(--top-h); border-bottom: 1px solid var(--border); }
+        .top { display: flex; align-items: center; justify-content: space-between; padding: 14px var(--gutter); height: var(--top-h); }
         .body { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr; gap: 28px; padding: 28px var(--gutter) 32px; overflow-y: auto; }
         .body.with-panel { grid-template-columns: minmax(0, 1.2fr) minmax(320px, .9fr); }
         .stage { display: flex; align-items: center; justify-content: center; gap: 56px; min-height: 0; }
-        .art { width: min(46vh, 420px); aspect-ratio: 1; flex: none; box-shadow: var(--lift-hi); border-radius: 20px; }
+        .art { width: min(46vh, 420px); aspect-ratio: 1; flex: none; box-shadow: 0 0 0 1px var(--border), 0 32px 64px -24px rgba(0, 0, 0, .6); border-radius: var(--r-sm); }
         .info { width: min(480px, 100%); min-width: 0; }
-        .title { font-size: clamp(1.7rem, 3.4vw, 2.6rem); font-weight: 600; line-height: 1.1; }
+        .title { font-size: clamp(1.6rem, 3vw, 2.5rem); font-family: var(--font-display); font-weight: 400; line-height: 1.05; letter-spacing: -.025em; }
         .artists { margin-top: 8px; font-size: 16px; color: var(--muted); font-weight: 500; }
         .artists :global(a:hover) { color: var(--text); text-decoration: underline; }
         .controls { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; max-width: 420px; }
-        .on { color: var(--signal) !important; }
-        .playbig { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; background: var(--ink); color: var(--on-ink); transition: transform .3s var(--spring); }
+        .icon-btn.on { color: var(--signal-t) !important; }
+        .playbig { width: 56px; height: 56px; border-radius: var(--r-lg); display: grid; place-items: center; background: var(--signal); color: var(--on-signal); transition: background .15s, transform .1s ease-out; }
+        .playbig:hover { background: var(--signal-hi); }
         .playbig:active { transform: scale(.93); }
-        .spinner { width: 22px; height: 22px; border-radius: 50%; border: 2.5px solid color-mix(in srgb, var(--on-ink) 30%, transparent); border-top-color: var(--on-ink); animation: spin .8s linear infinite; }
+        .spinner { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border-2); border-top-color: var(--ink); animation: spin .8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .panel { min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
         .body.with-panel .stage { flex-direction: column; gap: 26px; }
@@ -194,9 +195,15 @@ function Lyrics({ track }: { track: Track }) {
 }
 
 function Queue() {
-  const queue = usePlayer((s) => s.queue);
-  const index = usePlayer((s) => s.index);
-  const playing = usePlayer((s) => s.playing);
+  const localQueue = usePlayer((s) => s.queue);
+  const localIndex = usePlayer((s) => s.index);
+  const localPlaying = usePlayer((s) => s.playing);
+  // While steering another device the list is that device's queue (its current song, then what comes next).
+  const remote = useConnect((s) => remoteDevice(s));
+  const queue: Track[] = remote ? [...(remote.track ? [remote.track] : []), ...(remote.queue ?? [])] : localQueue;
+  const index = remote ? 0 : localIndex;
+  const playing = remote ? !!remote.playing : localPlaying;
+  const go = (i: number) => (remote ? void (i > 0 && sendCommand(remote.id, { type: 'skipto', offset: i })) : usePlayer.getState().jump(i));
   const autoplay = usePlayer((s) => s.autoplay);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -219,7 +226,7 @@ function Queue() {
       </div>
       <div className="list" ref={listRef}>
         {queue.map((t, i) => (
-          <div key={`${t.id}-${i}`} className={`q${i === index ? ' cur' : ''}${i < index ? ' past' : ''}`} onClick={() => usePlayer.getState().jump(i)}>
+          <div key={`${t.id}-${i}`} className={`q${i === index ? ' cur' : ''}${i < index ? ' past' : ''}`} role="button" tabIndex={0} aria-label={`Play ${t.title}`} onClick={() => go(i)} onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); go(i); } }}>
             <Cover src={t.thumb} size={40} radius={8} />
             <div className="grow">
               <div className="clamp1" style={{ fontWeight: 500, fontSize: 13.5 }}>{t.title}</div>
@@ -227,7 +234,7 @@ function Queue() {
             </div>
             {i === index ? (
               playing ? <Bars /> : null
-            ) : (
+            ) : remote ? null : (
               <button
                 className="icon-btn sm x"
                 aria-label="Remove from queue"
@@ -245,7 +252,7 @@ function Queue() {
       <style jsx>{`
         .ph { display: flex; align-items: center; justify-content: space-between; padding: 12px 12px 10px 22px; border-bottom: 1px solid var(--border); }
         .list { flex: 1; overflow-y: auto; padding: 8px 10px 20px; }
-        .q { display: flex; align-items: center; gap: 12px; padding: 6px 10px; border-radius: 12px; cursor: pointer; transition: background .2s; }
+        .q { touch-action: manipulation; display: flex; align-items: center; gap: 12px; padding: 6px 10px; border-radius: 12px; cursor: pointer; transition: background .2s; }
         .q:hover { background: var(--surface-2); }
         .q.cur { background: var(--signal-soft); }
         .q.past { opacity: .5; }

@@ -1,0 +1,60 @@
+# Builds the Android APK on every push that touches the app and publishes it as a GitHub release (android-v<run number>).
+# It is signed with the SAME debug keystore the phone's installed copy was signed with, kept in the secret
+# ANDROID_KEYSTORE_B64 (base64 of ~/.android/debug.keystore). Without that secret the job skips every step: a build signed with a
+# different key could not be installed over the phone's copy.
+name: Android app
+
+on:
+  push:
+    branches: [music, main]
+    paths: ['app/**', 'innertube/**', 'build.gradle.kts', 'settings.gradle.kts', 'gradle/**', 'version.properties', '.github/workflows/android.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: android-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+    steps:
+      - name: Check for the signing secret
+        id: key
+        run: echo "have=${{ env.KEYSTORE != '' }}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        if: steps.key.outputs.have == 'true'
+
+      - uses: actions/setup-java@v4
+        if: steps.key.outputs.have == 'true'
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+        if: steps.key.outputs.have == 'true'
+
+      - name: Restore the debug keystore
+        if: steps.key.outputs.have == 'true'
+        run: |
+          mkdir -p ~/.android
+          echo "$KEYSTORE" | base64 -d > ~/.android/debug.keystore
+
+      - name: Unit tests and APK
+        run: ./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon
+        if: steps.key.outputs.have == 'true'
+
+      - name: Publish the release
+        if: steps.key.outputs.have == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="android-v${{ github.run_number }}"
+          cp app/build/outputs/apk/debug/app-debug.apk LoMu.apk
+          gh release create "$tag" LoMu.apk --title "LoMu Android $tag" --notes "Commit ${GITHUB_SHA::8}" --target "$GITHUB_SHA"

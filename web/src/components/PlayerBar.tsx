@@ -1,14 +1,21 @@
 'use client';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { currentTrack, usePlayer } from '@/player/store';
 import { useLibrary } from '@/player/library';
 import { artistNames, fmtTime } from '@/lib/format';
 import { Cover } from './Art';
 import { Icon } from './Icon';
+import { DevicesButton } from './Devices';
+import { useConnect, remoteDevice, sendCommand, type Device } from '@/player/connect';
 
-export function Seek({ compact = false }: { compact?: boolean }) {
-  const position = usePlayer((s) => s.position);
-  const duration = usePlayer((s) => s.duration || currentTrack(s)?.duration || 0);
+type RemoteSeek = { position: number; duration: number; onSeek: (s: number) => void };
+
+export function Seek({ compact = false, remote }: { compact?: boolean; remote?: RemoteSeek }) {
+  const localPos = usePlayer((s) => s.position);
+  const localDur = usePlayer((s) => s.duration || currentTrack(s)?.duration || 0);
+  const position = remote ? remote.position : localPos;
+  const duration = remote ? remote.duration : localDur;
+  const seekTo = (v: number) => (remote ? remote.onSeek(v) : usePlayer.getState().seek(v));
   const [drag, setDrag] = useState<number | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const shown = drag ?? position;
@@ -31,8 +38,8 @@ export function Seek({ compact = false }: { compact?: boolean }) {
         aria-valuenow={Math.round(shown)}
         tabIndex={0}
         onKeyDown={(e) => {
-          if (e.key === 'ArrowRight') usePlayer.getState().seek(position + 5);
-          if (e.key === 'ArrowLeft') usePlayer.getState().seek(Math.max(0, position - 5));
+          if (e.key === 'ArrowRight') seekTo(position + 5);
+          if (e.key === 'ArrowLeft') seekTo(Math.max(0, position - 5));
         }}
         onPointerDown={(e) => {
           if (!duration) return;
@@ -42,7 +49,7 @@ export function Seek({ compact = false }: { compact?: boolean }) {
         onPointerMove={(e) => drag != null && setDrag(at(e.clientX))}
         onPointerUp={(e) => {
           if (drag == null) return;
-          usePlayer.getState().seek(at(e.clientX));
+          seekTo(at(e.clientX));
           setDrag(null);
         }}
       >
@@ -51,16 +58,54 @@ export function Seek({ compact = false }: { compact?: boolean }) {
       </div>
       {!compact && <span className="time r">{fmtTime(duration)}</span>}
       <style jsx>{`
-        .seek { display: flex; align-items: center; gap: 12px; width: 100%; }
-        .time { font-size: 12px; color: var(--muted); width: 38px; }
-        .time.r { text-align: right; }
-        .track { position: relative; flex: 1; height: 4px; border-radius: 99px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border); cursor: pointer; touch-action: none; }
-        .track::before { content: ''; position: absolute; inset: -10px 0; }
+        .seek { display: flex; align-items: center; gap: 8px; width: 100%; }
+        .time { font-family: var(--font-num); font-size: .75rem; color: var(--muted); width: 40px; }
+        .time.r { text-align: start; }
+        .time:first-child { text-align: end; }
+        .track { position: relative; flex: 1; height: 4px; border-radius: 99px; background: var(--border-2); cursor: pointer; touch-action: none; }
+        .track::before { content: ''; position: absolute; inset: -8px 0; }
         .fill { position: absolute; inset: 0 auto 0 0; border-radius: 99px; background: var(--ink); }
-        .knob { position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%; background: var(--ink); transform: translate(-50%, -50%) scale(0); transition: transform .3s var(--spring); }
+        .track:hover .fill, .track:active .fill { background: var(--signal); }
+        .knob { position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%; background: var(--ink); transform: translate(-50%, -50%) scale(0); transition: transform .1s var(--ease); }
         .track:hover .knob, .track:active .knob, .track:focus-visible .knob { transform: translate(-50%, -50%) scale(1); }
         .compact .knob { display: none; }
-        .compact .track { height: 3px; box-shadow: none; }
+        .compact .track { height: 2px; }
+        .compact .fill, .compact .track:hover .fill { background: var(--ink); }
+      `}</style>
+    </div>
+  );
+}
+
+/** Position of a remote device in seconds, advancing while it plays. */
+function useRemotePosition(d: Device | null, receivedAt: number) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!d?.playing) return;
+    const t = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(t);
+  }, [d?.playing]);
+  if (!d) return 0;
+  const dur = d.duration || Infinity;
+  return Math.min(dur, (d.position ?? 0) + (d.playing ? Math.max(0, now - receivedAt) / 1000 : 0));
+}
+
+function Volume() {
+  const volume = usePlayer((s) => s.volume);
+  const muted = usePlayer((s) => s.muted);
+  const P = usePlayer.getState();
+  const shown = muted ? 0 : volume;
+  return (
+    <div className="vol">
+      <button className="icon-btn sm" aria-label={muted || volume === 0 ? 'Unmute' : 'Mute'} onClick={() => P.toggleMute()}>
+        <Icon name={muted || volume === 0 ? 'mute' : volume < 0.5 ? 'speakerLow' : 'volume'} size={18} />
+      </button>
+      <input type="range" min={0} max={1} step={0.01} value={shown} aria-label="Volume" onChange={(e) => P.setVolume(Number(e.target.value))} style={{ ['--v' as string]: `${shown * 100}%` }} />
+      <style jsx>{`
+        .vol { display: flex; align-items: center; gap: 4px; width: 128px; }
+        input { flex: 1; min-width: 0; height: 4px; border-radius: 99px; appearance: none; -webkit-appearance: none; background: linear-gradient(to right, var(--ink) var(--v), var(--border-2) var(--v)); cursor: pointer; outline-offset: 6px; }
+        input:hover { background: linear-gradient(to right, var(--signal) var(--v), var(--border-2) var(--v)); }
+        input::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--ink); opacity: 0; }
+        input:hover::-webkit-slider-thumb, input:focus-visible::-webkit-slider-thumb { opacity: 1; }
       `}</style>
     </div>
   );
@@ -71,69 +116,106 @@ export function PlayerBar() {
   const playing = usePlayer((s) => s.playing);
   const buffering = usePlayer((s) => s.buffering);
   const error = usePlayer((s) => s.error);
-  const liked = useLibrary((s) => (track ? !!s.liked[track.id] : false));
-  if (!track) return null;
+  const shuffle = usePlayer((s) => s.shuffle);
+  const repeat = usePlayer((s) => s.repeat);
+  const remote = useConnect((s) => remoteDevice(s));
+  const receivedAt = useConnect((s) => s.receivedAt);
+  const rpos = useRemotePosition(remote, receivedAt);
+  const shown = remote ? remote.track ?? undefined : track;
+  const liked = useLibrary((s) => (shown ? !!s.liked[shown.id] : false));
+  if (!shown) return null;
   const P = usePlayer.getState();
+  // While steering another device the bar shows that device's song and its controls send commands.
+  const isPlaying = remote ? !!remote.playing : playing;
+  const cmd = (type: string) => remote && sendCommand(remote.id, { type });
+  const seekEl = remote ? <Seek remote={{ position: rpos, duration: remote.duration ?? shown.duration ?? 0, onSeek: (v) => remote && sendCommand(remote.id, { type: 'seek', position: v }) }} /> : <Seek />;
+  const seekCompact = remote ? <Seek compact remote={{ position: rpos, duration: remote.duration ?? shown.duration ?? 0, onSeek: (v) => remote && sendCommand(remote.id, { type: 'seek', position: v }) }} /> : <Seek compact />;
   return (
     <div className="bar">
-      <button className="meta" onClick={() => P.setExpanded(true)} aria-label="Open player">
-        <Cover src={track.thumb} size={48} radius={9} />
-        <div className="grow" style={{ textAlign: 'left' }}>
-          <div className="t clamp1">{track.title}</div>
-          <div className={`s clamp1${error ? ' bad' : ''}`}>{error ?? (buffering ? 'Loading…' : artistNames(track.artists))}</div>
-        </div>
-      </button>
-      <button className={`icon-btn sm hide-sm${liked ? ' on' : ''}`} aria-label="Like" onClick={() => useLibrary.getState().toggleLike(track)}>
-        <Icon name={liked ? 'heartFill' : 'heart'} size={17} />
-      </button>
+      <div className="left">
+        <button className="meta" onClick={() => !remote && P.setExpanded(true)} aria-label="Open player">
+          <Cover src={shown.thumb} size={52} radius={4} />
+          <div className="grow" style={{ textAlign: 'start' }}>
+            <div className="t clamp1">{shown.title}</div>
+            {remote ? (
+              <div className="s clamp1 rem">Playing on {remote.name}</div>
+            ) : (
+              <div className={`s clamp1${error ? ' bad' : ''}`}>{error ?? (buffering ? 'Loading…' : artistNames(shown.artists))}</div>
+            )}
+          </div>
+        </button>
+        <button className={`icon-btn sm hide-sm${liked ? ' on' : ''}`} aria-label="Like" onClick={() => useLibrary.getState().toggleLike(shown)}>
+          <Icon name={liked ? 'heartFill' : 'heart'} size={18} />
+        </button>
+      </div>
       <div className="center">
         <div className="ctrls">
-          <button className="icon-btn hide-sm" aria-label="Previous" onClick={() => P.prev()}>
-            <Icon name="prev" size={18} />
+          {!remote && (
+            <button className={`icon-btn hide-sm${shuffle ? ' on' : ''}`} aria-label="Shuffle" aria-pressed={shuffle} onClick={() => P.toggleShuffle()}>
+              <Icon name="shuffle" size={18} />
+            </button>
+          )}
+          <button className="icon-btn hide-sm" aria-label="Previous" onClick={() => (remote ? cmd('prev') : P.prev())}>
+            <Icon name="prev" size={20} />
           </button>
-          <button className="play" aria-label={playing ? 'Pause' : 'Play'} onClick={() => P.toggle()}>
-            <Icon name={playing ? 'pause' : 'play'} size={18} />
+          <button className="play" aria-label={isPlaying ? 'Pause' : 'Play'} onClick={() => (remote ? cmd('toggle') : P.toggle())}>
+            <Icon name={isPlaying ? 'pause' : 'play'} size={16} />
           </button>
-          <button className="icon-btn" aria-label="Next" onClick={() => P.next()}>
-            <Icon name="next" size={18} />
+          <button className="icon-btn" aria-label="Next" onClick={() => (remote ? cmd('next') : P.next())}>
+            <Icon name="next" size={20} />
           </button>
+          {!remote && (
+            <button className={`icon-btn hide-sm${repeat !== 'off' ? ' on' : ''}`} aria-label={`Repeat ${repeat}`} onClick={() => P.cycleRepeat()}>
+              <Icon name={repeat === 'one' ? 'repeatOne' : 'repeat'} size={18} />
+            </button>
+          )}
         </div>
-        <div className="seekrow hide-sm">
-          <Seek />
-        </div>
+        <div className="seekrow hide-sm">{seekEl}</div>
       </div>
       <div className="right hide-sm">
-        <button className="icon-btn" aria-label="Lyrics" onClick={() => (P.setExpanded(true), usePlayer.setState({ panel: 'lyrics' }))}>
-          <Icon name="lyrics" size={18} />
-        </button>
-        <button className="icon-btn" aria-label="Queue" onClick={() => (P.setExpanded(true), usePlayer.setState({ panel: 'queue' }))}>
-          <Icon name="queue" size={18} />
-        </button>
+        {!remote && (
+          <button className="icon-btn sm" aria-label="Lyrics" onClick={() => (P.setExpanded(true), usePlayer.setState({ panel: 'lyrics' }))}>
+            <Icon name="lyrics" size={18} />
+          </button>
+        )}
+        {!remote && (
+          <button className="icon-btn sm" aria-label="Queue" onClick={() => (P.setExpanded(true), usePlayer.setState({ panel: 'queue' }))}>
+            <Icon name="queue" size={18} />
+          </button>
+        )}
+        <DevicesButton />
+        <Volume />
+        {!remote && (
+          <button className="icon-btn sm" aria-label="Full screen" title="Now playing" onClick={() => P.setExpanded(true)}>
+            <Icon name="fullscreen" size={18} />
+          </button>
+        )}
       </div>
-      <div className="mobile-progress">
-        <Seek compact />
-      </div>
+      <div className="mobile-progress">{seekCompact}</div>
       <style jsx>{`
-        .bar { position: fixed; z-index: 50; bottom: 0; left: var(--side-w); right: 0; height: var(--player-h); display: flex; align-items: center; gap: 12px; padding: 0 var(--gutter); background: var(--glass); backdrop-filter: blur(14px); border-top: 1px solid var(--border); animation: rise .4s var(--ease-out) both; }
-        .meta { display: flex; align-items: center; gap: 12px; min-width: 0; width: 300px; }
-        .t { font-weight: 600; font-size: 13.5px; letter-spacing: -.015em; }
-        .s { color: var(--muted); font-size: 12.5px; margin-top: 1px; }
+        .bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; border-top: 1px solid var(--border); height: var(--player-h); display: grid; grid-template-columns: minmax(180px, 30%) minmax(0, 40%) minmax(180px, 30%); align-items: center; gap: 16px; padding: 0 var(--chrome-x); background: var(--glass); -webkit-backdrop-filter: blur(24px) saturate(150%); backdrop-filter: blur(24px) saturate(150%); animation: rise .3s var(--ease-out) both; }
+        @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) { .bar { background: var(--bg); -webkit-backdrop-filter: none; backdrop-filter: none; } }
+        .left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        .meta { display: flex; align-items: center; gap: 14px; min-width: 0; }
+        .t { font-weight: 500; font-size: 14px; color: var(--ink); }
+        .s { color: var(--muted); font-size: 12px; margin-top: 1px; }
         .s.bad { color: var(--red-t); }
-        .center { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
-        .ctrls { display: flex; align-items: center; gap: 8px; }
-        .play { width: 38px; height: 38px; border-radius: 50%; background: var(--ink); color: var(--on-ink); display: grid; place-items: center; transition: transform .3s var(--spring); }
-        .play:hover { background: color-mix(in srgb, var(--ink) 88%, var(--bg)); }
-        .play:active { transform: scale(.93); }
-        .seekrow { width: min(560px, 100%); }
-        .right { display: flex; gap: 2px; width: 120px; justify-content: flex-end; }
+        .s.rem { color: var(--signal-t); font-weight: 700; }
+        .center { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; max-width: 722px; width: 100%; justify-self: center; }
+        .ctrls { display: flex; align-items: center; gap: 20px; }
+        .play { width: 40px; height: 40px; border-radius: var(--r); background: var(--signal); color: var(--on-signal); display: grid; place-items: center; transition: background .15s, transform .1s ease-out; }
+        .play:hover { background: var(--signal-hi); }
+        .play:active { transform: scale(.94); }
+        .seekrow { width: 100%; }
+        .right { display: flex; align-items: center; gap: 12px; justify-content: flex-end; }
         .mobile-progress { display: none; }
         @media (max-width: 900px) {
-          .bar { left: 8px; right: 8px; bottom: calc(68px + env(safe-area-inset-bottom)); height: 58px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); box-shadow: var(--lift-hi); padding: 0 8px 0 8px; gap: 4px; }
-          .meta { flex: 1; width: auto; }
-          .center { flex: none; }
+          .bar { bottom: calc(56px + env(safe-area-inset-bottom)); height: 56px; display: flex; gap: 4px; padding: 0 8px; }
+          .left { flex: 1; }
+          .center { flex: none; width: auto; }
+          .meta :global(.cover) { width: 40px !important; height: 40px !important; }
           :global(.hide-sm) { display: none !important; }
-          .mobile-progress { display: block; position: absolute; left: 14px; right: 14px; bottom: 3px; }
-          .play { width: 36px; height: 36px; }
+          .mobile-progress { display: block; position: absolute; inset-inline: 8px; bottom: 0; }
         }
       `}</style>
     </div>

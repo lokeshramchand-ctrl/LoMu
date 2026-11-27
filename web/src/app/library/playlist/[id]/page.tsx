@@ -10,7 +10,11 @@ import { toast } from '@/components/Toast';
 
 function length(seconds: number) {
   const m = Math.round(seconds / 60);
-  return m >= 60 ? `${Math.floor(m / 60)} hr ${m % 60} min` : `${m} min`;
+  const hours = Math.floor(m / 60);
+  const rest = m % 60;
+  const hoursText = `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+  const minutesText = `${rest} ${rest === 1 ? 'minute' : 'minutes'}`;
+  return hours > 0 ? `${hoursText} ${minutesText}` : minutesText;
 }
 
 export default function UserPlaylistPage({ params }: { params: Promise<{ id: string }> }) {
@@ -53,12 +57,12 @@ export default function UserPlaylistPage({ params }: { params: Promise<{ id: str
               onBlur={save}
               onKeyDown={(e) => e.key === 'Escape' && setRenaming(false)}
               aria-label="Playlist name"
-              style={{ width: '100%', maxWidth: 520, fontSize: 'clamp(1.4rem, 2.6vw, 2rem)', fontWeight: 600, letterSpacing: '-.035em', background: 'var(--surface)', border: '1px solid var(--signal)', borderRadius: 12, padding: '4px 12px', outline: 0, boxShadow: '0 0 0 4px var(--signal-soft)' }}
+              style={{ width: '100%', maxWidth: 520, fontSize: 'clamp(1.4rem, 2.6vw, 2rem)', fontWeight: 600, letterSpacing: '-.035em', background: 'var(--surface)', border: '1px solid var(--signal)', borderRadius: 6, padding: '4px 12px', outline: '2px solid var(--ink)', boxShadow: '0 0 0 4px var(--signal-soft)' }}
             />
           </form>
         ) : undefined
       }
-      empty={<EmptyState icon="playlist" title="This playlist is empty" hint="Open the ⋯ menu on any song and choose “Add to playlist”." />}
+      empty={<EmptyState title="This playlist is empty" hint={'Right-click a song (long-press on a phone) and choose "Add to playlist".'} />}
       actions={
         <>
           <button
@@ -79,7 +83,7 @@ export default function UserPlaylistPage({ params }: { params: Promise<{ id: str
                 className="btn primary"
                 onClick={() => {
                   useLibrary.getState().deletePlaylist(p.id);
-                  toast(`Deleted “${p.name}”`);
+                  toast(`Deleted "${p.name}"`);
                   router.replace('/library');
                 }}
               >

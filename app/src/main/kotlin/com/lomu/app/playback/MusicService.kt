@@ -133,12 +133,9 @@ import java.net.InetAddress
 import java.net.Inet4Address
 import java.net.Inet6Address
 import java.util.concurrent.ConcurrentHashMap
-import com.lomu.app.constants.StopMusicOnTaskClearKey
 import com.lomu.app.db.MusicDatabase
 import com.lomu.app.db.entities.Event
 import com.lomu.app.db.entities.FormatEntity
-import com.lomu.app.db.entities.LyricsEntity
-import com.lomu.app.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
 import com.lomu.app.db.entities.RelatedSongMap
 import com.lomu.app.db.entities.Song
 import com.lomu.app.di.DownloadCache
@@ -158,7 +155,6 @@ import com.lomu.app.extensions.toEnum
 import com.lomu.app.extensions.toMediaItem
 import com.lomu.app.extensions.toPersistQueue
 import com.lomu.app.extensions.toQueue
-import com.lomu.app.lyrics.LyricsHelper
 import com.lomu.app.models.MediaMetadata
 import com.lomu.app.models.PersistPlayerState
 import com.lomu.app.models.PersistQueue
@@ -232,7 +228,7 @@ class MusicService :
     lateinit var database: MusicDatabase
 
     @Inject
-    lateinit var lyricsHelper: LyricsHelper
+    lateinit var syncClient: com.lomu.app.sync.SyncClient
 
     @Inject
     lateinit var mediaLibrarySessionCallback: MediaLibrarySessionCallback
@@ -735,28 +731,6 @@ class MusicService :
 
         currentSong.debounce(1000).collect(scope) { song ->
             updateNotification()
-        }
-
-        combine(
-            currentMediaMetadata.distinctUntilChangedBy { it?.id },
-            dataStore.data.map { it[DataSaverEnabledKey] != true }.distinctUntilChanged(),
-        ) { mediaMetadata, dataSaverDisabled ->
-            mediaMetadata to dataSaverDisabled
-        }.collectLatest(scope) { (mediaMetadata, dataSaverDisabled) ->
-            if (dataSaverDisabled && mediaMetadata != null && database.lyrics(mediaMetadata.id).first() == null) {
-                val lyricsWithProvider = lyricsHelper.getLyrics(mediaMetadata)
-                if (lyricsWithProvider.lyrics != LYRICS_NOT_FOUND) {
-                    database.query {
-                        upsert(
-                            LyricsEntity(
-                                id = mediaMetadata.id,
-                                lyrics = lyricsWithProvider.lyrics,
-                                provider = lyricsWithProvider.provider,
-                            ),
-                        )
-                    }
-                }
-            }
         }
 
         dataStore.data
@@ -1427,12 +1401,21 @@ class MusicService :
                         recoverSong(mediaId, playbackData)
                         Timber.tag(TAG).d("✓ PREFETCHED STREAM: Upcoming track index=$idx mediaId=$mediaId")
                     }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e // a newer prefetch of the same song replaced this one: expected, not an error
                 } catch (e: Exception) {
                     Timber.tag(TAG).w(e, "Failed to prefetch stream for upcoming track $mediaId")
                 }
             }
         }
     }
+
+    /**
+     * True while playQueue is still filling the player. The preloaded first song sits alone in the queue
+     * for a moment, which must not look like "the queue is about to end" and kick off radio: that radio
+     * would later replace the real queue and the song the user tapped.
+     */
+    @Volatile private var queueLoading = false
 
     fun playQueue(
         queue: Queue,
@@ -1459,12 +1442,14 @@ class MusicService :
         }
         // Reset original queue size when starting a new queue
         originalQueueSize = 0
+        queueLoading = true
         if (queue.preloadItem != null) {
             player.setMediaItem(queue.preloadItem!!.toMediaItem())
             player.prepare()
             player.playWhenReady = playWhenReady
         }
         scope.launch(SilentHandler) {
+          try {
             val initialStatus =
                 withContext(Dispatchers.IO) {
                     queue.getInitialStatus()
@@ -1472,6 +1457,8 @@ class MusicService :
                         .filterVideoSongs(dataStore.get(HideVideoSongsKey, false) || dataStore.get(DataSaverEnabledKey, false))
                 }
             if (queue.preloadItem != null && player.playbackState == STATE_IDLE) return@launch
+            // A newer queue took over while this one was loading: don't mix the two.
+            if (currentQueue !== queue) return@launch
             if (initialStatus.title != null) {
                 queueTitle = initialStatus.title
             }
@@ -1511,8 +1498,19 @@ class MusicService :
                 applyShuffleOrder(player.currentMediaItemIndex, player.mediaItemCount, shufflePlaylistFirst)
             }
             prefetchUpcomingTracks()
+          } finally {
+            if (currentQueue === queue) queueLoading = false
+          }
         }
     }
+
+    /** Autoplay in the listener's taste: skipped and blocked tracks out, liked artists first (same ranking as the web server). */
+    private suspend fun personalise(items: List<MediaItem>, seedId: String): List<MediaItem> = runCatching {
+        val (aff, slotAff) = withContext(Dispatchers.IO) { syncClient.autoplayAffinity() } ?: return@runCatching items
+        val byId = items.associateBy { it.mediaId }
+        val recent = (0..player.currentMediaItemIndex).map { player.getMediaItemAt(it).mediaId }.takeLast(30).toSet()
+        com.lomu.app.sync.nextUpRank(items.mapNotNull { it.metadata }, seedId, recent, aff, slotAff).mapNotNull { byId[it.id] }.ifEmpty { items }
+    }.getOrDefault(items)
 
     fun startRadioSeamlessly() {
         // Safety Check: Ensure Player is initilized
@@ -1523,7 +1521,7 @@ class MusicService :
 
         val currentMediaMetadata = player.currentMetadata ?: return
 
-        val currentIndex = player.currentMediaItemIndex
+        if (queueLoading) return
         val currentMediaId = currentMediaMetadata.id
 
         scope.launch(SilentHandler) {
@@ -1548,9 +1546,13 @@ class MusicService :
                 }
 
                 // Filter radio items to exclude current media item
-                val radioItems = initialStatus.items.filter { item ->
+                val radioItems = personalise(initialStatus.items.filter { item ->
                     item.mediaId != currentMediaId
-                }
+                }, currentMediaId)
+
+                // The song may have changed or a new queue loaded while radio was being fetched.
+                val currentIndex = player.currentMediaItemIndex
+                if (queueLoading || player.currentMediaItem?.mediaId != currentMediaId) return@launch
 
                 if (radioItems.isNotEmpty()) {
                     val itemCount = player.mediaItemCount
@@ -1584,7 +1586,8 @@ class MusicService :
                                 .filterExplicit(dataStore.get(HideExplicitKey, false))
                                 .filterVideoSongs(dataStore.get(HideVideoSongsKey, false) || dataStore.get(DataSaverEnabledKey, false))
 
-                            if (radioItems.isNotEmpty()) {
+                            val currentIndex = player.currentMediaItemIndex
+                            if (!queueLoading && player.currentMediaItem?.mediaId == currentMediaId && radioItems.isNotEmpty()) {
                                 val itemCount = player.mediaItemCount
                                 if (itemCount > currentIndex + 1) {
                                     player.removeMediaItems(currentIndex + 1, itemCount)
@@ -2877,6 +2880,8 @@ class MusicService :
                                     .Builder()
                                     .dns(object : Dns {
                                         override fun lookup(hostname: String): List<InetAddress> {
+                                            // The LoMu server's stream proxy: same fallback to its home-network address as sync uses.
+                                            if (syncClient.isServerHost(hostname)) return syncClient.lanAwareDns.lookup(hostname)
                                             val addresses = Dns.SYSTEM.lookup(hostname)
                                             return when (this@MusicService.ipVersion) {
                                                 IpVersion.IPV4 -> addresses.filter { it is Inet4Address }.ifEmpty { addresses }
@@ -3084,6 +3089,11 @@ class MusicService :
                         forceStandardAudio = forceStandardAudioMediaIds.contains(mediaId),
                     )
                 }.getOrElse { throwable ->
+                    // This phone could not resolve the stream: let the LoMu server do it and play its proxy.
+                    syncClient.streamFallback(mediaId)?.let { (url, token) ->
+                        Timber.tag(TAG).w("Local stream resolve failed for $mediaId (${throwable.message}); using the server stream")
+                        return@Factory spec.withUri(url.toUri()).withAdditionalHeaders(mapOf("Authorization" to "Bearer $token"))
+                    }
                     when (throwable) {
                         is PlaybackException -> throw throwable
 
@@ -3260,7 +3270,27 @@ class MusicService :
     // ExoPlayer state must be read on its application thread (main), so only the
     // file IO goes to the worker; the single worker serializes saves so a newer
     // snapshot can't be overwritten by an older one.
-    private fun saveQueueToDisk() {
+    private var queueSaveJob: Job? = null
+
+    /**
+     * Bursts of player events (transition, timeline, shuffle, state) used to each snapshot the whole queue on
+     * the main thread and rewrite three files. Now one save runs shortly after the first request and picks up
+     * the latest state; [immediate] (shutdown) skips the wait.
+     */
+    private fun saveQueueToDisk(immediate: Boolean = false) {
+        if (immediate) {
+            queueSaveJob?.cancel()
+            snapshotAndSaveQueue()
+            return
+        }
+        if (queueSaveJob?.isActive == true) return
+        queueSaveJob = scope.launch {
+            delay(600)
+            snapshotAndSaveQueue()
+        }
+    }
+
+    private fun snapshotAndSaveQueue() {
         val queue = currentQueue
         val title = queueTitle
         val items = player.mediaItems.mapNotNull { it.metadata }
@@ -3273,6 +3303,7 @@ class MusicService :
         val volume = player.volume
         val playbackState = player.playbackState
         val automixItems = automixItems.value.mapNotNull { it.metadata }
+        runCatching { syncClient.noteQueue(items, mediaItemIndex, position, player.isPlaying) } // offered to the other devices at the next sync
         persistenceScope.launch {
             persistQueueToDisk(
                 queue = queue,
@@ -3383,7 +3414,7 @@ class MusicService :
         audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
         castConnectionHandler?.release()
         if (dataStore.get(PersistentQueueKey, true)) {
-            saveQueueToDisk()
+            saveQueueToDisk(immediate = true)
         }
         connectivityObserver.unregister()
         abandonAudioFocus()
@@ -3414,14 +3445,11 @@ class MusicService :
      * is the thing still holding playback, so it is also the thing that can stop it.
      */
     override fun onTaskRemoved(rootIntent: Intent?) {
-        if (dataStore.get(StopMusicOnTaskClearKey, false)) {
-            Timber.tag(TAG).d("Task removed with stop-on-task-clear enabled, stopping playback")
-            player.stop()
-            // stopSelf as well as stop(): a paused-but-alive session leaves the
-            // notification sitting in the shade after the app is gone, which reads as the
-            // setting not having worked even though the audio did stop.
-            stopSelf()
-        }
+        // Swiping LoMu away from the recent apps always stops the music (there is no setting for it).
+        Timber.tag(TAG).d("Task removed, stopping playback")
+        player.stop()
+        // stopSelf as well as stop(): a paused-but-alive session leaves the notification in the shade.
+        stopSelf()
         super.onTaskRemoved(rootIntent)
     }
 

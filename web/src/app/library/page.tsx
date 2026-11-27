@@ -1,17 +1,20 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useLibrary } from '@/player/library';
 import { usePlayer } from '@/player/store';
 import type { Track } from '@/lib/types';
 import { TrackRow, ItemCard } from '@/components/Cards';
-import { Cover } from '@/components/Art';
+import { Avatar, Cover } from '@/components/Art';
 import { Mosaic } from '@/components/Mosaic';
-import { Icon, type IconName } from '@/components/Icon';
-import { EmptyState, PageHeader, Stat } from '@/components/ui';
+import { Icon } from '@/components/Icon';
+import { EmptyState, PageHeader } from '@/components/ui';
+import { Bento, Tile } from '@/components/Bento';
 
-type Tab = 'liked' | 'playlists' | 'albums' | 'artists' | 'history';
+type Tab = 'all' | 'liked' | 'playlists' | 'albums' | 'artists' | 'history';
 const TABS: { id: Tab; label: string }[] = [
+  { id: 'all', label: 'All' },
   { id: 'liked', label: 'Liked' },
   { id: 'playlists', label: 'Playlists' },
   { id: 'albums', label: 'Albums' },
@@ -20,7 +23,13 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 export default function Library() {
-  const [tab, setTab] = useState<Tab>('liked');
+  const params = useSearchParams();
+  const [tab, setTab] = useState<Tab>('all');
+  // the sidebar links here with ?tab=liked
+  useEffect(() => {
+    const t = params.get('tab') as Tab | null;
+    if (t && TABS.some((x) => x.id === t)) setTab(t);
+  }, [params]);
   const [filter, setFilter] = useState('');
   const [sort, setSort] = useState<'recent' | 'title' | 'artist'>('recent');
   const [naming, setNaming] = useState(false);
@@ -46,23 +55,17 @@ export default function Library() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const historyTracks: Track[] = useMemo(() => history.slice(0, 300).map((p) => p.track).filter(matches), [history, q]);
   const shownPlaylists = playlists.filter((p) => !q || p.name.toLowerCase().includes(q));
-  const counts: Record<Tab, number> = { liked: likedAll.length, playlists: playlists.length + savedCount, albums: Object.keys(albums).length, artists: Object.keys(artists).length, history: history.length };
+  const counts: Record<Tab, number> = { all: 0, liked: likedAll.length, playlists: playlists.length + savedCount, albums: Object.keys(albums).length, artists: Object.keys(artists).length, history: history.length };
   const pick = (t: Tab) => {
     setTab(t);
     setFilter('');
   };
 
   return (
-    <>
-      <PageHeader eyebrow="Library" title="Your library" sub="Everything you have liked, saved and played. Synced to your other devices." />
+    <Bento className="fade-in">
+      <PageHeader title="Collections" sub={`${playlists.length + savedCount} playlists   ${likedAll.length} liked songs`} actions={<Link href="/import" className="btn">Import</Link>} />
 
-      <section className="grid-stats">
-        <button className="statbtn" onClick={() => pick('liked')}><Stat icon="heart" label="Liked songs" value={likedAll.length} /></button>
-        <button className="statbtn" onClick={() => pick('playlists')}><Stat icon="playlist" label="Playlists" value={playlists.length + savedCount} /></button>
-        <button className="statbtn" onClick={() => pick('albums')}><Stat icon="disc" label="Albums saved" value={Object.keys(albums).length} /></button>
-        <button className="statbtn" onClick={() => pick('history')}><Stat icon="history" label="Plays logged" value={history.length} /></button>
-      </section>
-
+      <Tile span={12} className="bar-tile" label="Library controls">
       <div className="bar">
         <div className="chips" role="tablist">
           {TABS.map((t) => (
@@ -91,37 +94,85 @@ export default function Library() {
           </select>
         )}
       </div>
+      </Tile>
+
+      {tab === 'all' && (
+        <Tile span={12} flush label="All collections">
+          <div className="cgrid">
+            {likedAll.length > 0 && (
+              <button className="ccard" style={{ background: 'var(--tile-1)' }} onClick={() => pick('liked')}>
+                <span className="ca"><Cover src={likedAll[0]?.thumb} size="100%" radius={20} /></span>
+                <b className="clamp1">Liked songs</b>
+                <span className="muted clamp1">{likedAll.length} tracks</span>
+              </button>
+            )}
+            {playlists.map((p, i) => (
+              <Link key={p.id} href={`/library/playlist/${p.id}`} className="ccard" style={{ background: `var(--tile-${((i + 1) % 4) + 1})` }}>
+                <span className="ca"><Mosaic tracks={p.tracks} size="100%" /></span>
+                <b className="clamp1">{p.name}</b>
+                <span className="muted clamp1">{p.tracks.length} tracks</span>
+              </Link>
+            ))}
+            {Object.values(saved).sort((a, b) => b.at - a.at).map((x, i) => (
+              <Link key={`s${x.item.id}`} href={`/playlist/${x.item.id}`} className="ccard" style={{ background: `var(--tile-${(i % 4) + 1})` }}>
+                <span className="ca"><Cover src={x.item.thumb} size="100%" radius={20} /></span>
+                <b className="clamp1">{x.item.title}</b>
+                <span className="muted clamp1">Playlist</span>
+              </Link>
+            ))}
+            {Object.values(albums).sort((a, b) => b.at - a.at).map((x, i) => (
+              <Link key={`a${x.item.id}`} href={`/album/${x.item.id}`} className="ccard" style={{ background: `var(--tile-${((i + 2) % 4) + 1})` }}>
+                <span className="ca"><Cover src={x.item.thumb} size="100%" radius={20} /></span>
+                <b className="clamp1">{x.item.title}</b>
+                <span className="muted clamp1">Album</span>
+              </Link>
+            ))}
+            {Object.values(artists).sort((a, b) => b.at - a.at).map((x, i) => (
+              <Link key={`r${x.item.id}`} href={`/artist/${x.item.id}`} className="ccard" style={{ background: `var(--tile-${((i + 3) % 4) + 1})` }}>
+                <span className="ca"><Avatar src={x.item.thumb} size="100%" /></span>
+                <b className="clamp1">{x.item.title}</b>
+                <span className="muted clamp1">Artist</span>
+              </Link>
+            ))}
+            {likedAll.length === 0 && playlists.length === 0 && Object.keys(saved).length === 0 && Object.keys(albums).length === 0 && Object.keys(artists).length === 0 && (
+              <Empty title="Nothing here yet" text="Like songs, make a playlist on the Create tab, or import your YouTube Music library." />
+            )}
+          </div>
+        </Tile>
+      )}
 
       {tab === 'liked' && (
-        <section className="fade-in">
-          <div className="hero card pad">
-            <Cover src={likedAll[0]?.thumb} size={112} radius={14} />
-            <div className="grow">
-              <div className="eyebrow">Collection</div>
-              <h2 className="ht">Liked songs</h2>
-              <div className="muted small">{likedAll.length} songs{q ? ` · ${likedTracks.length} match` : ''}</div>
-              <div className="row" style={{ marginTop: 14 }}>
-                <button className="btn primary" disabled={!likedTracks.length} onClick={() => usePlayer.getState().play(likedTracks, 0, { source: 'liked' })}>
-                  <Icon name="play" size={14} /> Play
-                </button>
-                <button className="btn" disabled={!likedTracks.length} onClick={() => usePlayer.getState().play(likedTracks, 0, { source: 'liked', shuffle: true })}>
-                  <Icon name="shuffle" size={16} /> Shuffle
-                </button>
+        <>
+          <Tile span={12} tone="glow" className="likedhead" label="Liked songs collection">
+            <div className="hero">
+              <span className="likeart"><Icon name="heartFill" size={64} /></span>
+              <div className="grow">
+                <h2 className="ht">Liked songs</h2>
+                <div className="muted">{likedAll.length} songs{q ? ` · ${likedTracks.length} match` : ''}</div>
               </div>
+              <button className="bigplay" aria-label="Play liked songs" disabled={!likedTracks.length} onClick={() => usePlayer.getState().play(likedTracks, 0, { source: 'liked' })}>
+                <Icon name="play" size={24} />
+              </button>
+              <button className="icon-btn big" aria-label="Shuffle liked songs" title="Shuffle" disabled={!likedTracks.length} onClick={() => usePlayer.getState().play(likedTracks, 0, { source: 'liked', shuffle: true })}>
+                <Icon name="shuffle" size={28} />
+              </button>
             </div>
-          </div>
-          {likedAll.length === 0 && <EmptyState icon="heart" title="No liked songs yet" hint="Tap the heart on any song and it lands here." />}
-          {likedAll.length > 0 && likedTracks.length === 0 && <EmptyState icon="search" title="No matches" hint={`Nothing in your liked songs matches “${filter}”.`} />}
-          <div className="list">
-            {likedTracks.map((t, i) => (
-              <TrackRow key={t.id} track={t} index={i} list={likedTracks} />
-            ))}
-          </div>
-        </section>
+          </Tile>
+          <Tile span={12} flush label="Liked songs">
+            {likedAll.length === 0 && <EmptyState title="No liked songs yet" hint="Tap the heart on any song and it lands here." />}
+            {likedAll.length > 0 && likedTracks.length === 0 && <EmptyState title="No matches" hint={`Nothing in your liked songs matches "${filter}".`} />}
+            <div className="list">
+              {likedTracks.map((t, i) => (
+                <TrackRow key={t.id} track={t} index={i} list={likedTracks} />
+              ))}
+            </div>
+          </Tile>
+        </>
       )}
 
       {tab === 'playlists' && (
-        <section className="fade-in grid">
+        <Tile span={12} title="Playlists" label="Playlists">
+        <div className="grid">
           {naming ? (
             <form
               className="newpl card"
@@ -140,9 +191,7 @@ export default function Library() {
             </form>
           ) : (
             <button className="newpl card" onClick={() => setNaming(true)}>
-              <span className="chip-ic lg">
-                <Icon name="plus" size={20} />
-              </span>
+              <Icon name="plus" size={20} />
               New playlist
             </button>
           )}
@@ -158,70 +207,84 @@ export default function Library() {
             .map((x) => (
               <ItemCard key={x.item.id} item={x.item} />
             ))}
-        </section>
+        </div>
+        </Tile>
       )}
 
       {tab === 'albums' && (
-        <section className="fade-in grid">
-          {Object.values(albums).length === 0 && <Empty icon="disc" title="No saved albums" text="Save albums with the Save button on any album page." />}
+        <Tile span={12} title="Albums" label="Albums">
+        <div className="grid">
+          {Object.values(albums).length === 0 && <Empty title="No saved albums" text="Save albums with the Save button on any album page." />}
           {Object.values(albums)
             .sort((a, b) => b.at - a.at)
             .map((x) => (
               <ItemCard key={x.item.id} item={x.item} />
             ))}
-        </section>
+        </div>
+        </Tile>
       )}
 
       {tab === 'artists' && (
-        <section className="fade-in grid">
-          {Object.values(artists).length === 0 && <Empty icon="user" title="No followed artists" text="Follow artists from their page and they show up here." />}
+        <Tile span={12} title="Artists" label="Artists">
+        <div className="grid">
+          {Object.values(artists).length === 0 && <Empty title="No followed artists" text="Follow artists from their page and they show up here." />}
           {Object.values(artists)
             .sort((a, b) => b.at - a.at)
             .map((x) => (
               <ItemCard key={x.item.id} item={x.item} />
             ))}
-        </section>
+        </div>
+        </Tile>
       )}
 
       {tab === 'history' && (
-        <section className="fade-in list">
-          {historyTracks.length === 0 && <EmptyState icon={q ? 'search' : 'history'} title={q ? 'No matches' : 'Nothing played yet'} hint={q ? `Nothing in your history matches “${filter}”.` : 'Songs you play will appear here.'} />}
-          {historyTracks.map((t, i) => (
-            <TrackRow key={`${t.id}-${i}`} track={t} index={i} list={historyTracks} />
-          ))}
-        </section>
+        <Tile span={12} flush title="History" sub={`${historyTracks.length} plays`} label="History">
+          {historyTracks.length === 0 && <EmptyState title={q ? 'No matches' : 'Nothing played yet'} hint={q ? `Nothing in your history matches "${filter}".` : 'Songs you play will appear here.'} />}
+          <div className="list">
+            {historyTracks.map((t, i) => (
+              <TrackRow key={`${t.id}-${i}`} track={t} index={i} list={historyTracks} />
+            ))}
+          </div>
+        </Tile>
       )}
 
       <style jsx>{`
-        .statbtn { text-align: left; display: block; border-radius: var(--r); transition: transform .3s var(--spring); }
-        .statbtn:hover { transform: translateY(-2px); }
-        .bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+                .bar { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
         .cnt { margin-left: 6px; font-size: 11px; font-weight: 600; opacity: .6; }
-        .filter { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 8px 0 12px; border-radius: 999px; border: 1px solid var(--border-2); background: var(--surface); color: var(--muted); flex: 1; min-width: 180px; max-width: 320px; }
-        .filter:focus-within { border-color: var(--signal); box-shadow: 0 0 0 3px var(--signal-soft); color: var(--text); }
-        .filter input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-size: 13.5px; color: var(--text); }
-        .sort { height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--border-2); background: var(--surface); font-size: 13px; font-weight: 500; }
-        .nameinp { width: 100%; height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--border-2); background: var(--surface); outline: 0; }
-        .nameinp:focus { border-color: var(--signal); box-shadow: 0 0 0 3px var(--signal-soft); }
-        .hero { display: flex; align-items: center; gap: 22px; margin-bottom: 14px; }
-        .ht { font-size: 1.7rem; font-weight: 600; letter-spacing: -.04em; line-height: 1.1; margin: 4px 0; }
-        .list { display: flex; flex-direction: column; gap: 1px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(164px, 1fr)); gap: 24px 20px; }
-        .newpl { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 12px; aspect-ratio: 1; font-weight: 500; transition: box-shadow .25s var(--ease), transform .3s var(--spring); }
-        .newpl:hover { box-shadow: var(--lift-hi); transform: translateY(-2px); }
-        :global(.pl) { display: block; }
-        .t { font-weight: 600; font-size: 13.5px; margin-top: 10px; }
-        .s { font-size: 12.5px; margin-top: 2px; }
-        @media (max-width: 900px) { .grid { grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); } .hero { flex-direction: column; align-items: flex-start; } }
+        .filter { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 8px 0 12px; border-radius: 4px; background: var(--pill); color: var(--muted); flex: 1; min-width: 180px; max-width: 320px; }
+        .filter:focus-within { box-shadow: 0 0 0 2px var(--ink); color: var(--text); }
+        .filter input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-size: 14px; color: var(--ink); }
+        .sort { height: 32px; padding: 0 12px; border-radius: var(--r); border: 0; background: var(--pill); color: var(--text); font-size: 14px; font-weight: 500; }
+        .nameinp { width: 100%; height: 40px; padding: 0 12px; border-radius: 4px; border: 0; background: var(--surface-2); color: var(--ink); outline: 0; font-size: 16px; }
+        .nameinp:focus { box-shadow: 0 0 0 2px var(--ink); }
+        .hero { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+        .likeart { width: 140px; height: 140px; border-radius: 4px; display: grid; place-items: center; color: var(--on-signal); background: var(--liked); box-shadow: 0 0 0 1px var(--border); flex: none; }
+        .ht { font-size: clamp(32px, 4.4vw, 64px); font-family: var(--font-display); font-weight: 400; letter-spacing: -.03em; line-height: 1; margin: 4px 0 8px; }
+        :global(.likedhead) { background: linear-gradient(180deg, var(--signal-soft), transparent) !important; padding: var(--sp-5) !important; }
+        .cgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; padding: 4px; }
+        :global(.ccard) { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 16px 12px 14px; border-radius: 24px; text-align: center; color: var(--ink); min-width: 0; transition: transform .1s ease-out; }
+        :global(.ccard:active) { transform: scale(.98); }
+        :global(.ccard) .ca { width: 74%; aspect-ratio: 1; margin-bottom: 10px; display: block; }
+        :global(.ccard) .ca :global(.cover) { width: 100% !important; height: 100% !important; }
+        :global(.ccard) b { max-width: 100%; font-weight: 500; font-size: 1rem; }
+        :global(.ccard) .muted { max-width: 100%; font-size: .8125rem; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 16px; }
+        .newpl { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 12px; aspect-ratio: 1; font-weight: 600; border-radius: var(--r); background: var(--surface); transition: background .3s var(--ease); }
+        .newpl:hover { background: var(--card-hover); }
+        :global(.pl) { display: block; padding: 12px; border-radius: 8px; background: var(--surface); transition: background .3s var(--ease); }
+        :global(.pl:hover) { background: var(--card-hover); }
+        .t { font-weight: 700; font-size: 16px; margin-top: 16px; }
+        .s { font-size: 14px; margin-top: 4px; }
+        @media (max-width: 900px) { .grid { grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); } .hero { gap: 16px; } .hero .grow { flex: 1 1 calc(100% - 112px); } .likeart { width: 96px; height: 96px; } }
       `}</style>
-    </>
+    </Bento>
   );
 }
 
-function Empty({ icon, title, text }: { icon: IconName; title: string; text: string }) {
+function Empty({ title, text }: { title: string; text: string }) {
   return (
     <div style={{ gridColumn: '1 / -1' }}>
-      <EmptyState icon={icon} title={title} hint={text} />
+      <EmptyState title={title} hint={text} />
     </div>
   );
 }

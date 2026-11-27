@@ -1,16 +1,18 @@
 'use client';
-import { Suspense, useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSearch, useSuggest } from '@/lib/api';
 import { artistNames, hrefFor } from '@/lib/format';
 import type { Item } from '@/lib/types';
-import { ItemCard, ShelfRow, ShelfSkeleton, TrackRow } from '@/components/Cards';
+import { ItemCard, ShelfTile, ShelfSkeleton, TrackRow } from '@/components/Cards';
 import { Avatar, Cover } from '@/components/Art';
-import { PageHeader } from '@/components/ui';
+import { Bento, Tile } from '@/components/Bento';
 import { Icon } from '@/components/Icon';
 import { useLibrary } from '@/player/library';
 import { usePlayer } from '@/player/store';
+import { matchLibrary } from '@/lib/libsearch';
+
+const CATS = ['Top hits India', 'Lo-fi beats', 'Workout', 'Arijit Singh', 'Anirudh', 'Chill vibes', 'Punjabi', '90s Bollywood'];
 
 export default function SearchPage() {
   return (
@@ -29,6 +31,12 @@ function SearchInner() {
   const [focused, setFocused] = useState(!q);
   const input = useRef<HTMLInputElement>(null);
   const recent = useLibrary((s) => s.recentSearches);
+  const liked = useLibrary((s) => s.liked);
+  const history = useLibrary((s) => s.history);
+  const mine = useMemo(
+    () => (q ? matchLibrary(q, Object.values(liked).sort((a, b) => b.at - a.at).map((x) => x.track), history.map((p) => p.track)) : []),
+    [q, liked, history],
+  );
   const [type, setType] = useState<'all' | 'songs' | 'artists' | 'albums' | 'playlists' | 'videos'>('all');
 
   useEffect(() => {
@@ -56,8 +64,9 @@ function SearchInner() {
   };
 
   return (
-    <div>
-      <PageHeader title="Search" sub="Songs, artists, albums and playlists from YouTube Music." />
+    <Bento className="fade-in">
+      <h1 className="sr-only">Search</h1>
+      <div className="bento-full sb">
       <form
         className="box"
         onSubmit={(e) => {
@@ -84,50 +93,45 @@ function SearchInner() {
         )}
       </form>
 
-      {focused && (text.trim().length > 1 ? sugg.data : recent.length > 0) && (
+      {focused && text.trim().length > 1 && sugg.data && (
         <div className="sugg card fade-in">
-          {text.trim().length > 1 ? (
-            <>
-              {sugg.data?.queries.map((s) => (
-                <button key={s} className="srow" onMouseDown={(e) => e.preventDefault()} onClick={() => submit(s)}>
-                  <Icon name="search" size={16} />
-                  <span className="clamp1">{s}</span>
-                </button>
-              ))}
-              {sugg.data?.items.map((it) => (
-                <SuggestItem key={it.kind + it.id} item={it} onDone={() => setFocused(false)} />
-              ))}
-            </>
-          ) : (
-            <>
-              <div className="row" style={{ justifyContent: 'space-between', padding: '6px 12px' }}>
-                <span className="eyebrow" style={{ color: 'var(--muted)' }}>Recent</span>
-                <button className="muted" style={{ fontSize: 12.5, fontWeight: 500 }} onMouseDown={(e) => e.preventDefault()} onClick={() => useLibrary.getState().clearSearches()}>
-                  Clear
-                </button>
-              </div>
-              {recent.map((s) => (
-                <button key={s} className="srow" onMouseDown={(e) => e.preventDefault()} onClick={() => submit(s)}>
-                  <Icon name="history" size={16} />
-                  <span className="clamp1">{s}</span>
-                </button>
-              ))}
-            </>
-          )}
+          {sugg.data.queries.map((s) => (
+            <button key={s} className="srow" onMouseDown={(e) => e.preventDefault()} onClick={() => submit(s)}>
+              <Icon name="search" size={16} />
+              <span className="clamp1">{s}</span>
+            </button>
+          ))}
+          {sugg.data.items.map((it) => (
+            <SuggestItem key={it.kind + it.id} item={it} onDone={() => setFocused(false)} />
+          ))}
         </div>
       )}
+      </div>
 
       {q && isLoading && (
-        <>
-          <ShelfSkeleton />
-          <ShelfSkeleton />
-        </>
+        <Tile span={12} flush label="Loading results">
+          <ShelfSkeleton title={false} />
+        </Tile>
       )}
-      {error && <div className="callout err" style={{ marginTop: 20 }}><Icon name="warn" size={18} />Search failed: {(error as Error).message}</div>}
+      {error && (
+        <Tile span={12} tone="quiet" label="Search error">
+          <div className="callout err"><Icon name="warn" size={16} />Search did not finish. Check your connection and try again.</div>
+        </Tile>
+      )}
+
+      {mine.length > 0 && (
+        <Tile span={12} flush title="In your library" label="In your library">
+          <div className="list">
+            {mine.map((t, i) => (
+              <TrackRow key={t.id} track={t} index={i} list={mine} />
+            ))}
+          </div>
+        </Tile>
+      )}
 
       {data && (
-        <div className="results fade-in">
-          <div className="chips" role="tablist" aria-label="Result type">
+        <>
+          <div className="chips bento-full" role="tablist" aria-label="Result type" style={{ justifySelf: 'start' }}>
             {([
               ['all', 'All', 0],
               ['songs', 'Songs', data.songs.length],
@@ -146,61 +150,82 @@ function SearchInner() {
 
           {type === 'all' && (
             <>
-              <div className="top-grid">
-                {data.top && <TopResult item={data.top} />}
-                {data.songs.length > 0 && (
-                  <section className="songs">
-                    <div className="section-head">
-                      <h2>Songs</h2>
-                      {data.songs.length > 5 && (
-                        <button className="btn ghost sm" onClick={() => setType('songs')}>
-                          Show all {data.songs.length}
-                        </button>
-                      )}
-                    </div>
+              {data.top && <TopResult item={data.top} />}
+              {data.songs.length > 0 && (
+                <Tile
+                  span={data.top ? 7 : 12}
+                  md={12}
+                  flush
+                  title="Songs"
+                  label="Songs"
+                  action={
+                    data.songs.length > 5 ? (
+                      <button className="btn ghost sm" onClick={() => setType('songs')}>
+                        Show all {data.songs.length}
+                      </button>
+                    ) : undefined
+                  }
+                >
+                  <div className="list">
                     {data.songs.slice(0, 5).map((t, i) => (
                       <TrackRow key={t.id} track={t} index={i} list={data.songs} />
                     ))}
-                  </section>
-                )}
-              </div>
-              {data.artists.length > 0 && <ShelfRow shelf={{ title: 'Artists', items: data.artists }} />}
-              {data.albums.length > 0 && <ShelfRow shelf={{ title: 'Albums & singles', items: data.albums }} />}
-              {data.playlists.length > 0 && <ShelfRow shelf={{ title: 'Playlists', items: data.playlists }} />}
-              {data.videos.length > 0 && <ShelfRow shelf={{ title: 'Videos', items: data.videos }} />}
+                  </div>
+                </Tile>
+              )}
+              {data.artists.length > 0 && <ShelfTile shelf={{ title: 'Artists', items: data.artists }} />}
+              {data.albums.length > 0 && <ShelfTile shelf={{ title: 'Albums & singles', items: data.albums }} />}
+              {data.playlists.length > 0 && <ShelfTile shelf={{ title: 'Playlists', items: data.playlists }} />}
+              {data.videos.length > 0 && <ShelfTile shelf={{ title: 'Videos', items: data.videos }} />}
             </>
           )}
 
           {type === 'songs' && (
-            <section>
-              <div className="section-head">
-                <h2>Songs</h2>
+            <Tile
+              span={12}
+              flush
+              title="Songs"
+              sub={`${data.songs.length} results`}
+              label="Songs"
+              action={
                 <button className="btn primary sm" onClick={() => usePlayer.getState().play(data.songs, 0, { source: `search:${q}` })}>
-                  <Icon name="play" size={13} /> Play all
+                  <Icon name="play" size={10} /> Play all
                 </button>
+              }
+            >
+              <div className="list">
+                {data.songs.map((t, i) => (
+                  <TrackRow key={t.id} track={t} index={i} list={data.songs} />
+                ))}
               </div>
-              {data.songs.map((t, i) => (
-                <TrackRow key={t.id} track={t} index={i} list={data.songs} />
-              ))}
-            </section>
+            </Tile>
           )}
-          {type === 'artists' && <ItemGrid items={data.artists} />}
-          {type === 'albums' && <ItemGrid items={data.albums} />}
-          {type === 'playlists' && <ItemGrid items={data.playlists} />}
-          {type === 'videos' && <ItemGrid items={data.videos} />}
+          {type === 'artists' && <ItemGrid items={data.artists} title="Artists" />}
+          {type === 'albums' && <ItemGrid items={data.albums} title="Albums" />}
+          {type === 'playlists' && <ItemGrid items={data.playlists} title="Playlists" />}
+          {type === 'videos' && <ItemGrid items={data.videos} title="Videos" />}
 
-          {!data.songs.length && !data.albums.length && !data.artists.length && <div className="empty"><b>Nothing found for “{q}”</b><span>Try a different spelling, or search for the artist.</span></div>}
-        </div>
+          {!data.songs.length && !data.albums.length && !data.artists.length && (
+            <Tile span={12} tone="quiet" label="No results">
+              <div className="empty"><b>Nothing found for "{q}"</b><span>Try a different spelling, or search for the artist.</span></div>
+            </Tile>
+          )}
+        </>
       )}
 
       {!q && (
-        <div className="start fade-in">
+        <>
           {recent.length > 0 && (
-            <section>
-              <div className="section-head">
-                <h2>Recent searches</h2>
-                <button className="btn ghost sm" onClick={() => useLibrary.getState().clearSearches()}>Clear</button>
-              </div>
+            <Tile
+              span={12}
+              title="Recent searches"
+              label="Recent searches"
+              action={
+                <button className="btn ghost sm" onClick={() => useLibrary.getState().clearSearches()}>
+                  Clear
+                </button>
+              }
+            >
               <div className="pills">
                 {recent.map((r) => (
                   <button key={r} className="pill" onClick={() => submit(r)}>
@@ -208,41 +233,42 @@ function SearchInner() {
                   </button>
                 ))}
               </div>
-            </section>
+            </Tile>
           )}
-          <section>
-            <div className="section-head"><h2>Try searching for</h2></div>
-            <div className="pills">
-              {['Top hits India', 'Lo-fi beats', 'Workout', 'Arijit Singh', 'Anirudh', 'Chill vibes'].map((r) => (
-                <button key={r} className="pill" onClick={() => submit(r)}>
-                  <Icon name="search" size={14} /> {r}
+          <Tile span={12} title="Browse categories" label="Browse categories">
+            <div className="cats">
+              {CATS.map((label) => (
+                <button key={label} className="cat" onClick={() => submit(label)}>
+                  {label}
                 </button>
               ))}
             </div>
-          </section>
-        </div>
+          </Tile>
+        </>
       )}
 
       <style jsx>{`
-        .box { position: relative; display: flex; align-items: center; gap: 12px; height: 52px; padding: 0 10px 0 18px; border-radius: 999px; margin-top: 4px; background: var(--surface); border: 1px solid var(--border-2); color: var(--muted); transition: border-color .2s, box-shadow .2s; }
-        .box:focus-within { border-color: var(--signal); box-shadow: 0 0 0 4px var(--signal-soft); color: var(--text); }
-        .box input { flex: 1; border: 0; outline: 0; background: transparent; font-size: 16px; font-weight: 500; color: var(--text); min-width: 0; }
+        .cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+        .cat { position: relative; display: flex; align-items: flex-end; height: 120px; padding: 16px; border-radius: var(--r); background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); color: var(--ink); font-family: var(--font-display); font-size: 1.5rem; letter-spacing: -.02em; line-height: 1.1; text-align: left; transition: background .15s, transform .1s ease-out; }
+        .cat:hover { background: var(--card-hover); }
+        .cat:active { transform: scale(.98); }
+        @media (max-width: 900px) { .cats { grid-template-columns: 1fr 1fr; gap: 12px; } .cat { height: 88px; font-size: 1.125rem; } }
+        .box { position: relative; display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 12px 0 16px; border-radius: var(--r); background: var(--surface-2); color: var(--muted); transition: background .15s, box-shadow .15s; }
+        .box:hover { background: var(--card-hover); }
+        .box:focus-within { background: var(--card-hover); box-shadow: 0 0 0 2px var(--ink); color: var(--text); }
+        .box input { flex: 1; border: 0; outline: 0; background: transparent; font-size: 16px; font-weight: 400; color: var(--ink); min-width: 0; }
         .box input::placeholder { color: var(--muted); font-weight: 400; }
-        .sugg { position: absolute; z-index: 30; margin-top: 8px; width: min(640px, calc(100% - 2 * var(--gutter))); padding: 8px; box-shadow: var(--lift-hi); }
-        :global(.srow) { display: flex; align-items: center; gap: 12px; width: 100%; padding: 9px 10px; border-radius: 10px; text-align: left; font-weight: 500; font-size: 13.5px; color: var(--text); }
-        :global(.srow:hover) { background: var(--surface-2); }
-        .results { margin-top: 4px; display: flex; flex-direction: column; gap: 20px; }
-        .start { margin-top: 18px; display: flex; flex-direction: column; gap: 22px; }
+        .sb { position: relative; }
+        .sugg { position: absolute; z-index: 30; inset-inline-start: 0; top: calc(100% + 8px); width: min(640px, 100%); padding: 8px; background: var(--card-hover); border-radius: var(--r); box-shadow: var(--shadow-lg), 0 0 0 1px var(--border-2); }
+        :global(.srow) { display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 12px; border-radius: var(--r-sm); text-align: start; font-weight: 400; font-size: 1rem; color: var(--text); }
+        :global(.srow:hover) { background: var(--row-hover); }
         .pills { display: flex; flex-wrap: wrap; gap: 8px; }
-        .pill { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border-2); background: var(--surface); font-size: 13.5px; font-weight: 500; transition: background .2s, transform .3s var(--spring); }
-        .pill:hover { background: var(--surface-2); }
-        .pill:active { transform: scale(.97); }
-        .results :global(.chips) { align-self: flex-start; }
+        .pill { display: inline-flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 14px; border-radius: var(--r); background: var(--pill); font-size: 14px; font-weight: 500; transition: background .2s; }
+        .pill:hover { background: var(--pill-hover); }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(164px, 1fr)); gap: 24px 20px; }
-        .top-grid { display: grid; grid-template-columns: minmax(260px, 360px) 1fr; gap: 24px; align-items: start; }
-        @media (max-width: 900px) { .top-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 900px) {
       `}</style>
-    </div>
+    </Bento>
   );
 }
 
@@ -272,34 +298,35 @@ function TopResult({ item }: { item: Item }) {
   const href = hrefFor(item);
   const body = (
     <>
-      {item.kind === 'artist' ? <Avatar src={item.thumb} size={120} /> : <Cover src={item.thumb} size={120} radius={14} />}
-      <div className="eyebrow" style={{ marginTop: 18 }}>Top result · {item.kind === 'song' ? 'Song' : item.kind}</div>
-      <div className="tt clamp2">{item.title}</div>
-      <div className="muted clamp1">{item.kind === 'song' ? artistNames(item.artists) : item.kind === 'album' ? artistNames(item.artists) : item.subtitle}</div>
+      {item.kind === 'artist' ? <Avatar src={item.thumb} size={92} /> : <Cover src={item.thumb} size={92} radius={4} />}
+      <div>
+        <div className="tt clamp2">{item.title}</div>
+        <div className="muted clamp1">{item.kind === 'song' ? artistNames(item.artists) : item.kind === 'album' ? artistNames(item.artists) : item.subtitle}</div>
+      </div>
       <style jsx>{`
-        .tt { font-size: 24px; font-weight: 600; letter-spacing: -.04em; line-height: 1.1; margin: 6px 0 4px; }
+        .tt { font-family: var(--font-display); font-size: 2.25rem; font-weight: 400; letter-spacing: -.02em; line-height: 1.1; margin: var(--sp-2) 0; color: var(--ink); }
       `}</style>
     </>
   );
-  const cls = 'top card';
-  const style = { display: 'block', padding: 22, textAlign: 'left' as const, width: '100%' };
   return item.kind === 'song' ? (
-    <button className={cls} style={style} onClick={() => usePlayer.getState().playRadio(item)}>
+    <Tile span={5} md={12} tone="glow" onClick={() => usePlayer.getState().playRadio(item)} label="Top result">
       {body}
-    </button>
+    </Tile>
   ) : (
-    <Link className={cls} style={style} href={href!}>
+    <Tile span={5} md={12} tone="glow" href={href!} label="Top result">
       {body}
-    </Link>
+    </Tile>
   );
 }
 
-function ItemGrid({ items }: { items: Item[] }) {
+function ItemGrid({ items, title }: { items: Item[]; title: string }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '24px 18px' }}>
-      {items.map((it) => (
-        <ItemCard key={it.kind + it.id} item={it} />
-      ))}
-    </div>
+    <Tile span={12} title={title} sub={`${items.length} results`} label={title}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(168px, 1fr))', gap: 'var(--sp-4)' }}>
+        {items.map((it) => (
+          <ItemCard key={it.kind + it.id} item={it} />
+        ))}
+      </div>
+    </Tile>
   );
 }

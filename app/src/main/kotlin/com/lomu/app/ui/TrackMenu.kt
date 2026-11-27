@@ -1,0 +1,267 @@
+package com.lomu.app.ui
+
+import android.content.Intent
+import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.room.withTransaction
+import com.lomu.app.constants.PlaylistSortType
+import com.lomu.app.db.entities.PlaylistEntity
+import com.lomu.app.extensions.toMediaItem
+import com.lomu.app.models.MediaMetadata
+import com.lomu.app.playback.queues.ListQueue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.time.LocalDateTime
+
+/** A song the "…" menu was opened for. [onRemove] adds a "Remove from …" entry (playlist rows, queue rows). */
+data class MenuTarget(val song: MediaMetadata, val removeLabel: String? = null, val onRemove: (() -> Unit)? = null)
+
+/** Opens the song menu. Provided by the root so any row can offer it. */
+val LocalTrackMenu = staticCompositionLocalOf<(MenuTarget) -> Unit> { {} }
+
+/**
+ * The song menu, as in Apple Music / Spotify: Play Next, Add to Queue, Start Radio, Like, Add to Playlist,
+ * Go to Album / Artist, Share. While this phone steers another device the queue actions go to that device.
+ */
+@Composable
+fun TrackMenuSheet(target: MenuTarget, onDismiss: () -> Unit, onNavigate: (Screen) -> Unit) {
+    val lo = LocalLo.current
+    val ctx = LocalContext.current
+    val pc = LocalPlayer.current
+    val connect = LocalConnect.current
+    val sync = LocalSync.current
+    val scope = rememberCoroutineScope()
+    val sheet = rememberSheetState(onDismiss)
+    val m = target.song
+    val db = pc?.database
+    val songRow by remember(m.id) { db?.song(m.id) ?: flowOf(null) }.collectAsState(null)
+    val remote by (connect?.remote ?: remember { kotlinx.coroutines.flow.MutableStateFlow(null) }).collectAsState()
+    val playlistsFlow = remember(db) { db?.playlists(PlaylistSortType.CREATE_DATE, true) ?: flowOf(emptyList()) }
+    val playlists by playlistsFlow.collectAsState(emptyList())
+    val liked = songRow?.song?.liked == true
+    // Search results carry no album, so look it up for "Go to Album".
+    var album by remember(m.id) { mutableStateOf(m.album?.takeIf { it.id.isNotBlank() }?.let { it.id to it.title }) }
+    LaunchedEffect(m.id) {
+        if (album == null) {
+            val found = withContext(Dispatchers.IO) {
+                com.music.innertube.YouTube.next(com.music.innertube.models.WatchEndpoint(videoId = m.id)).getOrNull()?.items?.firstOrNull { it.id == m.id }?.album
+            }
+            if (found != null) album = found.id to found.name
+        }
+    }
+    var page by remember { mutableStateOf(0) } // 0 menu, 1 pick a playlist, 2 name a new playlist
+    var name by remember { mutableStateOf("") }
+
+    fun say(s: String) = Toast.makeText(ctx, s, Toast.LENGTH_SHORT).show()
+    fun done(s: String? = null) { s?.let(::say); sheet.dismiss() }
+
+    fun enqueue(next: Boolean) {
+        val r = remote
+        if (r != null) connect?.enqueueOn(r.id, listOf(m), next)
+        else if (pc != null) {
+            val item = m.toMediaItem()
+            when {
+                pc.player.mediaItemCount == 0 -> pc.playQueue(ListQueue(null, listOf(item)))
+                next -> pc.playNext(item)
+                else -> pc.addToQueue(item)
+            }
+        }
+        done(if (next) "Playing next" else "Added to queue")
+    }
+
+    fun toggleLike() {
+        val d = db ?: return done()
+        scope.launch(Dispatchers.IO) {
+            d.withTransaction {
+                insert(m)
+                song(m.id).first()?.song?.let { s ->
+                    val n = s.localToggleLike()
+                    update(if (n.liked) n.copy(inLibrary = n.inLibrary ?: LocalDateTime.now()) else n)
+                }
+            }
+            sync?.sync() // likes reach the other devices right away
+        }
+        done(if (liked) "Removed from Liked Songs" else "Added to Liked Songs")
+    }
+
+    fun addTo(pl: com.lomu.app.db.entities.Playlist) {
+        val d = db ?: return done()
+        scope.launch {
+            var dup = false
+            withContext(Dispatchers.IO) {
+                d.withTransaction {
+                    insert(m)
+                    val exists = playlistDuplicates(pl.playlist.id, listOf(m.id)).isNotEmpty()
+                    if (!exists) addSongToPlaylist(pl, listOf(m.id))
+                    dup = exists
+                }
+            }
+            runCatching { sync?.sync() } // a failed sync (server off) is retried every minute
+            done(if (dup) "Already in ${pl.playlist.name}" else "Added to ${pl.playlist.name}")
+        }
+    }
+
+    fun createPlaylist() {
+        val d = db ?: return done()
+        val n = name.trim().ifBlank { return }
+        scope.launch {
+            withContext(Dispatchers.IO) {
+                d.withTransaction {
+                    val pl = PlaylistEntity(name = n, bookmarkedAt = LocalDateTime.now(), isLocal = true)
+                    insert(pl)
+                    insert(m)
+                    insert(com.lomu.app.db.entities.PlaylistSongMap(playlistId = pl.id, songId = m.id, position = 0))
+                }
+            }
+            runCatching { sync?.sync() }
+            done("Added to $n")
+        }
+    }
+
+    SheetHost(sheet) {
+            Box(Modifier.align(Alignment.CenterHorizontally).width(36.dp).height(5.dp).background(lo.grey.copy(alpha = 0.5f), RoundedCornerShape(3.dp)))
+            Spacer(Modifier.height(14.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Cover(m.thumbnailUrl, 48.dp, radius = 6.dp)
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(m.title, style = LoType.body.copy(fontWeight = FontWeight.SemiBold), color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(m.artists.joinToString(", ") { it.name }, style = LoType.small, color = lo.grey, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Hairline()
+            Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) {
+                when (page) {
+                    0 -> {
+                        MenuRow(Ph.Queue, "Play Next") { enqueue(true) }
+                        MenuRow(Ph.Plus, "Add to Queue") { enqueue(false) }
+                        MenuRow(Ph.Radio, "Start Radio") { pc?.playRadio(m); done() }
+                        MenuRow(if (liked) Ph.HeartFill else Ph.Heart, if (liked) "Remove from Liked Songs" else "Like", tint = if (liked) lo.signal else null) { toggleLike() }
+                        MenuRow(Ph.AddList, "Add to Playlist…") { page = 1 }
+                        album?.let { (albumId, _) -> MenuRow(Ph.Disc, "Go to Album") { onNavigate(Screen.Album(albumId)); sheet.dismiss() } }
+                        val withIds = m.artists.filter { !it.id.isNullOrBlank() }.take(3)
+                        withIds.forEach { a -> MenuRow(Ph.User, if (withIds.size > 1) "Go to ${a.name}" else "Go to Artist") { onNavigate(Screen.Artist(a.id!!)); sheet.dismiss() } }
+                        MenuRow(Ph.Share, "Share") {
+                            val send = Intent(Intent.ACTION_SEND).setType("text/plain")
+                                .putExtra(Intent.EXTRA_TEXT, "${m.title} · ${m.artists.joinToString(", ") { it.name }}\nhttps://music.youtube.com/watch?v=${m.id}")
+                            ctx.startActivity(Intent.createChooser(send, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                            sheet.dismiss()
+                        }
+                        m.artists.firstOrNull()?.name?.takeIf { it.isNotBlank() }?.let { artist ->
+                            MenuRow(Ph.Close, "Never recommend $artist") {
+                                sync?.blockArtist(artist)
+                                scope.launch(Dispatchers.IO) { runCatching { sync?.sync() } }
+                                done("Won't recommend $artist")
+                            }
+                        }
+                        target.onRemove?.let { rm -> MenuRow(Ph.Close, target.removeLabel ?: "Remove", tint = lo.red) { rm(); done() } }
+                    }
+                    1 -> {
+                        MenuRow(Ph.Left, "Add to Playlist") { page = 0 }
+                        MenuRow(Ph.Plus, "New Playlist…", tint = lo.signal) { page = 2 }
+                        playlists.filter { it.playlist.isEditable }.forEach { pl ->
+                            MenuRow(Ph.Playlist, pl.playlist.name, sub = "${pl.songCount} songs") { addTo(pl) }
+                        }
+                    }
+                    else -> {
+                        MenuRow(Ph.Left, "New Playlist") { page = 1 }
+                        BasicTextField(
+                            value = name, onValueChange = { name = it }, singleLine = true,
+                            textStyle = LoType.body.copy(color = lo.ink), cursorBrush = SolidColor(lo.signal),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp).background(lo.surface2, RoundedCornerShape(10.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
+                            decorationBox = { inner -> if (name.isEmpty()) Text("Playlist name", style = LoType.body, color = lo.grey); inner() },
+                        )
+                        Pill("Create", { createPlaylist() }, accent = true, modifier = Modifier.fillMaxWidth().height(48.dp))
+                    }
+                }
+            }
+    }
+}
+
+@Composable
+private fun MenuRow(icon: Ph, label: String, tint: Color? = null, sub: String? = null, onClick: () -> Unit) {
+    val lo = LocalLo.current
+    Row(Modifier.fillMaxWidth().pressable(RoundedCornerShape(12.dp), onClick = onClick).padding(vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
+        Ic(icon, 22.dp, tint ?: lo.ink)
+        Spacer(Modifier.width(18.dp))
+        Column(Modifier.weight(1f)) {
+            Text(label, style = LoType.body.copy(fontSize = 17.sp), color = tint ?: lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (sub != null) Text(sub, style = LoType.small, color = lo.grey)
+        }
+    }
+}
+
+/** Save / un-save an album as a bookmark (the web's "Save"): shows up in Library > Albums and syncs to the other devices. */
+suspend fun setAlbumSaved(db: com.lomu.app.db.MusicDatabase, page: com.music.innertube.pages.AlbumPage, saved: Boolean, sync: com.lomu.app.sync.SyncClient?) {
+    withContext(Dispatchers.IO) {
+        db.withTransaction {
+            insert(page) // adds the album row and its songs when missing
+            album(page.album.browseId).first()?.album?.let { update(it.copy(bookmarkedAt = if (saved) LocalDateTime.now() else null)) }
+        }
+    }
+    runCatching { sync?.sync() }
+}
+
+suspend fun setArtistSaved(db: com.lomu.app.db.MusicDatabase, page: com.music.innertube.pages.ArtistPage, saved: Boolean, sync: com.lomu.app.sync.SyncClient?) {
+    withContext(Dispatchers.IO) {
+        db.withTransaction {
+            val a = page.artist
+            val at = if (saved) LocalDateTime.now() else null
+            val e = artist(a.id).first()?.artist
+            if (e == null) insert(com.lomu.app.db.entities.ArtistEntity(id = a.id, name = a.title, thumbnailUrl = a.thumbnail, channelId = a.channelId, bookmarkedAt = at))
+            else update(e.copy(bookmarkedAt = at))
+        }
+    }
+    runCatching { sync?.sync() }
+}
+
+/** A YouTube playlist kept as a link (not copied): it is opened from YouTube each time. */
+suspend fun setPlaylistSaved(db: com.lomu.app.db.MusicDatabase, rawId: String, name: String, thumb: String?, saved: Boolean, sync: com.lomu.app.sync.SyncClient?) {
+    val id = rawId.removePrefix("VL")
+    withContext(Dispatchers.IO) {
+        db.withTransaction {
+            val at = if (saved) LocalDateTime.now() else null
+            val e = playlist(id).first()?.playlist
+            if (e == null) insert(PlaylistEntity(id = id, name = name, browseId = id, isEditable = false, isLocal = false, thumbnailUrl = thumb, bookmarkedAt = at))
+            else if (!e.isLocal) update(e.copy(bookmarkedAt = at))
+        }
+    }
+    runCatching { sync?.sync() }
+}
+
+/** "Add to Library" for an album or playlist: keeps its songs as a playlist of your own. */
+suspend fun saveAsPlaylist(db: com.lomu.app.db.MusicDatabase, name: String, songs: List<MediaMetadata>) = withContext(Dispatchers.IO) {
+    db.withTransaction {
+        val pl = PlaylistEntity(name = name, bookmarkedAt = LocalDateTime.now(), isLocal = true, thumbnailUrl = songs.firstOrNull()?.thumbnailUrl)
+        insert(pl)
+        songs.forEachIndexed { i, m ->
+            insert(m)
+            insert(com.lomu.app.db.entities.PlaylistSongMap(playlistId = pl.id, songId = m.id, position = i))
+        }
+    }
+}

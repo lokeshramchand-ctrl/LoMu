@@ -1,28 +1,24 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import { useMemo, useState } from 'react';
 import { useExplore, useHome, useMood, useRecs } from '@/lib/api';
-import { artistNames, greeting } from '@/lib/format';
-import { formatMinutes, recentTracks, topArtists, weekStats } from '@/lib/insights';
-import type { Shelf, Track } from '@/lib/types';
-import { ShelfRow, ShelfSkeleton } from '@/components/Cards';
+import { artistNames } from '@/lib/format';
+import Link from 'next/link';
+import { formatMinutes, topArtists, weekStats } from '@/lib/insights';
+import type { ArtistCard, Item, Shelf, Track } from '@/lib/types';
+import { ItemCard, ShelfSkeleton, ShelfTile } from '@/components/Cards';
 import { Avatar, Cover } from '@/components/Art';
+import { Bento, Tile } from '@/components/Bento';
 import { Icon } from '@/components/Icon';
-import { EmptyState, PageHeader, SparkBars, Stat, Sheet, Toggle } from '@/components/ui';
+import { Sheet, Toggle } from '@/components/ui';
 import { useLibrary } from '@/player/library';
 import { currentTrack, usePlayer } from '@/player/store';
 import { HOME_SECTIONS, useSettings } from '@/player/settings';
-import { useAuth } from '@/player/sync';
-import { warm, warmProps } from '@/lib/warm';
-
-const dateLine = () => new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+import { warmProps } from '@/lib/warm';
 
 export default function Home() {
-  const user = useAuth((s) => s.user);
   const home = useSettings((s) => s.home);
   const history = useLibrary((s) => s.history);
   const liked = useLibrary((s) => s.liked);
-  const [g1, g2] = greeting();
   const [custom, setCustom] = useState(false);
 
   const recs = useRecs();
@@ -30,50 +26,138 @@ export default function Home() {
   const feed = useHome();
 
   const likedList = useMemo(() => Object.values(liked), [liked]);
-  const recent = useMemo(() => recentTracks(history, likedList, 8), [history, likedList]);
   const stats = useMemo(() => weekStats(history), [history]);
   const artists = useMemo(() => topArtists(history), [history]);
   const personal = history.length > 0 || likedList.length > 0;
   const mixes: Shelf[] = recs.data ?? [];
-  const mixTracks = (mixes[0]?.items.filter((i): i is Track => i.kind === 'song') ?? []) as Track[];
+  const songsOf = (s?: Shelf) => (s?.items.filter((i): i is Track => i.kind === 'song') ?? []) as Track[];
+  const trending = explore.data?.trending ?? [];
+  // On Repeat is its own row and page; everything else feeds the black feature card and the pastel picks.
+  const onRepeatShelf = mixes.find((s) => /^on repeat$/i.test(s.title));
+  const onRepeat = songsOf(onRepeatShelf);
+  const dailyShelves = mixes.filter((s) => /^Daily Mix/.test(s.title));
+  // Discover Weekly and the four time-of-day mixes: a second row of tiles under the daily mixes.
+  const dayShelves = mixes.filter((s) => s.title === 'Discover Weekly' || /^(Morning|Afternoon|Evening|Late Night) Mix$/.test(s.title));
+  const momentShelves = mixes.filter((s) => /^(Repeat Rewind|Slowed & Reverb|Unplugged & Acoustic|Instrumentals & Themes)$/.test(s.title));
+  const tileShelves = [...dailyShelves, ...dayShelves, ...momentShelves];
+  const pickPool = useMemo(() => {
+    const fromMixes = mixes.filter((s) => s !== onRepeatShelf && !tileShelves.includes(s)).flatMap(songsOf)
+      .concat(tileShelves.flatMap(songsOf));
+    const base = fromMixes.length >= 3 ? fromMixes : [...fromMixes, ...(trending.filter((i): i is Track => i.kind === 'song') as Track[])];
+    const seen = new Set<string>();
+    return base.filter((t) => !seen.has(t.id) && !!seen.add(t.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recs.data, explore.data]);
+  const feature = pickPool[0];
+  const featureLiked = useLibrary((s) => (feature ? !!s.liked[feature.id] : false));
+  const hour = new Date().getHours();
+  const greeting = hour < 5 ? 'Late night' : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
-  const playMix = () => {
-    const list = mixTracks.length ? mixTracks : recent;
-    if (list.length) usePlayer.getState().play(list, 0, { source: 'home-mix' });
+  const cur = usePlayer((s) => currentTrack(s)?.id);
+  const playing = usePlayer((s) => s.playing);
+  const playList = (list: Track[], source: string, at = 0) => {
+    if (list.length) usePlayer.getState().play(list, at, { source });
+  };
+
+  const showStats = home.stats && history.length > 0;
+  const m = formatMinutes(stats.minutes);
+  const hasArtists = home.artists && artists.length > 0;
+  const hasMoods = home.moods && (explore.data?.moods?.length ?? 0) > 0;
+
+  const artistShelf: Shelf = {
+    title: 'Your artists',
+    items: artists.slice(0, 20).map((a): ArtistCard => ({ kind: 'artist', id: a.id!, title: a.name, thumb: artThumb(history, a.id!) })),
   };
 
   return (
-    <>
-      <PageHeader
-        eyebrow={dateLine()}
-        title={
-          <>
-            {g1} {g2}
-            {user ? <span className="muted">, {user}</span> : null}
-          </>
-        }
-        sub={personal ? 'Your music, picked from what you play and like.' : 'Play a few songs and this page starts to fit you.'}
-        actions={
-          <>
-            <button className="btn" onClick={() => setCustom(true)}>
-              <Icon name="sliders" size={16} /> Customise
-            </button>
-            <button className="btn primary" onClick={playMix} disabled={!mixTracks.length && !recent.length}>
-              <Icon name="play" size={14} /> {mixTracks.length ? 'Play my mix' : 'Play recent'}
-            </button>
-          </>
-        }
-      />
+    <Bento className="fade-in">
+      <header className="greet">
+        <div className="gtext">
+          <p className="muted" suppressHydrationWarning>
+            {personal ? `${greeting}. ${new Date().toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })}` : 'Play a few songs and LoMu starts learning your taste.'}
+          </p>
+        </div>
+        <div className="grow" />
+        <Link href="/insights" className="btn ghost">
+          Insights
+        </Link>
+        <button className="btn ghost" onClick={() => setCustom(true)}>
+          Customise
+        </button>
+      </header>
 
-      {home.stats && history.length > 0 && <WeekStats stats={stats} />}
+      {home.quick && feature && (
+        <section className="fcard" aria-label="Featured song">
+          <button className="fart" aria-label={`Play ${feature.title}`} onClick={() => usePlayer.getState().playRadio(feature)}>
+            <Cover src={feature.thumb} size="100%" radius={18} />
+          </button>
+          <div className="ftext">
+            <div>
+              <div className="ft clamp2">{feature.title}</div>
+              <div className="fs clamp1">{artistNames(feature.artists)}</div>
+            </div>
+            <div className="fact">
+              <button className="fheart" aria-label={featureLiked ? 'Remove from liked songs' : 'Like'} onClick={() => useLibrary.getState().toggleLike(feature)}>
+                <Icon name={featureLiked ? 'heartFill' : 'heart'} size={24} />
+              </button>
+              <button className="fplay" aria-label={cur === feature.id && playing ? 'Pause' : 'Play'} onClick={() => (cur === feature.id ? usePlayer.getState().toggle() : usePlayer.getState().playRadio(feature))}>
+                <Icon name={cur === feature.id && playing ? 'pause' : 'play'} size={22} />
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+      {home.quick && !feature && (recs.isLoading || explore.isLoading) && <div className="skeleton" style={{ gridColumn: '1 / -1', height: 164, borderRadius: 28 }} />}
 
-      {home.quick && <QuickPicks tracks={recent.length ? recent : (explore.data?.trending ?? []).slice(0, 8)} personal={recent.length > 0} loading={!recent.length && explore.isLoading} />}
+      {home.quick && onRepeat.length > 0 && (
+        <section className="onrep" aria-label="On Repeat">
+          <Link href="/mix?name=On%20Repeat" className="oh">
+            <h2>On Repeat</h2>
+            <Icon name="right" size={18} />
+          </Link>
+          <div className="orow">
+            {onRepeat.slice(0, 50).map((t, i) => (
+              <button key={t.id} className={`oi${cur === t.id ? ' on' : ''}`} onClick={() => playList(onRepeat, 'home-onrepeat', i)} title={`${t.title} by ${artistNames(t.artists)}`} {...warmProps(t.id)}>
+                <Cover src={t.thumb} size="100%" radius={18} />
+                <span className="clamp1">{t.title}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {home.quick && dailyShelves.length > 0 && <TileRow label="Daily mixes" heading="Mixes" shelves={dailyShelves} />}
+      {home.quick && dayShelves.length > 0 && <TileRow label="For your day" heading="For your day" shelves={dayShelves} />}
+      {home.quick && momentShelves.length > 0 && <TileRow label="Moods and throwbacks" heading="Moods and throwbacks" shelves={momentShelves} />}
+
+      {showStats && (
+        <aside className="week-line" aria-label="This week">
+          <h2>This week</h2>
+          <dl className="facts">
+            <div><dt>Listened</dt><dd>{m.value}{m.unit ? ` ${m.unit}` : ''}</dd></div>
+            <div><dt>Songs finished</dt><dd>{stats.plays}</dd></div>
+            <div><dt>Streak</dt><dd>{stats.streak} {stats.streak === 1 ? 'day' : 'days'}</dd></div>
+            <div><dt>Top artist</dt><dd className="clamp1">{stats.topArtist?.name ?? '-'}</dd></div>
+          </dl>
+        </aside>
+      )}
+
+      {home.moods && explore.isLoading && (
+        <Tile span={12} flush label="Loading moods">
+          <div className="skeleton" style={{ height: 32, width: '60%', borderRadius: 8 }} />
+        </Tile>
+      )}
+      {hasMoods && <Moods moods={explore.data?.moods ?? []} />}
 
       {home.mixes && (
         <>
-          {recs.isLoading && personal && <ShelfSkeleton />}
-          {mixes.map((s) => (
-            <ShelfRow
+          {recs.isLoading && personal && (
+            <Tile span={12} flush label="Loading mixes">
+              <ShelfSkeleton title={false} />
+            </Tile>
+          )}
+          {mixes.filter((s) => (s !== onRepeatShelf || !home.quick) && !(home.quick && tileShelves.includes(s))).map((s) => (
+            <ShelfTile
               key={`rec-${s.title}`}
               shelf={s}
               action={
@@ -84,76 +168,65 @@ export default function Home() {
                     if (t.length) usePlayer.getState().play(t, 0, { source: 'home-mix' });
                   }}
                 >
-                  <Icon name="play" size={12} /> Play
+                  <Icon name="play" size={10} /> Play
                 </button>
               }
             />
           ))}
           {!recs.isLoading && !mixes.length && (
-            <div className="callout">
-              <span className="chip-ic lg"><Icon name="sparkles" size={18} /></span>
-              <div className="grow">
-                <b style={{ color: 'var(--text)' }}>Your mixes will appear here</b>
-                <div className="small">LoMu builds Your Mix, On Repeat and Discover from what you finish, skip and like. Play a few songs and come back.</div>
+            <Tile span={12} tone="quiet" label="Mixes">
+              <div className="empty-row">
+                <div className="grow">
+                  <b style={{ color: 'var(--text)', fontWeight: 700 }}>Your mixes will appear here</b>
+                  <div className="small muted">LoMu builds Your Mix, On Repeat and Discover from what you finish, skip and like. Play a few songs and come back.</div>
+                </div>
               </div>
-            </div>
+            </Tile>
           )}
         </>
       )}
 
-      {home.artists && artists.length > 0 && (
-        <section className="fade-in">
-          <div className="section-head">
-            <div>
-              <h2>Your artists</h2>
-              <div className="sub">Most played lately</div>
-            </div>
-          </div>
-          <div className="hscroll">
-            {artists.map((a) => (
-              <Link key={a.id} href={`/artist/${a.id}`} className="art-card" title={a.name}>
-                <Avatar src={artThumb(history, a.id!)} size={96} />
-                <span className="clamp1">{a.name}</span>
-              </Link>
-            ))}
-          </div>
-        </section>
+      {hasArtists && <ShelfTile shelf={artistShelf} />}
+      {home.trending && explore.isLoading && (
+        <Tile span={12} flush label="Loading trending">
+          <ShelfSkeleton />
+        </Tile>
       )}
-
-      {home.moods && <Moods moods={explore.data?.moods ?? []} />}
-
-      {home.trending && explore.data && explore.data.trending.length > 0 && (
-        <ShelfRow shelf={{ title: 'Trending now', subtitle: 'What people are playing right now', items: explore.data.trending.slice(0, 20) }} />
-      )}
+      {home.trending && trending.length > 0 && <ShelfTile shelf={{ title: 'Trending now', items: trending.slice(0, 20) }} />}
       {home.newReleases && explore.data && explore.data.newReleases.length > 0 && (
-        <ShelfRow shelf={{ title: 'New releases', subtitle: 'Fresh albums and singles', items: explore.data.newReleases.slice(0, 20) }} />
+        <ShelfTile shelf={{ title: 'New releases', items: explore.data.newReleases.slice(0, 20) }} />
       )}
 
       {home.youtube && (
         <>
-          {feed.isLoading && <ShelfSkeleton />}
-          {feed.error && (
-            <div className="callout err">
-              <Icon name="warn" size={18} />
-              <span className="grow">Couldn&apos;t load the YouTube Music feed. {(feed.error as Error).message}</span>
-              <button className="btn sm" onClick={() => feed.refetch()}>
-                Retry
-              </button>
-            </div>
+          {feed.isLoading && (
+            <Tile span={12} flush label="Loading feed">
+              <ShelfSkeleton title={false} />
+            </Tile>
           )}
-          {feed.data?.shelves.map((s) => <ShelfRow key={`yt-${s.title}`} shelf={s} />)}
+          {feed.error && (
+            <Tile span={12} tone="quiet" label="Feed error">
+              <div className="empty-row">
+                <Icon name="warn" size={16} />
+                <span className="grow">The YouTube Music feed did not load. Check your connection and try again.</span>
+                <button className="btn sm" onClick={() => feed.refetch()}>
+                  Retry
+                </button>
+              </div>
+            </Tile>
+          )}
+          {feed.data?.shelves.map((s) => <ShelfTile key={`yt-${s.title}`} shelf={s} />)}
         </>
       )}
 
       <Sheet
         open={custom}
         onClose={() => setCustom(false)}
-        title="Customise home"
-        eyebrow="Home"
-        sub="Choose what shows up and what stays out of the way. Saved on this device."
+        title="Customise Today"
+        sub="Saved on this device."
         footer={
           <button className="btn" onClick={() => HOME_SECTIONS.forEach((s) => useSettings.getState().setHome(s.id, s.id !== 'youtube'))}>
-            Reset
+            Reset to defaults
           </button>
         }
       >
@@ -163,12 +236,13 @@ export default function Home() {
       </Sheet>
 
       <style jsx global>{`
-        .art-card { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 104px; font-size: 13px; font-weight: 500; text-align: center; border-radius: 14px; padding: 4px; transition: background .2s, transform .3s var(--spring); }
-        .art-card:hover { background: var(--surface); }
-        .art-card:active { transform: scale(.97); }
-        .art-card span { max-width: 100%; }
+        .greet { grid-column: 1 / -1; display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; padding: 8px 0 0; }
+        .greet h1 { font-size: clamp(2.25rem, 4.4vw, 3.5rem); letter-spacing: -.03em; line-height: 1.02; padding-bottom: .05em; }
+        .greet .gtext p { margin-top: 8px; max-width: 48ch; }
+        .empty-row { display: flex; align-items: center; gap: var(--sp-3); color: var(--muted); }
+        @media (max-width: 700px) { .greet h1 { font-size: 2rem; } .greet .gtext { flex-basis: 100%; } .greet .grow { display: none; } .greet .btn.ghost { padding-inline-start: 0; } }
       `}</style>
-    </>
+    </Bento>
   );
 }
 
@@ -177,115 +251,58 @@ function artThumb(history: { track: Track }[], artistId: string) {
   return history.find((p) => p.track.artists[0]?.id === artistId)?.track.thumb;
 }
 
-function WeekStats({ stats }: { stats: ReturnType<typeof weekStats> }) {
-  const m = formatMinutes(stats.minutes);
-  return (
-    <section className="grid-stats fade-in" aria-label="Your week">
-      <Stat icon="headphones" label="Listened this week" value={m.value} unit={m.unit} sub="Last 7 days" spark={<SparkBars values={stats.daily} label="Minutes per day this week" />} />
-      <Stat icon="note" label="Songs finished" value={stats.plays} sub="This week" />
-      <Stat icon="flame" label="Listening streak" value={stats.streak} unit={stats.streak === 1 ? 'day' : 'days'} sub={stats.streak ? 'Keep it going' : 'Play something today'} />
-      <Stat icon="star" label="Top artist" value={stats.topArtist?.name ?? '—'} sub={stats.topArtist ? 'Most minutes this week' : 'Nothing yet'} />
-    </section>
-  );
-}
-
-function QuickPicks({ tracks, personal, loading }: { tracks: Track[]; personal: boolean; loading: boolean }) {
-  const cur = usePlayer((s) => currentTrack(s)?.id);
-  const playing = usePlayer((s) => s.playing);
-  // The first few quick picks are the likeliest next play: resolve them while the page is idle.
-  useEffect(() => {
-    const t = setTimeout(() => tracks.slice(0, 4).forEach((x) => warm(x.id)), 600);
-    return () => clearTimeout(t);
-  }, [tracks]);
-  if (loading) {
-    return (
-      <section>
-        <div className="qgrid">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="skeleton" style={{ height: 64, borderRadius: 12 }} />
-          ))}
-        </div>
-        <style jsx>{`
-          .qgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
-        `}</style>
-      </section>
-    );
-  }
-  if (!tracks.length) return null;
-  return (
-    <section className="fade-in">
-      <div className="section-head">
-        <div>
-          <h2>{personal ? 'Quick picks' : 'Start here'}</h2>
-          <div className="sub">{personal ? 'Pick up where you left off' : 'Popular right now. Your own picks replace these as you listen.'}</div>
-        </div>
-      </div>
-      <div className="qgrid">
-        {tracks.map((t, i) => {
-          const active = cur === t.id;
-          return (
-            <button key={t.id} className={`q card${active ? ' active' : ''}`} onClick={() => usePlayer.getState().play(tracks, i, { source: 'home-quick' })} title={`${t.title} — ${artistNames(t.artists)}`} {...warmProps(t.id)}>
-              <Cover src={t.thumb} size={64} radius={0} />
-              <div className="grow tx">
-                <div className="clamp1 t">{t.title}</div>
-                <div className="clamp1 s">{artistNames(t.artists)}</div>
-              </div>
-              <span className="go">
-                <Icon name={active && playing ? 'pause' : 'play'} size={14} />
-              </span>
-            </button>
-          );
-        })}
-      </div>
-      <style jsx>{`
-        .qgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
-        .q { display: flex; align-items: center; gap: 12px; padding: 0 12px 0 0; height: 64px; overflow: hidden; text-align: left; transition: box-shadow .25s var(--ease), transform .3s var(--spring), border-color .2s; }
-        .q :global(.cover) { border-radius: 0; box-shadow: none; }
-        .q:hover { box-shadow: var(--lift-hi); transform: translateY(-1px); }
-        .q:active { transform: scale(.985); }
-        .q.active { border-color: var(--signal); }
-        .tx { min-width: 0; }
-        .t { font-weight: 600; font-size: 13.5px; letter-spacing: -.015em; }
-        .q.active .t { color: var(--signal); }
-        .s { color: var(--muted); font-size: 12.5px; }
-        .go { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--ink); color: var(--on-ink); opacity: 0; transform: scale(.85); transition: opacity .2s, transform .35s var(--spring); flex: none; }
-        .q:hover .go, .q.active .go { opacity: 1; transform: none; }
-        @media (max-width: 900px) { .qgrid { grid-template-columns: 1fr 1fr; gap: 8px; } .go { display: none; } .q { height: 56px; } .q :global(.cover) { width: 56px !important; height: 56px !important; } }
-      `}</style>
-    </section>
-  );
-}
-
 function Moods({ moods }: { moods: { title: string; params: string; browseId: string }[] }) {
   const [sel, setSel] = useState<number | null>(null);
   const m = sel != null ? moods[sel] : undefined;
   const { data, isLoading } = useMood(m?.browseId ?? '', m?.params ?? '');
   if (!moods.length) return null;
   return (
-    <section className="fade-in">
-      <div className="section-head">
-        <div>
-          <h2>Moods</h2>
-          <div className="sub">Jump straight into a feeling</div>
-        </div>
-      </div>
-      <div className="mood-row">
-        {moods.slice(0, 14).map((x, i) => (
-          <button key={x.params} className={`btn${sel === i ? ' primary' : ''}`} onClick={() => setSel(sel === i ? null : i)} aria-pressed={sel === i}>
+    <Tile span={12} title="Browse by mood" label="Moods">
+      <div className="chips mood-row">
+        {moods.slice(0, 16).map((x, i) => (
+          <button key={x.params} className={sel === i ? 'on' : ''} onClick={() => setSel(sel === i ? null : i)} aria-pressed={sel === i}>
             {x.title}
           </button>
         ))}
       </div>
       {m && (
-        <div style={{ marginTop: 18 }}>
+        <div className="mood-out">
           {isLoading && <ShelfSkeleton title={false} />}
-          {data?.slice(0, 2).map((s) => <ShelfRow key={s.title} shelf={s} />)}
-          {!isLoading && !data?.length && <p className="muted">Nothing found for this mood right now.</p>}
+          {data?.slice(0, 1).map((s) => (
+            <div key={s.title} className="hscroll open">
+              {s.items.slice(0, 12).map((it) => (
+                <MoodItem key={`${it.kind}:${it.id}`} item={it} siblings={s.items.filter((i): i is Track => i.kind === 'song')} />
+              ))}
+            </div>
+          ))}
+          {!isLoading && !data?.length && <p className="muted small">Nothing found for this mood right now.</p>}
         </div>
       )}
-      <style jsx>{`
-        .mood-row { display: flex; flex-wrap: wrap; gap: 8px; }
-      `}</style>
+    </Tile>
+  );
+}
+
+function MoodItem({ item, siblings }: { item: Item; siblings: Track[] }) {
+  return <ItemCard item={item} siblings={siblings.length > 1 ? siblings : undefined} />;
+}
+
+/** A row of coloured tiles; each opens the mix as an album-style page. */
+function TileRow({ label, heading, shelves }: { label: string; heading: string; shelves: Shelf[] }) {
+  return (
+    <section className="picked" aria-label={label}>
+      <h2>{heading}</h2>
+      <div className="pgrid five">
+        {shelves.map((sh, i) => {
+          const list = (sh.items.filter((x): x is Track => x.kind === 'song') ?? []) as Track[];
+          return (
+            <Link key={sh.title} href={`/mix?name=${encodeURIComponent(sh.title)}`} className="pick" style={{ background: `var(--tile-${(i % 4) + 1})` }} {...warmProps(list[0]?.id)}>
+              <span className="pa"><Avatar src={list[0]?.thumb} size="100%" /></span>
+              <b className="clamp1">{sh.title}</b>
+              <span className="clamp2 muted">{sh.subtitle}</span>
+            </Link>
+          );
+        })}
+      </div>
     </section>
   );
 }

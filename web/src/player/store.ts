@@ -56,6 +56,14 @@ const shuffled = <T,>(a: T[]) => {
   return b;
 };
 
+/** While this tab steers another device, "play this" goes there instead (installed by player/connect.ts). */
+export const remoteRoute: {
+  play?: (tracks: Track[], start: number) => boolean;
+  radio?: (t: Track) => boolean;
+  enqueue?: (t: Track[]) => boolean;
+  playNext?: (t: Track) => boolean;
+} = {};
+
 export const usePlayer = create<PlayerState>()(
   persist(
     (set, get) => ({
@@ -78,6 +86,7 @@ export const usePlayer = create<PlayerState>()(
 
       play: (tracks, start = 0, opts) => {
         if (!tracks.length) return;
+        if (remoteRoute.play?.(tracks, start)) return;
         let queue = tracks;
         let index = Math.max(0, Math.min(start, tracks.length - 1));
         const doShuffle = opts?.shuffle ?? false;
@@ -90,6 +99,7 @@ export const usePlayer = create<PlayerState>()(
         engine.load(queue[index], true);
       },
       playRadio: (t) => {
+        if (remoteRoute.radio?.(t)) return;
         set({ queue: [t], index: 0, original: null, shuffle: false, source: `radio:${t.id}`, error: null });
         engine.load(t, true);
         engine.extendWithRadio(t, true);
@@ -156,6 +166,7 @@ export const usePlayer = create<PlayerState>()(
       },
       cycleRepeat: () => set((s) => ({ repeat: s.repeat === 'off' ? 'all' : s.repeat === 'all' ? 'one' : 'off' })),
       playNext: (t) => {
+        if (remoteRoute.playNext?.(t)) return;
         const { queue, index } = get();
         if (!queue.length) return get().play([t]);
         const q = queue.filter((x, i) => i <= index || x.id !== t.id);
@@ -163,6 +174,7 @@ export const usePlayer = create<PlayerState>()(
         set({ queue: q });
       },
       enqueue: (ts) => {
+        if (remoteRoute.enqueue?.(ts)) return;
         const { queue } = get();
         if (!queue.length) return get().play(ts);
         const ids = new Set(queue.map((t) => t.id));
@@ -260,7 +272,7 @@ const engine = (() => {
         a.play().catch(() => {});
         return;
       }
-      set({ error: `Couldn't play “${t.title}”`, buffering: false });
+      set({ error: `Could not play "${t.title}"`, buffering: false });
       setTimeout(() => {
         if (currentTrack(S())?.id === t.id) S().next(true);
       }, 1800);

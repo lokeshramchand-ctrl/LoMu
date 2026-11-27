@@ -63,7 +63,6 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
         debug {
-            applicationIdSuffix = ".debug"
         }
     }
 
@@ -150,6 +149,7 @@ dependencies {
     implementation(libs.viewmodel)
     implementation(libs.viewmodel.compose)
     implementation(libs.palette)
+    implementation(libs.haze)
 
     implementation(libs.coil)
     implementation(libs.coil.network.okhttp)
@@ -168,8 +168,6 @@ dependencies {
     ksp(libs.hilt.compiler)
 
     implementation(project(":innertube"))
-    implementation(project(":lrclib"))
-    implementation(project(":betterlyrics"))
 
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)

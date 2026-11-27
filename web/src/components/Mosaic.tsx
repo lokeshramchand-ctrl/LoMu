@@ -2,14 +2,14 @@
 import type { Track } from '@/lib/types';
 import { Cover } from './Art';
 
-export function Mosaic({ tracks, size = 168 }: { tracks: Track[]; size?: number }) {
+export function Mosaic({ tracks, size = 168 }: { tracks: Track[]; size?: number | string }) {
   const thumbs = [...new Set(tracks.map((t) => t.thumb).filter(Boolean))].slice(0, 4) as string[];
   if (thumbs.length < 4) return <Cover src={thumbs[0]} size={size} />;
   return (
-    <div className="cover" style={{ width: size, height: size, display: 'grid', gridTemplateColumns: '1fr 1fr', borderRadius: 12 }}>
+    <div className="cover" style={{ width: size, height: size, display: 'grid', gridTemplateColumns: '1fr 1fr', borderRadius: 20 }}>
       {thumbs.map((t) => (
         // eslint-disable-next-line @next/next/no-img-element
-        <img key={t} src={t} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} referrerPolicy="no-referrer" />
+        <img key={t} src={t} alt="" width={256} height={256} loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} referrerPolicy="no-referrer" />
       ))}
     </div>
   );
