@@ -162,6 +162,13 @@ fun diversify(list: List<MediaMetadata>, cap: Int): List<MediaMetadata> {
     return out
 }
 
+/** Port of nextUp in recs.ts: drops what was just queued, skipped or blocked, puts liked artists first, caps three per artist. */
+fun nextUpRank(list: List<MediaMetadata>, seedId: String, recent: Set<String>, aff: Affinity): List<MediaMetadata> {
+    val kept = list.filter { it.id != seedId && it.id !in recent && it.id !in aff.skipped && !blockedTrack(aff.blocked, it) }
+    fun score(t: MediaMetadata) = t.artists.maxOfOrNull { aff.artistScore[it.name.lowercase()] ?: 0.0 } ?: 0.0
+    return diversify(kept.sortedByDescending { score(it) }, 3).take(25)
+}
+
 // ---- Daily mix (port of dailyMix in recs-core.ts): same three pools, same rhythm, deterministic per day.
 
 fun dayKey(now: Long): String = java.time.Instant.ofEpochMilli(now).atZone(java.time.ZoneId.systemDefault()).toLocalDate().toString()
