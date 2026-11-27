@@ -41,6 +41,15 @@ android {
     }
 
     signingConfigs {
+        // CI signs with the same debug key as the phone (DEBUG_KEYSTORE points at it); locally Gradle uses ~/.android/debug.keystore.
+        System.getenv("DEBUG_KEYSTORE")?.let { path ->
+            getByName("debug") {
+                storeFile = file(path)
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
         create("release") {
             val ks = localProperties.getProperty("RELEASE_STORE_FILE")
             if (ks != null) {
