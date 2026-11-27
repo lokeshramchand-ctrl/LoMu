@@ -62,6 +62,7 @@
       "provider": "github",
       "owner": "lokeshramchand-ctrl",
       "repo": "LoMu",
+      "private": true,
       "releaseType": "release"
     }
   },
