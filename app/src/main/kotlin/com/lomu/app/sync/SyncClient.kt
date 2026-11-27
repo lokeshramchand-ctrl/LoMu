@@ -736,7 +736,7 @@ class SyncClient @Inject constructor(
         }
     }
 
-    private suspend fun buildRecs(): List<RecShelf> {
+    private suspend fun loadDocs(): Pair<List<PlayDoc>, List<LikeDoc>> {
         val liked = database.likedSongs(SongSortType.CREATE_DATE, true).first()
         val likes = liked.mapNotNull { s ->
             val m = trackToMetadata(songToTrack(s)) ?: return@mapNotNull null
@@ -752,6 +752,22 @@ class SyncClient @Inject constructor(
             PlayDoc(m, e.event.timestamp.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(), e.event.playTime,
                 completed, !completed && e.event.playTime < 30_000)
         }
+        return plays to likes
+    }
+
+    private var autoplayAff: Pair<Long, Affinity>? = null
+
+    /** The listener's taste for ranking autoplay; rebuilt at most every 10 minutes because it reads the whole play log. */
+    suspend fun autoplayAffinity(): Affinity? {
+        autoplayAff?.takeIf { System.currentTimeMillis() - it.first < 600_000 }?.let { return it.second }
+        val (plays, likes) = loadDocs()
+        if (plays.isEmpty() && likes.isEmpty()) return null
+        val now = System.currentTimeMillis()
+        return affinity(plays, likes, now, blockedArtists().keys).also { autoplayAff = now to it }
+    }
+
+    private suspend fun buildRecs(): List<RecShelf> {
+        val (plays, likes) = loadDocs()
         if (plays.isEmpty() && likes.isEmpty()) return emptyList()
 
         val aff = affinity(plays, likes, System.currentTimeMillis(), blockedArtists().keys)
