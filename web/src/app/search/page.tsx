@@ -1,5 +1,5 @@
 'use client';
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSearch, useSuggest } from '@/lib/api';
 import { artistNames, hrefFor } from '@/lib/format';
@@ -10,6 +10,7 @@ import { Bento, Tile } from '@/components/Bento';
 import { Icon } from '@/components/Icon';
 import { useLibrary } from '@/player/library';
 import { usePlayer } from '@/player/store';
+import { matchLibrary } from '@/lib/libsearch';
 
 const CATS = ['Top hits India', 'Lo-fi beats', 'Workout', 'Arijit Singh', 'Anirudh', 'Chill vibes', 'Punjabi', '90s Bollywood'];
 
@@ -30,6 +31,12 @@ function SearchInner() {
   const [focused, setFocused] = useState(!q);
   const input = useRef<HTMLInputElement>(null);
   const recent = useLibrary((s) => s.recentSearches);
+  const liked = useLibrary((s) => s.liked);
+  const history = useLibrary((s) => s.history);
+  const mine = useMemo(
+    () => (q ? matchLibrary(q, Object.values(liked).sort((a, b) => b.at - a.at).map((x) => x.track), history.map((p) => p.track)) : []),
+    [q, liked, history],
+  );
   const [type, setType] = useState<'all' | 'songs' | 'artists' | 'albums' | 'playlists' | 'videos'>('all');
 
   useEffect(() => {
@@ -109,6 +116,16 @@ function SearchInner() {
       {error && (
         <Tile span={12} tone="quiet" label="Search error">
           <div className="callout err"><Icon name="warn" size={16} />Search did not finish. Check your connection and try again.</div>
+        </Tile>
+      )}
+
+      {mine.length > 0 && (
+        <Tile span={12} flush title="In your library" label="In your library">
+          <div className="list">
+            {mine.map((t, i) => (
+              <TrackRow key={t.id} track={t} index={i} list={mine} />
+            ))}
+          </div>
         </Tile>
       )}
 
