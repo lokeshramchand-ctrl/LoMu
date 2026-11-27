@@ -228,7 +228,7 @@ private fun FullPlayerContent(onClose: () -> Unit) {
 }
 
 @Composable
-private fun ToggleChip(icon: ImageVector, on: Boolean, label: String, onClick: () -> Unit) {
+internal fun ToggleChip(icon: ImageVector, on: Boolean, label: String, onClick: () -> Unit) {
     val lo = LocalLo.current
     Box(Modifier.a11y(label, if (on) "On" else "Off").pressable(RoundedCornerShape(7.dp), onClick = onClick).minTouch().size(width = 36.dp, height = 28.dp).background(if (on) lo.signal else lo.grey.copy(alpha = 0.25f), RoundedCornerShape(7.dp)), Alignment.Center) {
         IcV(icon, 18.dp, if (on) Color.White else lo.ink)
@@ -237,7 +237,7 @@ private fun ToggleChip(icon: ImageVector, on: Boolean, label: String, onClick: (
 
 /** Big square artwork that gently shrinks while paused, with a soft drop shadow. */
 @Composable
-private fun Artwork(url: String?, playing: Boolean, glow: Color, thumb: String? = null) {
+internal fun Artwork(url: String?, playing: Boolean, glow: Color, thumb: String? = null) {
     val scale by animateFloatAsState(if (playing) 1f else 0.86f, spring(dampingRatio = 0.7f, stiffness = 300f), label = "art")
     BoxWithConstraints(Modifier.fillMaxSize(), Alignment.Center) {
         val side = minOf(maxWidth, maxHeight)
