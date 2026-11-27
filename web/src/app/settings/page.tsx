@@ -11,7 +11,6 @@ import { toast } from '@/components/Toast';
 import { useAuth } from '@/player/sync';
 
 export default function SettingsPage() {
-  const theme = useSettings((s) => s.theme);
   const dev = useSettings((s) => s.dev);
   const setDev = useSettings((s) => s.setDev);
   const autoplay = usePlayer((s) => s.autoplay);

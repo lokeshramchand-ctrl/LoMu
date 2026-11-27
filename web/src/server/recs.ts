@@ -12,7 +12,6 @@ import { affinity, blockedTrack, dailyMixes, moodMixes, moodPlan, repeatRewind, 
 
 const SEEDS = 5;
 const PER_SEED = 30;
-const DAILY_SEEDS = 6;
 
 async function candidatesFor(seeds: Track[]): Promise<{ map: Map<string, Track[]>; ok: number }> {
   const map = new Map<string, Track[]>();

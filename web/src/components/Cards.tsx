@@ -11,8 +11,6 @@ import { Tile } from './Bento';
 import { useMenu } from './Menu';
 import { warmProps } from '@/lib/warm';
 
-const CARD = 168;
-
 export function playTrackFrom(item: Track, siblings?: Track[], source = 'shelf') {
   const list = siblings?.length ? siblings : [item];
   const i = list.findIndex((t) => t.id === item.id);
