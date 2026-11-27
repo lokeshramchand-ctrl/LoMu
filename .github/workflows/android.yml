@@ -45,6 +45,7 @@ jobs:
         run: |
           mkdir -p ~/.android
           echo "$KEYSTORE" | base64 -d > ~/.android/debug.keystore
+          echo "DEBUG_KEYSTORE=$HOME/.android/debug.keystore" >> "$GITHUB_ENV"
 
       - name: Show the signing key fingerprint
         if: steps.key.outputs.have == 'true'
