@@ -124,6 +124,9 @@ export function setHubLan(address: string) {
  * instead, as this PC's own signed-in session. Returns null when there is no hub or it cannot be reached, and the caller then
  * falls back to the local relay (so the app still works on its own).
  */
+/** True on the desktop app when a home server is set up (so a stream on the local relay should try the hub again). */
+export const hubConfigured = () => !!process.env.LOMU_LOCAL_TOKEN && !!getSetting('hub_url');
+
 export async function hubConnect(path: string, init: RequestInit = {}, stream = false): Promise<Response | null> {
   if (!process.env.LOMU_LOCAL_TOKEN || !getSetting('hub_url') || rt.state === 'error') return null;
   try {
