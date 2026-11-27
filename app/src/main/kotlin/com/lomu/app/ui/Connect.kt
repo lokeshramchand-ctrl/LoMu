@@ -63,24 +63,24 @@ private fun rememberRemotePosition(d: Dev): Double {
 fun RemoteMiniPlayer(d: Dev, onOpen: () -> Unit, modifier: Modifier = Modifier) {
     val lo = LocalLo.current
     val c = LocalConnect.current ?: return
-    val shape = RoundedCornerShape(32.dp)
+    val shape = RoundedCornerShape(36.dp)
     val m = d.track
     Row(
-        modifier.fillMaxWidth().height(52.dp).glass(shape, lo).a11y("Open remote player").pressable(shape, onClick = onOpen).padding(start = 10.dp, end = 4.dp),
+        modifier.fillMaxWidth().height(66.dp).glass(shape, lo).a11y("Open remote player").pressable(shape, onClick = onOpen).padding(start = 12.dp, end = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Cover(m?.thumbnailUrl, 34.dp, radius = 8.dp)
-        Spacer(Modifier.width(10.dp))
+        Cover(m?.thumbnailUrl, 46.dp, radius = 10.dp)
+        Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(m?.title ?: "Nothing playing", style = LoType.sub.copy(fontSize = 13.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.2).sp), color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(m?.title ?: "Nothing playing", style = LoType.sub.copy(fontSize = 15.sp, lineHeight = 19.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.2).sp), color = lo.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IcV(deviceIcon(d), 12.dp, lo.signal)
+                IcV(deviceIcon(d), 14.dp, lo.signal)
                 Spacer(Modifier.width(4.dp))
-                Text(d.name, style = LoType.small.copy(fontSize = 12.sp, lineHeight = 14.sp, fontWeight = FontWeight.Medium), color = lo.signal, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(d.name, style = LoType.small.copy(fontSize = 13.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium), color = lo.signal, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
-        PlayPauseBtn(d.playing, { c.send(d.id, "toggle") }, size = 44.dp, iconSize = 28.dp)
-        IconBtnV(Icons.Rounded.FastForward, { c.send(d.id, "next") }, size = 44.dp, iconSize = 28.dp)
+        PlayPauseBtn(d.playing, { c.send(d.id, "toggle") }, size = 52.dp, iconSize = 34.dp)
+        IconBtnV(Icons.Rounded.FastForward, { c.send(d.id, "next") }, size = 52.dp, iconSize = 34.dp)
     }
 }
 
