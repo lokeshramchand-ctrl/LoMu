@@ -191,13 +191,6 @@ function pickWeighted<T>(list: T[], n: number, rnd: () => number): T[] {
   return pool.sort((a, b) => b.k - a.k).slice(0, n).map((x) => x.t);
 }
 
-/** Which seeds to explore today: always the top two, the rest rotate so each day reaches a different corner of your taste. */
-export function dailySeeds(top: Track[], day: string, n = 6): Track[] {
-  if (top.length <= n) return top;
-  const rnd = seeded('seeds:' + day);
-  return [...top.slice(0, 2), ...pickWeighted(top.slice(2), n - 2, rnd)];
-}
-
 /**
  * The daily mix: a playlist, not a list. Three pools are blended in a fixed rhythm
  * (familiar favourite, fresh track from a known artist, fresh track, ... with a discovery every fifth slot),
