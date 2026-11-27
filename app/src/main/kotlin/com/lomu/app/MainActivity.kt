@@ -71,6 +71,7 @@ class MainActivity : ComponentActivity() {
                 while (true) {
                     syncClient.sync()
                     connectClient.start() // no-op while already connected or signed out
+                    com.lomu.app.update.AppUpdater.check(applicationContext) { connection?.isPlaying?.value == true }
                     delay(60_000)
                 }
             }
