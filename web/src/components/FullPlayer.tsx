@@ -9,6 +9,7 @@ import type { Track } from '@/lib/types';
 import { Cover } from './Art';
 import { Icon } from './Icon';
 import { Seek } from './PlayerBar';
+import { useConnect, remoteDevice, sendCommand } from '@/player/connect';
 import { Bars } from './Cards';
 import { useMenu } from './Menu';
 
@@ -194,9 +195,15 @@ function Lyrics({ track }: { track: Track }) {
 }
 
 function Queue() {
-  const queue = usePlayer((s) => s.queue);
-  const index = usePlayer((s) => s.index);
-  const playing = usePlayer((s) => s.playing);
+  const localQueue = usePlayer((s) => s.queue);
+  const localIndex = usePlayer((s) => s.index);
+  const localPlaying = usePlayer((s) => s.playing);
+  // While steering another device the list is that device's queue (its current song, then what comes next).
+  const remote = useConnect((s) => remoteDevice(s));
+  const queue: Track[] = remote ? [...(remote.track ? [remote.track] : []), ...(remote.queue ?? [])] : localQueue;
+  const index = remote ? 0 : localIndex;
+  const playing = remote ? !!remote.playing : localPlaying;
+  const go = (i: number) => (remote ? void (i > 0 && sendCommand(remote.id, { type: 'skipto', offset: i })) : usePlayer.getState().jump(i));
   const autoplay = usePlayer((s) => s.autoplay);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -219,7 +226,7 @@ function Queue() {
       </div>
       <div className="list" ref={listRef}>
         {queue.map((t, i) => (
-          <div key={`${t.id}-${i}`} className={`q${i === index ? ' cur' : ''}${i < index ? ' past' : ''}`} role="button" tabIndex={0} aria-label={`Play ${t.title}`} onClick={() => usePlayer.getState().jump(i)} onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); usePlayer.getState().jump(i); } }}>
+          <div key={`${t.id}-${i}`} className={`q${i === index ? ' cur' : ''}${i < index ? ' past' : ''}`} role="button" tabIndex={0} aria-label={`Play ${t.title}`} onClick={() => go(i)} onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); go(i); } }}>
             <Cover src={t.thumb} size={40} radius={8} />
             <div className="grow">
               <div className="clamp1" style={{ fontWeight: 500, fontSize: 13.5 }}>{t.title}</div>
@@ -227,7 +234,7 @@ function Queue() {
             </div>
             {i === index ? (
               playing ? <Bars /> : null
-            ) : (
+            ) : remote ? null : (
               <button
                 className="icon-btn sm x"
                 aria-label="Remove from queue"

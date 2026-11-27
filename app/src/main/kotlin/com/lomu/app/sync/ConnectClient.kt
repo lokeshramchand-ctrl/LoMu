@@ -43,6 +43,7 @@ data class Dev(
     val shuffle: Boolean,
     val repeat: String,
     val receivedAt: Long,
+    val queue: List<MediaMetadata> = emptyList(), // the songs after the current one
 )
 
 data class DevicesState(val list: List<Dev> = emptyList(), val active: String? = null, val online: Boolean = false)
@@ -152,6 +153,8 @@ class ConnectClient @Inject constructor(
             override fun onPositionDiscontinuity(o: Player.PositionInfo, n: Player.PositionInfo, reason: Int) {
                 if (reason == Player.DISCONTINUITY_REASON_SEEK) seekTick.tryEmit(Unit)
             }
+            // A changed queue (add, remove, shuffle) reaches the other devices too.
+            override fun onTimelineChanged(t: androidx.media3.common.Timeline, reason: Int) { seekTick.tryEmit(Unit) }
         })
         reporter = scope.launch {
             // Report on every change that matters, and every 5 seconds while playing so progress stays true.
@@ -224,6 +227,7 @@ class ConnectClient @Inject constructor(
                         d.optJSONObject("track")?.let { sync.trackToMetadata(it) },
                         d.optBoolean("playing"), d.optDouble("position", 0.0), d.optDouble("duration", 0.0), d.optDouble("volume", 1.0),
                         d.optBoolean("shuffle"), d.optString("repeat", "off"), now,
+                        d.optJSONArray("queue")?.let { q -> (0 until q.length()).mapNotNull { j -> sync.trackToMetadata(q.getJSONObject(j)) } } ?: emptyList(),
                     )
                 }
                 _devices.value = DevicesState(list, o.optString("active").ifBlank { null }.takeIf { it != "null" }, true)
@@ -249,6 +253,9 @@ class ConnectClient @Inject constructor(
             .put("shuffle", p.shuffleModeEnabled)
             .put("repeat", when (p.repeatMode) { Player.REPEAT_MODE_ONE -> "one"; Player.REPEAT_MODE_ALL -> "all"; else -> "off" })
             .put("queueLen", p.mediaItemCount)
+            .put("queue", JSONArray().also { a ->
+                for (i in p.currentMediaItemIndex + 1 until minOf(p.mediaItemCount, p.currentMediaItemIndex + 31)) p.getMediaItemAt(i).metadata?.let { a.put(sync.metadataToTrack(it)) }
+            })
         post("/api/connect/state", JSONObject().put("id", selfId).put("state", state))
     }
 
@@ -292,6 +299,10 @@ class ConnectClient @Inject constructor(
             "enqueue" -> tracks(cmd.optJSONArray("tracks")).map { it.toMediaItem() }.let { items ->
                 if (c.player.mediaItemCount == 0) c.playQueue(ListQueue(null, items))
                 else if (cmd.optBoolean("next")) c.playNext(items) else c.addToQueue(items)
+            }
+            "skipto" -> {
+                val to = c.player.currentMediaItemIndex + cmd.optInt("offset", 0)
+                if (to > c.player.currentMediaItemIndex && to < c.player.mediaItemCount) c.player.seekToDefaultPosition(to)
             }
             "handoff" -> cmd.optString("to").takeIf { it.isNotBlank() && it != selfId }?.let { handoffTo(it) }
         }
