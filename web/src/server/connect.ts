@@ -18,6 +18,7 @@ export type RemoteState = {
   shuffle: boolean;
   repeat: 'off' | 'all' | 'one';
   queueLen: number;
+  queue: Json[]; // the songs after the current one (first 30), so another device can show "Playing next"
 };
 
 export type DeviceInfo = { id: string; name: string; kind: 'web' | 'android' } & Partial<RemoteState> & { stateAge: number | null };
@@ -39,6 +40,7 @@ const COMMANDS = new Set([
   'radio', // play a song and let radio carry on: { track }
   'enqueue', // add songs to the end: { tracks }
   'handoff', // "send your playback to device `to`"
+  'skipto', // jump to a song of the queue: { offset } songs after the current one
 ]);
 
 /** One room per account: devices only ever see, and control, the other devices of the same account. */
@@ -68,6 +70,7 @@ function cleanState(s: Partial<RemoteState> | null | undefined): RemoteState | n
     shuffle: !!s.shuffle,
     repeat: s.repeat === 'all' || s.repeat === 'one' ? s.repeat : 'off',
     queueLen: Math.max(0, Math.round(num(s.queueLen))),
+    queue: Array.isArray(s.queue) ? (s.queue.filter((t) => t && typeof t === 'object' && typeof (t as Json).id === 'string') as Json[]).slice(0, 30) : [],
   };
 }
 
