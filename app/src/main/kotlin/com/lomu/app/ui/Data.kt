@@ -9,7 +9,6 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.media3.common.MediaItem
 import com.lomu.app.extensions.toMediaItem
 import com.lomu.app.extensions.metadata
-import com.lomu.app.lyrics.LyricsHelper
 import com.lomu.app.models.MediaMetadata
 import com.lomu.app.sync.ConnectClient
 import com.lomu.app.models.toMediaMetadata
@@ -37,7 +36,6 @@ fun <T> load(key: Any?, block: suspend () -> Result<T>): State<Load<T>> {
 }
 
 val LocalPlayer = staticCompositionLocalOf<PlayerConnection?> { null }
-val LocalLyrics = staticCompositionLocalOf<LyricsHelper?> { null }
 val LocalSync = staticCompositionLocalOf<com.lomu.app.sync.SyncClient?> { null }
 val LocalNav = staticCompositionLocalOf<Nav> { error("no nav") }
 
