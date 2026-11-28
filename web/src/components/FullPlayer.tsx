@@ -56,6 +56,7 @@ export function FullPlayer() {
               <div className="grow">
                 <h1 className="title clamp2">{track.title}</h1>
                 <div className="artists clamp1">
+                  {!track.artists.length && 'Unknown artist'}
                   {track.artists.map((a, i) => (
                     <span key={i}>
                       {i > 0 && ', '}

@@ -59,7 +59,7 @@ function worstify(v: unknown, n = { i: 0 }): unknown {
     return o;
   }
   for (const k of Object.keys(o)) {
-    if (k === 'title' && typeof o[k] === 'string' && Array.isArray(o.items)) o[k] = 'Because you listened to ' + TITLES[n.i++ % TITLES.length]; // shelf titles
+    if (k === 'title' && typeof o[k] === 'string' && Array.isArray(o.items)) o[k] = `Because you listened to ${TITLES[n.i % TITLES.length]} (${n.i++})`; // shelf titles
     else o[k] = worstify(o[k], n);
   }
   return o;
