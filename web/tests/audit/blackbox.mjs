@@ -322,7 +322,7 @@ for (const hd of ['x-content-type-options', 'referrer-policy', 'x-frame-options'
 }
 const health = await call('GET', '/api/health');
 ok(health.status === 200 && health.json?.ok === true && health.json?.db === 'ok', '/api/health is up and anonymous', health.text.slice(0, 80));
-ok(Object.keys(health.json ?? {}).sort().join() === 'accounts,db,ok,uptime,version', 'health reveals only status, version, account count and uptime', Object.keys(health.json ?? {}).join());
+ok(Object.keys(health.json ?? {}).sort().join() === 'accounts,db,lastBackup,ok,uptime,version', 'health reveals only status, version, account count, last backup time and uptime', Object.keys(health.json ?? {}).join());
 ok(!/lan|192\.168|10\.10/.test(health.text), 'health does not leak network addresses');
 const st0 = await call('GET', '/api/auth/status');
 ok(!('lan' in (st0.json ?? {})), 'anonymous status does not leak the home addresses');
