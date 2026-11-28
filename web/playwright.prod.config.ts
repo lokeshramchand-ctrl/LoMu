@@ -5,5 +5,5 @@ export default defineConfig({
   timeout: 240_000,
   workers: 1,
   retries: 0,
-  use: { baseURL: process.env.LOMU_URL ?? 'https://lomu.deploy-ui.lokeshrc.me', viewport: { width: 1360, height: 860 } },
+  use: { baseURL: process.env.LOMU_URL ?? 'https://lomu.example.com', viewport: { width: 1360, height: 860 } },
 });

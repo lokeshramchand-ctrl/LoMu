@@ -12,7 +12,7 @@ export const EXE = process.env.LOMU_EXE || path.join(process.env.LOCALAPPDATA, '
 export const OUT = process.env.LOMU_TEST_DIR || path.join(os.tmpdir(), 'lomu-desktop-tests');
 export const DNSMAP = path.join(here, 'dnsmap.cjs');
 export const OFFLINE = { HTTPS_PROXY: 'http://127.0.0.1:9', HTTP_PROXY: 'http://127.0.0.1:9', NODE_USE_ENV_PROXY: '1', NO_PROXY: '127.0.0.1,localhost' };
-export const HUB_URL = 'https://lomu.deploy-ui.lokeshrc.me';
+export const HUB_URL = 'https://lomu.example.com';
 export const HUB_USER = process.env.LOMU_HUB_USER || 'admin';
 export const HUB_PASS = process.env.LOMU_HUB_PASS || '';
 fs.mkdirSync(OUT, { recursive: true });

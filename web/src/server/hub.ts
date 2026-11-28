@@ -99,7 +99,7 @@ async function learnLan() {
 
 export function setHubLan(address: string) {
   const { ok, bad } = checkAddresses(address);
-  if (bad.length) throw new Error(`Not a home network address: ${bad.join(', ')}. Use addresses like 10.10.10.136 or 192.168.1.17, separated by commas.`);
+  if (bad.length) throw new Error(`Not a home network address: ${bad.join(', ')}. Use addresses like 192.168.1.10 or 192.168.1.20, separated by commas.`);
   setSetting('hub_lan', ok.join(','));
   rt.route = null;
   rt.address = null;
@@ -146,7 +146,7 @@ export async function connectHub(url: string, username: string, password: string
   const u = url.trim().replace(/\/+$/, '');
   if (!/^https?:\/\//i.test(u)) throw new Error('Start the address with https://');
   const lanCheck = checkAddresses(lan);
-  if (lanCheck.bad.length) throw new Error(`Not a home network address: ${lanCheck.bad.join(', ')}. Use addresses like 10.10.10.136 or 192.168.1.17, separated by commas.`);
+  if (lanCheck.bad.length) throw new Error(`Not a home network address: ${lanCheck.bad.join(', ')}. Use addresses like 192.168.1.10 or 192.168.1.20, separated by commas.`);
   if (lanCheck.ok.length) setSetting('hub_lan', lanCheck.ok.join(','));
   rt.route = null;
   let r: Response;
@@ -161,7 +161,7 @@ export async function connectHub(url: string, username: string, password: string
     throw new Error(
       getSetting('hub_lan')
         ? "Can't reach that server, either by its name or at its home network address."
-        : "Can't reach that server. Check the address and your internet connection. If you are on the same network as the server, add its home network address (like 10.10.10.136).",
+        : "Can't reach that server. Check the address and your internet connection. If you are on the same network as the server, add its home network address (like 192.168.1.10).",
     );
   }
   const j = (await r.json().catch(() => ({}))) as { access?: string; refresh?: string; error?: string };

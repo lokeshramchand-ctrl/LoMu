@@ -4,8 +4,8 @@ import path from 'node:path';
 import { readSpotify, trackKey, type SpotifyPlay } from '../src/lib/spotify.ts';
 
 const DIR = path.resolve(process.cwd(), '../Spotify');
-const HOST = process.env.LOMU_HOST || 'lomu.deploy-ui.lokeshrc.me';
-const LAN = process.env.LOMU_LAN || '192.168.1.17';
+const HOST = process.env.LOMU_HOST || 'lomu.example.com';
+const LAN = process.env.LOMU_LAN || '192.168.1.20';
 const dry = process.argv[2] === 'dry';
 
 type Hit = { id: string; title: string; artists: string[]; duration?: number; album?: string } | null;

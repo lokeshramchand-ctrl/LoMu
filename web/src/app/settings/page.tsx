@@ -120,7 +120,7 @@ type Hub = { local: boolean; url: string | null; user: string | null; state: 'of
 
 function HubGroup() {
   const [hub, setHub] = useState<Hub | null>(null);
-  const [url, setUrl] = useState('https://lomu.deploy-ui.lokeshrc.me');
+  const [url, setUrl] = useState('https://lomu.example.com');
   const [u, setU] = useState('');
   const [p, setP] = useState('');
   const [lan, setLan] = useState('');
@@ -174,14 +174,14 @@ function HubGroup() {
           <label><span>Server address</span><input type="url" name="server" spellCheck={false} autoComplete="url" placeholder="https://your-server.example" value={url} onChange={(e) => setUrl(e.target.value)} /></label>
           <label><span>Username</span><input name="username" spellCheck={false} autoComplete="username" value={u} onChange={(e) => setU(e.target.value)} /></label>
           <label><span>Password</span><input type="password" name="password" autoComplete="current-password" value={p} onChange={(e) => setP(e.target.value)} /></label>
-          <label><span>Home network address (optional)</span><input name="lan" spellCheck={false} autoComplete="off" placeholder="10.10.10.136" inputMode="decimal" value={lan} onChange={(e) => setLan(e.target.value)} style={{ flexBasis: '100%' }} /></label>
+          <label><span>Home network address (optional)</span><input name="lan" spellCheck={false} autoComplete="off" placeholder="192.168.1.10" inputMode="decimal" value={lan} onChange={(e) => setLan(e.target.value)} style={{ flexBasis: '100%' }} /></label>
           <button className="btn primary" disabled={busy || !u || !p || !url}>{busy ? 'Connecting…' : 'Connect'}</button>
           {err && <div className="err">{err}</div>}
         </form>
       )}
       {connected && (
         <form className="hubform" onSubmit={(e) => { e.preventDefault(); call('POST', { action: 'lan', lan }); }}>
-          <label><span>Home network address</span><input name="lan" spellCheck={false} autoComplete="off" placeholder={hub?.lan ? `Home network address: ${hub.lan}` : 'Home network address, like 10.10.10.136…'} inputMode="decimal" value={lan} onChange={(e) => setLan(e.target.value)} /></label>
+          <label><span>Home network address</span><input name="lan" spellCheck={false} autoComplete="off" placeholder={hub?.lan ? `Home network address: ${hub.lan}` : 'Home network address, like 192.168.1.10…'} inputMode="decimal" value={lan} onChange={(e) => setLan(e.target.value)} /></label>
           <button className="btn sm" disabled={busy}>{lan.trim() ? 'Save' : hub?.lan ? 'Clear' : 'Save'}</button>
           {err && <div className="err">{err}</div>}
         </form>

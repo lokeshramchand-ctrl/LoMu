@@ -178,7 +178,7 @@ class SyncClient @Inject constructor(
     fun setLan(value: String): String? {
         val parts = value.split(Regex("[\\s,;]+")).map { it.trim() }.filter { it.isNotEmpty() }
         val bad = parts.filter { !validEntry(it) }
-        if (bad.isNotEmpty()) return "Not a home network address: ${bad.joinToString(", ")}. Use addresses like 10.10.10.136 or 10.10.10.136:4100."
+        if (bad.isNotEmpty()) return "Not a home network address: ${bad.joinToString(", ")}. Use addresses like 192.168.1.10 or 192.168.1.10:4100."
         val ok = parseHomeEntries(value)
         probeCache.clear()
         if (ok.isEmpty()) {

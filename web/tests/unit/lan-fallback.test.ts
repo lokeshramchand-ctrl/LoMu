@@ -71,8 +71,8 @@ afterAll(async () => {
 
 describe('lan address check', () => {
   it('accepts only private IPv4 addresses', () => {
-    for (const ok of ['192.168.1.17', '10.0.0.5', '172.16.4.2', '172.31.255.1', '100.64.1.1', '127.0.0.1']) expect(lan.isLanAddress(ok), ok).toBe(true);
-    for (const bad of ['8.8.8.8', '163.223.190.197', '172.32.0.1', '192.169.1.1', '256.1.1.1', 'example.com', '', '192.168.1', '192.168.1.1:80', '192.168.1.1/x']) expect(lan.isLanAddress(bad), bad).toBe(false);
+    for (const ok of ['192.168.1.20', '10.0.0.5', '172.16.4.2', '172.31.255.1', '100.64.1.1', '127.0.0.1']) expect(lan.isLanAddress(ok), ok).toBe(true);
+    for (const bad of ['8.8.8.8', '203.0.113.5', '172.32.0.1', '192.169.1.1', '256.1.1.1', 'example.com', '', '192.168.1', '192.168.1.1:80', '192.168.1.1/x']) expect(lan.isLanAddress(bad), bad).toBe(false);
   });
 });
 
@@ -134,12 +134,12 @@ describe('reach', () => {
   });
 
   it('parses a list of home addresses and rejects anything that is not private', () => {
-    expect(lan.parseAddresses('10.10.10.136, 192.168.1.17')).toEqual(['10.10.10.136', '192.168.1.17']);
-    expect(lan.parseAddresses('10.10.10.136;8.8.8.8  10.10.10.136 192.168.1.17')).toEqual(['10.10.10.136', '192.168.1.17']);
+    expect(lan.parseAddresses('192.168.1.10, 192.168.1.20')).toEqual(['192.168.1.10', '192.168.1.20']);
+    expect(lan.parseAddresses('192.168.1.10;8.8.8.8  192.168.1.10 192.168.1.20')).toEqual(['192.168.1.10', '192.168.1.20']);
     expect(lan.parseAddresses('1.1.1.1')).toEqual([]);
     expect(lan.parseAddresses(null)).toEqual([]);
     expect(lan.parseAddresses('10.0.0.1,10.0.0.2,10.0.0.3,10.0.0.4,10.0.0.5')).toHaveLength(4);
-    expect(lan.checkAddresses('10.10.10.136, nope, 8.8.8.8')).toEqual({ ok: ['10.10.10.136'], bad: ['nope', '8.8.8.8'] });
+    expect(lan.checkAddresses('192.168.1.10, nope, 8.8.8.8')).toEqual({ ok: ['192.168.1.10'], bad: ['nope', '8.8.8.8'] });
   });
 
   it('tries home addresses in order, skipping one that does not answer, and reports which worked', async () => {
@@ -182,9 +182,9 @@ describe('desktop hub over the LAN route', () => {
 
   it('rejects a public address as the home network address', () => {
     expect(() => hub.setHubLan('8.8.8.8')).toThrow(/home network/);
-    expect(() => hub.setHubLan('10.10.10.136, 8.8.8.8')).toThrow(/8\.8\.8\.8/);
-    hub.setHubLan('10.10.10.136, 192.168.1.17');
-    expect(hub.hubStatus().lan).toBe('10.10.10.136,192.168.1.17');
+    expect(() => hub.setHubLan('192.168.1.10, 8.8.8.8')).toThrow(/8\.8\.8\.8/);
+    hub.setHubLan('192.168.1.10, 192.168.1.20');
+    expect(hub.hubStatus().lan).toBe('192.168.1.10,192.168.1.20');
     expect(() => hub.setHubLan('')).not.toThrow();
   });
 

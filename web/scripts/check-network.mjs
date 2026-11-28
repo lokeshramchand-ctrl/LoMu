@@ -1,8 +1,8 @@
 import https from 'node:https';
 import dns from 'node:dns';
 
-const url = new URL(process.argv[2] ?? 'https://lomu.deploy-ui.lokeshrc.me');
-const addrs = process.argv.length > 3 ? process.argv.slice(3) : ['10.10.10.136', '192.168.1.17'];
+const url = new URL(process.argv[2] ?? 'https://lomu.example.com');
+const addrs = process.argv.length > 3 ? process.argv.slice(3) : ['192.168.1.10', '192.168.1.20'];
 
 const probe = (host, label, path = '/api/health') =>
   new Promise((resolve) => {
