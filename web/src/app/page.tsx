@@ -14,6 +14,7 @@ import { useLibrary } from '@/player/library';
 import { currentTrack, usePlayer } from '@/player/store';
 import { HOME_SECTIONS, useSettings } from '@/player/settings';
 import { warmProps } from '@/lib/warm';
+import { CoverWash } from '@/lib/wash';
 
 export default function Home() {
   const home = useSettings((s) => s.home);
@@ -54,6 +55,7 @@ export default function Home() {
   const greeting = hour < 5 ? 'Late night' : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
   const cur = usePlayer((s) => currentTrack(s)?.id);
+  const curThumb = usePlayer((s) => currentTrack(s)?.thumb);
   const playing = usePlayer((s) => s.playing);
   const playList = (list: Track[], source: string, at = 0) => {
     if (list.length) usePlayer.getState().play(list, at, { source });
@@ -71,6 +73,7 @@ export default function Home() {
 
   return (
     <Bento className="fade-in">
+      <CoverWash thumb={curThumb} page />
       <header className="greet">
         <div className="gtext">
           <p className="muted" suppressHydrationWarning>

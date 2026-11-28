@@ -97,10 +97,7 @@ export function ThemeSelect({ up = false }: { up?: boolean }) {
 export function Topbar() {
   const router = useRouter();
   const path = usePathname();
-  const tabs = useTabs().filter((t) => t.href !== '/search');
-  const input = useRef<HTMLInputElement>(null);
   const bar = useRef<HTMLElement>(null);
-  const [q, setQ] = useState('');
   const [scrolled, setScrolled] = useState(false);
   const { user, sync, local } = useAuth();
 
@@ -109,15 +106,12 @@ export function Topbar() {
       const t = e.target as HTMLElement;
       if (e.key === '/' && !/INPUT|TEXTAREA/.test(t.tagName)) {
         e.preventDefault();
-        input.current?.focus();
+        router.push('/search');
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
-  useEffect(() => {
-    if (!path.startsWith('/search')) setQ('');
-  }, [path]);
+  }, [router]);
   // a hairline appears only once content has scrolled under the bar
   useEffect(() => {
     const panel = bar.current?.closest('.panel');
@@ -131,16 +125,6 @@ export function Topbar() {
   return (
     <header ref={bar} className={`top glass${scrolled ? ' edge' : ''}`}>
       <Brand />
-      <nav className="links" aria-label="Main">
-        {tabs.map((t) => {
-          const on = isActive(path, t.href);
-          return (
-            <Link key={t.href} href={t.href} className={`lnk${on ? ' on' : ''}`} aria-current={on ? 'page' : undefined}>
-              {t.label}
-            </Link>
-          );
-        })}
-      </nav>
       {local && (
         <div className="hist">
           <button className="icon-btn sm" aria-label="Go back" onClick={() => router.back()}><Icon name="chevL" size={16} /></button>
@@ -148,48 +132,25 @@ export function Topbar() {
         </div>
       )}
       <div className="grow" />
-      <form
-        className={`search${path.startsWith('/search') ? ' gone' : ''}`}
-        role="search"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (q.trim()) router.push(`/search?q=${encodeURIComponent(q.trim())}`);
-        }}
-      >
-        <Icon name="search" size={18} />
-        <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search songs, artists, albums" aria-label="Search" />
-        {q ? (
-          <button type="button" className="clr" aria-label="Clear" onClick={() => (setQ(''), input.current?.focus())}>
-            <Icon name="close" size={14} />
-          </button>
-        ) : (
-          <kbd>/</kbd>
+      <div className="pillbtns">
+        {!path.startsWith('/search') && (
+          <Link href="/search" className="rb" aria-label="Search" title="Search ( / )"><Icon name="search" size={20} /></Link>
         )}
-      </form>
-      <DevicesButton down />
-      <Link href="/settings" className="avatar" aria-label="Account and settings" title={`${who ?? 'Settings'}${sync === 'live' ? ' · synced' : sync === 'error' ? ' · offline' : ''}`}>
-        <span>{(who ?? 'L')[0]?.toUpperCase()}</span>
-      </Link>
+        <DevicesButton down />
+        <Link href="/settings" className="avatar" aria-label="Account and settings" title={`${who ?? 'Settings'}${sync === 'live' ? ' · synced' : sync === 'error' ? ' · offline' : ''}`}>
+          <span>{(who ?? 'L')[0]?.toUpperCase()}</span>
+        </Link>
+      </div>
       <style jsx>{`
-        .top { position: sticky; top: 0; z-index: 30; height: var(--top-h); display: flex; align-items: center; gap: 20px; padding: 0 var(--chrome-x); border-bottom: 1px solid transparent; transition: border-color .2s var(--ease); }
+        .top { position: sticky; top: 0; z-index: 30; height: var(--top-h); display: flex; align-items: center; gap: 16px; padding: 0 var(--chrome-x); border-bottom: 1px solid transparent; transition: border-color .2s var(--ease); }
         .top.edge { border-bottom-color: var(--border); }
-        .links { display: flex; align-items: center; gap: 4px; flex: none; }
-        :global(.top .lnk) { position: relative; display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: var(--r); white-space: nowrap; color: var(--muted); font-weight: 500; font-size: .9375rem; transition: color .15s, background .15s, transform .1s ease-out; }
-        :global(.top .lnk:hover) { color: var(--text); background: var(--pill); }
-        :global(.top .lnk:active) { transform: scale(.97); }
-        :global(.top .lnk.on) { color: var(--ink); }
-        :global(.top .lnk.on)::after { content: ''; position: absolute; inset-inline: 12px; bottom: 1px; height: 2px; border-radius: 1px; background: var(--signal); }
         .hist { display: flex; gap: 8px; }
-        .search { display: flex; align-items: center; gap: 10px; min-height: 36px; flex: 0 1 340px; min-width: 120px; padding: 0 12px; border-radius: var(--r); background: var(--pill); color: var(--muted); transition: background .15s, box-shadow .15s; }
-        .search.gone { display: none; } /* the Search page has its own field with live suggestions */
-        .search:hover { background: var(--pill-hover); color: var(--text); }
-        .search:focus-within { background: var(--pill-hover); color: var(--text); box-shadow: 0 0 0 2px var(--ink); }
-        .search input { flex: 1; min-width: 0; background: none; border: 0; outline: none; font-size: .875rem; color: var(--ink); }
-        .search input::placeholder { color: var(--muted); }
-        kbd { font-family: var(--font-num); font-size: .6875rem; padding: 1px 6px; border-radius: var(--r-sm); box-shadow: inset 0 0 0 1px var(--border-2); color: var(--muted); }
-        .clr { color: var(--muted); display: grid; place-items: center; }
-        .clr:hover { color: var(--ink); }
-        :global(.top .avatar) { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); color: var(--ink); font-weight: 600; font-size: .875rem; transition: transform .1s ease-out; }
+        /* one round grey capsule holds the buttons, as on the phone */
+        .pillbtns { display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 99px; background: var(--surface-2); }
+        :global(.top .rb) { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; color: var(--ink); transition: background .15s, transform .1s ease-out; }
+        :global(.top .rb:hover) { background: var(--pill-hover); }
+        :global(.top .rb:active) { transform: scale(.94); }
+        :global(.top .avatar) { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: var(--signal); color: var(--on-signal); font-weight: 600; font-size: .875rem; transition: transform .1s ease-out; }
         :global(.top .avatar:active) { transform: scale(.94); }
         @media (max-width: 900px) { .top { display: none; } }
       `}</style>
@@ -212,13 +173,12 @@ export function MobileTabs() {
         );
       })}
       <style jsx>{`
-        .tabs { display: none; }
+        .tabs { display: flex; position: fixed; left: 50%; transform: translateX(-50%); bottom: 12px; z-index: 45; width: min(var(--stack-w), calc(100% - 28px)); height: var(--tabs-h); padding: 0 8px; border-radius: 32px; background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: 0 0 0 1px var(--border), var(--lift-hi); }
+        .tabs :global(a) { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--muted); font-size: .75rem; font-weight: 500; transition: color .15s var(--ease), transform .1s ease-out; }
+        .tabs :global(a:active) { transform: scale(.94); }
+        .tabs :global(a.on) { color: var(--ink); font-weight: 700; }
         @media (max-width: 900px) {
-          .tabs { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; height: calc(64px + env(safe-area-inset-bottom)); padding: 0 8px env(safe-area-inset-bottom); border-radius: 28px 28px 0 0; background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: 0 -1px 0 var(--border); }
-          .tabs :global(a) { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--muted); font-size: .75rem; font-weight: 500; transition: color .15s var(--ease), transform .1s ease-out; }
-          .tabs :global(a:active) { transform: scale(.94); }
-          .tabs :global(a.on) { color: var(--ink); }
-          .tabs :global(a.on) { font-weight: 700; }
+          .tabs { left: 0; right: 0; bottom: 0; transform: none; width: auto; height: calc(var(--tabs-h) + env(safe-area-inset-bottom)); padding: 0 8px env(safe-area-inset-bottom); border-radius: 28px 28px 0 0; box-shadow: 0 -1px 0 var(--border); }
         }
       `}</style>
     </nav>

@@ -8,7 +8,9 @@ import { artistNames } from '@/lib/format';
 import type { Track } from '@/lib/types';
 import { Cover } from './Art';
 import { Icon } from './Icon';
-import { Seek } from './PlayerBar';
+import { Seek, Volume } from './PlayerBar';
+import { DevicesButton } from './Devices';
+import { CoverWash } from '@/lib/wash';
 import { useConnect, remoteDevice, sendCommand } from '@/player/connect';
 import { Bars } from './Cards';
 import { useMenu } from './Menu';
@@ -38,66 +40,65 @@ export function FullPlayer() {
   if (!track) return null;
   return (
     <div className={`fp${expanded ? ' open' : ''}`} aria-hidden={!expanded} role="dialog" aria-label="Now playing">
-      <div className="ambient" aria-hidden style={track.thumb ? { backgroundImage: `url(${track.thumb})` } : undefined} />
+      <CoverWash thumb={track.thumb} />
       <header className="top">
-        <span className="icon-btn" aria-hidden style={{ visibility: 'hidden' }} />
-        <div className="eyebrow">Now playing</div>
-        <button className="icon-btn bordered" aria-label="More" onClick={(e) => useMenu.getState().open(track, e)}>
-          <Icon name="more" />
-        </button>
+        <button className="grab" aria-label="Close player" onClick={() => P.setExpanded(false)}><i /></button>
       </header>
 
       <div className={`body${panel ? ' with-panel' : ''}`}>
         <div className="stage">
-          <div className="art">
-            <Cover src={track.thumb} size="100%" radius={20} />
+          <div className={`art${playing ? '' : ' paused'}`}>
+            <Cover src={track.thumb} size="100%" radius={14} />
           </div>
 
           <div className="info">
-            <h1 className="title clamp2">{track.title}</h1>
-            <div className="artists clamp1">
-              {track.artists.map((a, i) => (
-                <span key={i}>
-                  {i > 0 && ', '}
-                  {a.id ? (
-                    <Link href={`/artist/${a.id}`} onClick={() => P.setExpanded(false)}>
-                      {a.name}
-                    </Link>
-                  ) : (
-                    a.name
-                  )}
-                </span>
-              ))}
+            <div className="titlerow">
+              <div className="grow">
+                <h1 className="title clamp2">{track.title}</h1>
+                <div className="artists clamp1">
+                  {track.artists.map((a, i) => (
+                    <span key={i}>
+                      {i > 0 && ', '}
+                      {a.id ? (
+                        <Link href={`/artist/${a.id}`} onClick={() => P.setExpanded(false)}>
+                          {a.name}
+                        </Link>
+                      ) : (
+                        a.name
+                      )}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <button className={`round${liked ? ' on' : ''}`} aria-label={liked ? 'Unlike' : 'Like'} aria-pressed={liked} onClick={() => useLibrary.getState().toggleLike(track)}>
+                <Icon name={liked ? 'heartFill' : 'heart'} size={18} />
+              </button>
+              <button className="round" aria-label="More" onClick={(e) => useMenu.getState().open(track, e)}>
+                <Icon name="more" size={18} />
+              </button>
             </div>
-            <div style={{ marginTop: 22 }}>
+            <div style={{ marginTop: 18 }}>
               <Seek />
             </div>
             <div className="controls">
-              <button className={`icon-btn${shuffle ? ' on' : ''}`} aria-label="Shuffle" aria-pressed={shuffle} onClick={() => P.toggleShuffle()}>
-                <Icon name="shuffle" size={20} />
-              </button>
               <button className="icon-btn" aria-label="Previous" onClick={() => P.prev()}>
-                <Icon name="prev" size={24} />
+                <Icon name="prev" size={40} />
               </button>
               <button className="playbig" aria-label={playing ? 'Pause' : 'Play'} onClick={() => P.toggle()}>
-                {buffering ? <span className="spinner" /> : <Icon name={playing ? 'pause' : 'play'} size={26} />}
+                {buffering ? <span className="spinner" /> : <Icon name={playing ? 'pause' : 'play'} size={56} />}
               </button>
               <button className="icon-btn" aria-label="Next" onClick={() => P.next()}>
-                <Icon name="next" size={24} />
-              </button>
-              <button className={`icon-btn${repeat !== 'off' ? ' on' : ''}`} aria-label={`Repeat ${repeat}`} onClick={() => P.cycleRepeat()}>
-                <Icon name={repeat === 'one' ? 'repeatOne' : 'repeat'} size={20} />
+                <Icon name="next" size={40} />
               </button>
             </div>
-            <div className="chips" style={{ marginTop: 22 }}>
-              <button className={liked ? 'on' : ''} onClick={() => useLibrary.getState().toggleLike(track)}>
-                {liked ? 'Liked' : 'Like'}
+            <Volume wide />
+            <div className="bottom">
+              <button className={`icon-btn${panel === 'lyrics' ? ' on' : ''}`} aria-label="Lyrics" aria-pressed={panel === 'lyrics'} onClick={() => P.setPanel('lyrics')}>
+                <Icon name="lyrics" size={22} />
               </button>
-              <button className={panel === 'lyrics' ? 'on' : ''} onClick={() => P.setPanel('lyrics')}>
-                Lyrics
-              </button>
-              <button className={panel === 'queue' ? 'on' : ''} onClick={() => P.setPanel('queue')}>
-                Up next
+              <DevicesButton />
+              <button className={`icon-btn${panel === 'queue' ? ' on' : ''}`} aria-label="Up next" aria-pressed={panel === 'queue'} onClick={() => P.setPanel('queue')}>
+                <Icon name="queue" size={22} />
               </button>
             </div>
           </div>
@@ -107,24 +108,29 @@ export function FullPlayer() {
       </div>
 
       <style jsx>{`
-        .fp { overflow: hidden; position: fixed; inset: 0; z-index: 70; display: flex; flex-direction: column; background: var(--bg); transform: translateY(102%); transition: transform .5s var(--ease-out); visibility: hidden; }
+        /* always dark with white controls over the cover wash, in both themes (as on the phone) */
+        .fp { --bg: #000; --ink: #fff; --text: #fff; --muted: rgba(255, 255, 255, .72); --border: rgba(255, 255, 255, .16); --border-2: rgba(255, 255, 255, .3); --signal: #fff; --signal-hi: #fff; --signal-t: #fff; --on-signal: #000; --signal-soft: rgba(255, 255, 255, .16); --surface-2: rgba(255, 255, 255, .14); --card-hover: rgba(255, 255, 255, .2); --pill: rgba(255, 255, 255, .12); --pill-hover: rgba(255, 255, 255, .2); --row-hover: rgba(255, 255, 255, .1); color: #fff; overflow: hidden; position: fixed; inset: 0; z-index: 70; display: flex; flex-direction: column; background: var(--bg); transform: translateY(102%); transition: transform .5s var(--ease-out); visibility: hidden; }
         .fp.open { transform: none; visibility: visible; }
-        .ambient { position: absolute; inset: -10%; z-index: 0; background-size: cover; background-position: center; filter: blur(90px) saturate(1.6); opacity: .55; transform: scale(1.1); pointer-events: none; transition: background-image .6s; }
-        .fp::after { content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none; background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 20%, transparent), color-mix(in srgb, var(--bg) 85%, transparent)); }
         .top, .body { position: relative; z-index: 1; }
-        .top { display: flex; align-items: center; justify-content: space-between; padding: 14px var(--gutter); height: var(--top-h); }
+        .grab { width: 100%; height: 52px; display: grid; place-items: center; }
+        .grab i { width: 36px; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, .5); }
+        .top { height: 52px; }
         .body { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr; gap: 28px; padding: 28px var(--gutter) 32px; overflow-y: auto; }
         .body.with-panel { grid-template-columns: minmax(0, 1.2fr) minmax(320px, .9fr); }
         .stage { display: flex; align-items: center; justify-content: center; gap: 56px; min-height: 0; }
-        .art { width: min(46vh, 420px); aspect-ratio: 1; flex: none; box-shadow: 0 0 0 1px var(--border), 0 32px 64px -24px rgba(0, 0, 0, .6); border-radius: var(--r-sm); }
+        .art { width: min(46vh, 420px); aspect-ratio: 1; flex: none; box-shadow: 0 24px 56px -16px rgba(0, 0, 0, .6); border-radius: 14px; transition: transform .5s cubic-bezier(.3, 1.4, .5, 1); }
+        .art.paused { transform: scale(.86); }
         .info { width: min(480px, 100%); min-width: 0; }
-        .title { font-size: clamp(1.6rem, 3vw, 2.5rem); font-family: var(--font-display); font-weight: 400; line-height: 1.05; letter-spacing: -.025em; }
-        .artists { margin-top: 8px; font-size: 16px; color: var(--muted); font-weight: 500; }
+        .titlerow { display: flex; align-items: center; gap: 10px; }
+        .title { font-size: clamp(1.4rem, 2.4vw, 1.75rem); font-family: var(--font-display); font-weight: 700; line-height: 1.2; letter-spacing: -.01em; overflow-wrap: anywhere; }
+        .round { flex: none; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, .22); color: #fff; transition: transform .1s ease-out; }
+        .round:active { transform: scale(.92); }
+        .bottom { display: flex; justify-content: space-around; align-items: center; margin-top: 8px; }
+        .artists { margin-top: 2px; font-size: 17px; color: var(--muted); font-weight: 500; }
         .artists :global(a:hover) { color: var(--text); text-decoration: underline; }
-        .controls { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; max-width: 420px; }
+        .controls { display: flex; align-items: center; justify-content: space-around; margin-top: 12px; }
         .icon-btn.on { color: var(--signal-t) !important; }
-        .playbig { width: 56px; height: 56px; border-radius: var(--r-lg); display: grid; place-items: center; background: var(--signal); color: var(--on-signal); transition: background .15s, transform .1s ease-out; }
-        .playbig:hover { background: var(--signal-hi); }
+        .playbig { width: 84px; height: 84px; display: grid; place-items: center; color: #fff; transition: transform .1s ease-out; }
         .playbig:active { transform: scale(.93); }
         .spinner { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border-2); border-top-color: var(--ink); animation: spin .8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -205,6 +211,8 @@ function Queue() {
   const playing = remote ? !!remote.playing : localPlaying;
   const go = (i: number) => (remote ? void (i > 0 && sendCommand(remote.id, { type: 'skipto', offset: i })) : usePlayer.getState().jump(i));
   const autoplay = usePlayer((s) => s.autoplay);
+  const shuffle = usePlayer((s) => s.shuffle);
+  const repeat = usePlayer((s) => s.repeat);
   const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -216,6 +224,12 @@ function Queue() {
       <div className="ph">
         <span className="eyebrow">Up next · {Math.max(0, queue.length - index - 1)}</span>
         <div className="row" style={{ gap: 4 }}>
+          <button className={`icon-btn sm${shuffle ? ' on' : ''}`} aria-label="Shuffle" aria-pressed={shuffle} onClick={() => usePlayer.getState().toggleShuffle()}>
+            <Icon name="shuffle" size={16} />
+          </button>
+          <button className={`icon-btn sm${repeat !== 'off' ? ' on' : ''}`} aria-label={`Repeat ${repeat}`} onClick={() => usePlayer.getState().cycleRepeat()}>
+            <Icon name={repeat === 'one' ? 'repeatOne' : 'repeat'} size={16} />
+          </button>
           <button className={`btn sm${autoplay ? ' primary' : ''}`} onClick={() => usePlayer.setState({ autoplay: !autoplay })}>
             Autoplay {autoplay ? 'on' : 'off'}
           </button>

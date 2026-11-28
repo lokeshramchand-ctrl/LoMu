@@ -89,19 +89,20 @@ function useRemotePosition(d: Device | null, receivedAt: number) {
   return Math.min(dur, (d.position ?? 0) + (d.playing ? Math.max(0, now - receivedAt) / 1000 : 0));
 }
 
-function Volume() {
+export function Volume({ wide = false }: { wide?: boolean }) {
   const volume = usePlayer((s) => s.volume);
   const muted = usePlayer((s) => s.muted);
   const P = usePlayer.getState();
   const shown = muted ? 0 : volume;
   return (
-    <div className="vol">
+    <div className={`vol${wide ? ' wide' : ''}`}>
       <button className="icon-btn sm" aria-label={muted || volume === 0 ? 'Unmute' : 'Mute'} onClick={() => P.toggleMute()}>
         <Icon name={muted || volume === 0 ? 'mute' : volume < 0.5 ? 'speakerLow' : 'volume'} size={18} />
       </button>
       <input type="range" min={0} max={1} step={0.01} value={shown} aria-label="Volume" onChange={(e) => P.setVolume(Number(e.target.value))} style={{ ['--v' as string]: `${shown * 100}%` }} />
       <style jsx>{`
         .vol { display: flex; align-items: center; gap: 4px; width: 128px; }
+        .vol.wide { width: 100%; gap: 10px; margin-top: 8px; }
         input { flex: 1; min-width: 0; height: 4px; border-radius: 99px; appearance: none; -webkit-appearance: none; background: linear-gradient(to right, var(--ink) var(--v), var(--border-2) var(--v)); cursor: pointer; outline-offset: 6px; }
         input:hover { background: linear-gradient(to right, var(--signal) var(--v), var(--border-2) var(--v)); }
         input::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--ink); opacity: 0; }
@@ -128,95 +129,37 @@ export function PlayerBar() {
   // While steering another device the bar shows that device's song and its controls send commands.
   const isPlaying = remote ? !!remote.playing : playing;
   const cmd = (type: string) => remote && sendCommand(remote.id, { type });
-  const seekEl = remote ? <Seek remote={{ position: rpos, duration: remote.duration ?? shown.duration ?? 0, onSeek: (v) => remote && sendCommand(remote.id, { type: 'seek', position: v }) }} /> : <Seek />;
   const seekCompact = remote ? <Seek compact remote={{ position: rpos, duration: remote.duration ?? shown.duration ?? 0, onSeek: (v) => remote && sendCommand(remote.id, { type: 'seek', position: v }) }} /> : <Seek compact />;
   return (
-    <div className="bar">
-      <div className="left">
-        <button className="meta" onClick={() => !remote && P.setExpanded(true)} aria-label="Open player">
-          <Cover src={shown.thumb} size={52} radius={4} />
-          <div className="grow" style={{ textAlign: 'start' }}>
-            <div className="t clamp1">{shown.title}</div>
-            {remote ? (
-              <div className="s clamp1 rem">Playing on {remote.name}</div>
-            ) : (
-              <div className={`s clamp1${error ? ' bad' : ''}`}>{error ?? (buffering ? 'Loading…' : artistNames(shown.artists))}</div>
-            )}
-          </div>
-        </button>
-        <button className={`icon-btn sm hide-sm${liked ? ' on' : ''}`} aria-label="Like" onClick={() => useLibrary.getState().toggleLike(shown)}>
-          <Icon name={liked ? 'heartFill' : 'heart'} size={18} />
-        </button>
-      </div>
-      <div className="center">
-        <div className="ctrls">
-          {!remote && (
-            <button className={`icon-btn hide-sm${shuffle ? ' on' : ''}`} aria-label="Shuffle" aria-pressed={shuffle} onClick={() => P.toggleShuffle()}>
-              <Icon name="shuffle" size={18} />
-            </button>
-          )}
-          <button className="icon-btn hide-sm" aria-label="Previous" onClick={() => (remote ? cmd('prev') : P.prev())}>
-            <Icon name="prev" size={20} />
-          </button>
-          <button className="play" aria-label={isPlaying ? 'Pause' : 'Play'} onClick={() => (remote ? cmd('toggle') : P.toggle())}>
-            <Icon name={isPlaying ? 'pause' : 'play'} size={16} />
-          </button>
-          <button className="icon-btn" aria-label="Next" onClick={() => (remote ? cmd('next') : P.next())}>
-            <Icon name="next" size={20} />
-          </button>
-          {!remote && (
-            <button className={`icon-btn hide-sm${repeat !== 'off' ? ' on' : ''}`} aria-label={`Repeat ${repeat}`} onClick={() => P.cycleRepeat()}>
-              <Icon name={repeat === 'one' ? 'repeatOne' : 'repeat'} size={18} />
-            </button>
+    <div className="bar glass">
+      <button className="meta" onClick={() => !remote && P.setExpanded(true)} aria-label="Open player">
+        <Cover src={shown.thumb} size={46} radius={10} />
+        <div className="grow" style={{ textAlign: 'start' }}>
+          <div className="t clamp1">{shown.title}</div>
+          {remote ? (
+            <div className="s clamp1 rem">Playing on {remote.name}</div>
+          ) : (
+            <div className={`s clamp1${error ? ' bad' : ''}`}>{error ?? (buffering ? 'Loading…' : artistNames(shown.artists))}</div>
           )}
         </div>
-        <div className="seekrow hide-sm">{seekEl}</div>
-      </div>
-      <div className="right hide-sm">
-        {!remote && (
-          <button className="icon-btn sm" aria-label="Lyrics" onClick={() => (P.setExpanded(true), usePlayer.setState({ panel: 'lyrics' }))}>
-            <Icon name="lyrics" size={18} />
-          </button>
-        )}
-        {!remote && (
-          <button className="icon-btn sm" aria-label="Queue" onClick={() => (P.setExpanded(true), usePlayer.setState({ panel: 'queue' }))}>
-            <Icon name="queue" size={18} />
-          </button>
-        )}
-        <DevicesButton />
-        <Volume />
-        {!remote && (
-          <button className="icon-btn sm" aria-label="Full screen" title="Now playing" onClick={() => P.setExpanded(true)}>
-            <Icon name="fullscreen" size={18} />
-          </button>
-        )}
-      </div>
+      </button>
+      <button className="icon-btn big" aria-label={isPlaying ? 'Pause' : 'Play'} onClick={() => (remote ? cmd('toggle') : P.toggle())}>
+        <Icon name={isPlaying ? 'pause' : 'play'} size={30} />
+      </button>
+      <button className="icon-btn big" aria-label="Next" onClick={() => (remote ? cmd('next') : P.next())}>
+        <Icon name="next" size={30} />
+      </button>
       <div className="mobile-progress">{seekCompact}</div>
       <style jsx>{`
-        .bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; border-top: 1px solid var(--border); height: var(--player-h); display: grid; grid-template-columns: minmax(180px, 30%) minmax(0, 40%) minmax(180px, 30%); align-items: center; gap: 16px; padding: 0 var(--chrome-x); background: var(--glass); -webkit-backdrop-filter: blur(24px) saturate(150%); backdrop-filter: blur(24px) saturate(150%); animation: rise .3s var(--ease-out) both; }
-        @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) { .bar { background: var(--bg); -webkit-backdrop-filter: none; backdrop-filter: none; } }
-        .left { display: flex; align-items: center; gap: 12px; min-width: 0; }
-        .meta { display: flex; align-items: center; gap: 14px; min-width: 0; }
-        .t { font-weight: 500; font-size: 14px; color: var(--ink); }
-        .s { color: var(--muted); font-size: 12px; margin-top: 1px; }
+        /* the phone's capsule: floats above the tab bar, 66px tall, 46px cover, play and skip */
+        .bar { position: fixed; left: 50%; bottom: calc(var(--tabs-h) + 8px + env(safe-area-inset-bottom)); z-index: 50; transform: translateX(-50%); width: min(var(--stack-w), calc(100% - 28px)); height: 66px; display: flex; align-items: center; gap: 4px; padding: 0 6px 0 12px; border-radius: 36px; box-shadow: 0 0 0 1px var(--border), var(--lift-hi); overflow: hidden; animation: rise .3s var(--ease-out) both; }
+        .meta { flex: 1; display: flex; align-items: center; gap: 12px; min-width: 0; height: 100%; }
+        .t { font-weight: 600; font-size: 15px; color: var(--ink); }
+        .s { color: var(--muted); font-size: 13px; font-weight: 500; margin-top: 1px; }
         .s.bad { color: var(--red-t); }
         .s.rem { color: var(--signal-t); font-weight: 700; }
-        .center { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; max-width: 722px; width: 100%; justify-self: center; }
-        .ctrls { display: flex; align-items: center; gap: 20px; }
-        .play { width: 40px; height: 40px; border-radius: var(--r); background: var(--signal); color: var(--on-signal); display: grid; place-items: center; transition: background .15s, transform .1s ease-out; }
-        .play:hover { background: var(--signal-hi); }
-        .play:active { transform: scale(.94); }
-        .seekrow { width: 100%; }
-        .right { display: flex; align-items: center; gap: 12px; justify-content: flex-end; }
-        .mobile-progress { display: none; }
-        @media (max-width: 900px) {
-          .bar { bottom: calc(56px + env(safe-area-inset-bottom)); height: 56px; display: flex; gap: 4px; padding: 0 8px; }
-          .left { flex: 1; }
-          .center { flex: none; width: auto; }
-          .meta :global(.cover) { width: 40px !important; height: 40px !important; }
-          :global(.hide-sm) { display: none !important; }
-          .mobile-progress { display: block; position: absolute; inset-inline: 8px; bottom: 0; }
-        }
+        .big { flex: none; width: 52px; height: 52px; }
+        .mobile-progress { position: absolute; inset-inline: 22px; bottom: 0; }
       `}</style>
     </div>
   );
