@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 const USER = 'owner';
 const PASS = 'e2e-correct-horse';
-const VIDEO = 'kJQP7kiw5Fk'; // 4.6 MB opus: well past the ~1 MB point where streams used to be cut off
+const VIDEO = 'kJQP7kiw5Fk';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -12,7 +12,6 @@ test('first run: API is open, then creating the owner locks it down', async ({ r
   expect(bad.status()).toBe(400);
   const ok = await request.post('/api/auth/setup', { data: { username: USER, password: PASS } });
   expect(ok.ok()).toBe(true);
-  // A fresh context (no cookies) must now be refused everywhere.
   const anon = await (await import('@playwright/test')).request.newContext({ baseURL: test.info().project.use.baseURL });
   expect((await anon.get('/api/home')).status()).toBe(401);
   expect((await anon.get(`/api/stream/${VIDEO}`)).status()).toBe(401);
@@ -29,7 +28,6 @@ test('the stream proxy delivers the whole file, not just the first MiB', async (
   expect(len).toBeGreaterThan(2 * 1024 * 1024);
   expect(body.length).toBe(len);
 
-  // A seek deep into the file is a proper 206.
   const seek = await request.get(`/api/stream/${VIDEO}`, { headers: { range: `bytes=${len - 100_000}-` } });
   expect(seek.status()).toBe(206);
   expect((await seek.body()).length).toBe(100_000);
@@ -62,17 +60,15 @@ test('UI: sign in, search, play a song and watch the clock pass the first MiB', 
   const seek = page.getByRole('slider', { name: 'Seek' }).first();
   await expect(seek).toBeVisible({ timeout: 30_000 });
   const now = async () => Number(await seek.getAttribute('aria-valuenow'));
-  // ~160 kbps Opus means the first MiB lasts ~50 s; playing past 60 s proves the cut-off is gone.
   await page.getByRole('button', { name: 'Pause' }).waitFor({ timeout: 30_000 });
   await expect.poll(now, { timeout: 40_000, intervals: [1000] }).toBeGreaterThan(3);
-  // Jump close to the end (a seek into the unlocked region) and let it keep playing.
   await seek.focus();
   const before = await now();
-  for (let i = 0; i < 14; i++) await page.keyboard.press('ArrowRight'); // +70 s
+  for (let i = 0; i < 14; i++) await page.keyboard.press('ArrowRight');
   await expect.poll(now, { timeout: 40_000, intervals: [1000] }).toBeGreaterThan(before + 60);
   const t1 = await now();
   await page.waitForTimeout(4000);
-  expect(await now()).toBeGreaterThan(t1); // still advancing after the jump, no stall
+  expect(await now()).toBeGreaterThan(t1);
 });
 
 test('UI: signing out returns to the login screen', async ({ page }) => {

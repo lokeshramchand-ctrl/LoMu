@@ -1,8 +1,3 @@
-/**
- * BeatWave Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
- */
-
 package com.lomu.app.utils
 
 import android.content.Context
@@ -13,10 +8,6 @@ import android.net.NetworkRequest
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
 
-/**
- * Simple NetworkConnectivityObserver based on OuterTune's implementation
- * Provides network connectivity monitoring for auto-play functionality
- */
 class NetworkConnectivityObserver(context: Context) {
     private val connectivityManager =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -43,11 +34,9 @@ class NetworkConnectivityObserver(context: Context) {
         try {
             connectivityManager.registerNetworkCallback(request, networkCallback)
         } catch (e: Exception) {
-            // Fallback: assume connected if registration fails
             _networkStatus.trySend(true)
         }
         
-        // Send initial state
         val isInitiallyConnected = isCurrentlyConnected()
         _networkStatus.trySend(isInitiallyConnected)
     }
@@ -56,18 +45,13 @@ class NetworkConnectivityObserver(context: Context) {
         connectivityManager.unregisterNetworkCallback(networkCallback)
     }
     
-    /**
-     * Check current connectivity state synchronously
-     */
     fun isCurrentlyConnected(): Boolean {
         return try {
             val activeNetwork = connectivityManager.activeNetwork
             val networkCapabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
             
-            // Check if we have internet capability
             val hasInternet = networkCapabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
             
-            // For API 23+, also check if connection is validated
             val isValidated =
                 networkCapabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
 

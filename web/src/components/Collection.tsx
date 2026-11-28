@@ -9,7 +9,6 @@ import { Bento } from './Bento';
 import { TrackRow } from './Cards';
 import { toast } from './Toast';
 
-/** "1:45:13" for a total running time in seconds. */
 export function runTime(seconds: number) {
   const s = Math.max(0, Math.round(seconds));
   const h = Math.floor(s / 3600);
@@ -18,7 +17,6 @@ export function runTime(seconds: number) {
   return h ? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}` : `${m}:${String(sec).padStart(2, '0')}`;
 }
 
-/** Desktop app only: "Save offline" for a list. Hidden in the browser, where the server keeps no audio on disk. */
 function SaveOffline({ tracks }: { tracks: Track[] }) {
   const [state, setState] = useState<{ enabled: boolean; saved: number }>({ enabled: false, saved: 0 });
   const ids = tracks.map((t) => t.id);
@@ -52,10 +50,6 @@ function SaveOffline({ tracks }: { tracks: Track[] }) {
   );
 }
 
-/**
- * Shared page for albums, playlists and generated mixes, after the Soundwaves reference: round controls on top, one
- * pastel card (small label, title, cover, song count with running time, black shuffle button), then plain song rows.
- */
 export function Collection({
   kind,
   title,
@@ -151,7 +145,7 @@ export function Collection({
 }
 
 export function PageError({ error, retry }: { error: unknown; retry?: () => void }) {
-  if (error) console.error(error); // details stay in the console, not on the page
+  if (error) console.error(error);
   return (
     <div className="callout err" style={{ maxWidth: 560 }}>
       <Icon name="warn" size={20} />

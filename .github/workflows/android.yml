@@ -1,7 +1,3 @@
-# Builds the Android APK on every push that touches the app and publishes it as a GitHub release (android-v<run number>).
-# It is signed with the SAME debug keystore the phone's installed copy was signed with, kept in the secret
-# ANDROID_KEYSTORE_B64 (base64 of ~/.android/debug.keystore). Without that secret the job skips every step: a build signed with a
-# different key could not be installed over the phone's copy.
 name: Android app
 
 on:

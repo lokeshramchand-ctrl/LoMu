@@ -1,9 +1,3 @@
-/* Black-box audit + stress test against a running LoMu server.
-
-   Usage:  node tests/audit/blackbox.mjs http://localhost:4300 <setupCode>
-   Start the server on a THROWAWAY data dir first (LOMU_DATA_DIR=/tmp/x LOMU_SETUP_CODE=...): it creates accounts
-   and writes data. Exits non-zero if any check fails. */
-
 const BASE = (process.argv[2] ?? 'http://localhost:4300').replace(/\/+$/, '');
 const CODE = process.argv[3] ?? '';
 const PW = 'correct horse battery';
@@ -30,12 +24,10 @@ async function call(method, path, { token, body, headers = {}, raw } = {}) {
   try {
     json = JSON.parse(text);
   } catch {
-    /* not json */
   }
   return { status: res.status, json, text, headers: res.headers };
 }
 
-/** Opens an SSE stream and collects events until closed. */
 function sse(path, token) {
   const ac = new AbortController();
   const events = [];
@@ -57,7 +49,6 @@ function sse(path, token) {
         }
       }
     } catch {
-      /* aborted */
     }
   })();
   return { events, close: () => ac.abort(), done };
@@ -69,7 +60,6 @@ async function login(name, password = PW, headers = {}) {
   return call('POST', '/api/auth/login', { body: { username: name, password }, headers });
 }
 
-// ---------------------------------------------------------------- first run
 section('first-run setup');
 let r = await call('GET', '/api/auth/status');
 ok(r.json?.setup === false, 'fresh server reports setup=false');
@@ -85,7 +75,6 @@ users.owner = r.json;
 r = await call('POST', '/api/auth/setup', { body: { username: 'second', password: PW, code: CODE } });
 ok(r.status === 400, 'a second setup is refused');
 
-// ---------------------------------------------------------------- unauthenticated access
 section('every protected route refuses anonymous callers');
 const protectedRoutes = [
   ['GET', '/api/sync'], ['POST', '/api/sync'], ['GET', '/api/sync/events'],
@@ -108,7 +97,6 @@ ok((await call('GET', '/api/sync', { token: forged })).status === 401, 'forged t
 const none = `${Buffer.from('{"alg":"none"}').toString('base64url')}.${b}.`;
 ok((await call('GET', '/api/sync', { token: none })).status === 401, 'alg=none token -> 401');
 
-// ---------------------------------------------------------------- user management
 section('account management (owner + 3 guests)');
 const T = users.owner.access;
 r = await call('GET', '/api/users', { token: T });
@@ -137,7 +125,6 @@ ok((await call('DELETE', '/api/users?id=1', { token: T })).status === 400, 'admi
 r = await call('GET', '/api/auth/status', { token: users.guest1.access });
 ok(r.json?.user === 'guest1' && r.json?.role === 'user', 'status shows the guest account');
 
-// ---------------------------------------------------------------- isolation over HTTP
 section('data isolation over HTTP');
 const names = ['owner', 'guest1', 'guest2', 'guest3'];
 for (const n of names) {
@@ -185,9 +172,8 @@ await wait(200);
 ok(r.events[0]?.event === 'http' && r.events[0].data === 400, 'bad device id refused');
 r.close();
 
-// ---------------------------------------------------------------- lifecycle
 section('disabling, password change and deletion take effect at once');
-r = await call('PATCH', '/api/users', { token: T, body: { id: 3, disabled: true } }); // guest2
+r = await call('PATCH', '/api/users', { token: T, body: { id: 3, disabled: true } });
 ok(r.status === 200, 'admin disables guest2');
 ok((await call('GET', '/api/sync', { token: users.guest2.access })).status === 401, 'disabled account: its still-valid access token stops working');
 ok((await login('guest2')).status === 401, 'disabled account cannot sign in');
@@ -214,7 +200,7 @@ ok(r.status === 200 && r.json.access && !r.json.user, 'refresh returns just a to
 users.owner = { ...users.owner, ...r.json };
 ok((await call('POST', '/api/auth/refresh', { body: { refresh: users.owner.refresh } })).status === 200, 'rotated refresh token works once');
 
-r = await call('DELETE', '/api/users?id=4', { token: users.owner.access }); // guest3
+r = await call('DELETE', '/api/users?id=4', { token: users.owner.access });
 ok(r.status === 200 && r.json.users.length === 3, 'admin deletes guest3');
 ok((await call('GET', '/api/sync', { token: users.guest3.access })).status === 401, 'deleted account is locked out');
 r = await call('POST', '/api/users', { token: users.owner.access, body: { username: 'guest3', password: PW } });
@@ -223,13 +209,11 @@ const re = await login('guest3');
 const reDocs = await call('GET', '/api/sync?since=0', { token: re.json.access });
 ok(reDocs.json.docs.length === 0 && reDocs.json.seq === 0, 'a re-created account starts empty (no data inherited)');
 
-// logout only signs out the caller
 const keep = (await login('guest1')).json;
 await call('POST', '/api/auth/logout', { token: users.guest2.access });
 ok((await call('POST', '/api/auth/refresh', { body: { refresh: users.guest2.refresh } })).status === 401, 'logout revokes that account sessions');
 ok((await call('POST', '/api/auth/refresh', { body: { refresh: keep.refresh } })).status === 200, "logout of guest2 does not sign out guest1");
 
-// ---------------------------------------------------------------- brute force
 section('brute-force protection');
 let limited = 0;
 for (let i = 0; i < 14; i++) {
@@ -243,7 +227,6 @@ ok(r.status === 429, 'forging X-Forwarded-For does not dodge the per-account lim
 r = await login('guest1', PW, { 'x-forwarded-for': '9.9.9.9' });
 ok(r.status === 200, 'other accounts are not locked out by it', String(r.status));
 
-// ---------------------------------------------------------------- malformed input
 section('malformed input never crashes the server');
 const fuzz = [
   ['POST', '/api/sync', { raw: '{not json', token: users.guest1.access, headers: { 'content-type': 'application/json' } }],
@@ -269,11 +252,9 @@ for (const [m, p, o] of fuzz) {
 }
 const alive = await call('GET', '/api/auth/status');
 ok(alive.status === 200, 'server still answers after the fuzz round');
-// A quota-violating huge doc is skipped, not fatal
 r = await call('POST', '/api/sync', { token: users.guest1.access, body: { docs: [{ kind: 'like', key: 'huge', value: { x: 'y'.repeat(300000) }, updated: 5 }] } });
 ok(r.status === 200 && r.json.applied === 0, 'an oversized document is skipped');
 
-// ---------------------------------------------------------------- body limits and live streams
 section('body limits and live streams of removed accounts');
 const chunked = (bytes) => new ReadableStream({ start(c) { for (let i = 0; i < bytes; i += 65536) c.enqueue(new Uint8Array(Math.min(65536, bytes - i)).fill(32)); c.close(); } });
 let big = await fetch(BASE + '/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: chunked(2_000_000), duplex: 'half' }).catch(() => null);
@@ -281,13 +262,12 @@ ok(big && big.status === 400, 'a 2 MB chunked body to login is refused', String(
 big = await fetch(BASE + '/api/sync', { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${users.guest1.access}` }, body: chunked(41_000_000), duplex: 'half' }).catch(() => null);
 ok(big && big.status === 413, 'a 41 MB chunked body to sync gets 413', String(big?.status));
 const t413 = Date.now();
-// The server may answer 401 and hang up while the 5 MB is still being sent: some platforms report that as a reset.
 r = await call('POST', '/api/import', { raw: ' '.repeat(5_000_000), headers: { 'content-type': 'application/json' } }).catch((e) => ({ status: /ECONNRESET|EPIPE|fetch failed/.test(String(e) + String(e?.cause)) ? 401 : 0, reset: true }));
 ok(r.status === 401 && Date.now() - t413 < 10_000, 'anonymous /api/import is refused before its body is read', `${r.status} after ${Date.now() - t413} ms`);
 ok((await call('GET', '/api/auth/status')).status === 200, 'server healthy after the oversize bodies');
 
 const g3 = (await call('GET', '/api/users', { token: users.owner.access })).json.users.find((u) => u.username === 'guest3');
-if (g3) await call('DELETE', `/api/users?id=${g3.id}`, { token: users.owner.access }); // the 4 seats are full: free one
+if (g3) await call('DELETE', `/api/users?id=${g3.id}`, { token: users.owner.access });
 const victim = (await call('POST', '/api/users', { token: users.owner.access, body: { username: 'streamvictim', password: PW } })).json;
 if (victim?.user) {
   const vt = (await login('streamvictim')).json;
@@ -309,7 +289,6 @@ if (victim?.user) {
   ok(false, 'could not create the stream-test account', JSON.stringify(victim));
 }
 
-// ---------------------------------------------------------------- pages and headers
 section('pages and headers');
 for (const p of ['/', '/search', '/library', '/explore', '/insights', '/settings', '/import', '/manifest.webmanifest']) {
   const x = await call('GET', p);
@@ -332,10 +311,8 @@ const api = await call('GET', '/api/auth/status');
 ok(!!api.headers.get('x-content-type-options'), 'API responses carry X-Content-Type-Options');
 ok((await call('GET', '/api/sync', { token: users.guest1.access })).headers.get('cache-control')?.includes('no-store') ?? true, 'sync not cacheable');
 
-// ---------------------------------------------------------------- stress
 section('stress');
 const t0 = Date.now();
-// 1. parallel pushes from all accounts, each its own docs, plus overlapping keys
 const accts = ['owner', 'guest1', 'guest2'].map((n) => ({ n, tok: users[n].access }));
 if (!(await call('GET', '/api/sync', { token: users.guest2.access })).status === 200) accts.pop();
 const pushes = [];
@@ -356,14 +333,13 @@ for (const a of accts) {
   }
   const plays = mine.filter((d) => d.kind === 'play');
   const own = plays.every((d) => d.value.by === a.n);
-  const expected = 100 * 20 + 1; // 300 pushes / 3 accounts, 20 docs each, plus the one earlier play doc
+  const expected = 100 * 20 + 1;
   ok(own && plays.length === expected, `${a.n}: ${plays.length}/${expected} plays, none from another account`, `own=${own}`);
   const seqs = new Set(mine.map((d) => d.seq));
   ok(seqs.size === mine.length, `${a.n}: seq numbers are unique`);
 }
 console.log(`  300 pushes x 20 docs in ${Date.now() - t0} ms`);
 
-// 2. many SSE connections held at once (sync + connect), then dropped
 const t1 = Date.now();
 const streams = [];
 for (let i = 0; i < 40; i++) streams.push(sse('/api/sync/events', accts[i % accts.length].tok));
@@ -373,7 +349,6 @@ const connected = streams.filter((x) => x.events.some((e) => e.event === 'seq' |
 ok(connected === 52 - 0 || connected >= 50, `${connected}/52 SSE streams connected`);
 const refused = streams.filter((x) => x.events.some((e) => e.event === 'error' || e.event === 'http')).length;
 console.log(`  streams refused (device cap is 16/account incl. earlier ones): ${refused}`);
-// a push must notify every sync stream of that account
 await call('POST', '/api/sync', { token: users.owner.access, body: { docs: [{ kind: 'like', key: 'ping-all', value: { x: 1 }, updated: 99999 }] } });
 await wait(400);
 const ownerStreams = streams.slice(0, 40).filter((_, i) => i % accts.length === 0);
@@ -387,7 +362,6 @@ console.log(`  52 SSE streams in ${Date.now() - t1} ms`);
 r = await call('GET', '/api/auth/status');
 ok(r.status === 200, 'server healthy after streams dropped');
 
-// 3. read hammer: latency percentiles
 const lat = [];
 const tR = Date.now();
 await Promise.all(
@@ -405,7 +379,6 @@ const pct = (p) => Math.round(lat[Math.floor((lat.length - 1) * p)]);
 console.log(`  1000 incremental reads, 40 workers: ${Date.now() - tR} ms total, p50 ${pct(0.5)} ms, p95 ${pct(0.95)} ms, p99 ${pct(0.99)} ms`);
 ok(pct(0.95) < 1500, 'read p95 under 1.5 s with 40 concurrent workers', String(pct(0.95)));
 
-// 4. login flood on valid credentials must not starve other traffic
 const tL = Date.now();
 const flood = Array.from({ length: 12 }, () => login('guest1'));
 const probe = performance.now();

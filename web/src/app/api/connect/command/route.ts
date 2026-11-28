@@ -5,7 +5,6 @@ import { hubConnect } from '@/server/hub';
 
 export const dynamic = 'force-dynamic';
 
-/** Send a remote-control command to another device: { from, to, cmd: { type, ... } }. */
 export async function POST(req: Request) {
   const user = await requireUser();
   if (user instanceof Response) return user;

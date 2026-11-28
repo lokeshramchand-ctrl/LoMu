@@ -1,8 +1,3 @@
-/**
- * BeatWave Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
- */
-
 package com.lomu.app.utils
 
 import android.content.Context
@@ -25,11 +20,6 @@ fun setAppLocale(context: Context, locale: Locale) {
     context.resources.updateConfiguration(config, context.resources.displayMetrics)
 }
 
-// A radius only ever yields three distinct shapes (single / first / last), but
-// this is called from inside ~29 lazy-list item lambdas, so it used to allocate
-// a fresh AbsoluteSmoothCornerShape per item per composition. The identity churn
-// also missed Compose's outline cache — which keys on the shape instance — so
-// every row rebuilt its corner Path on every draw. Cache per radius instead.
 private val listItemShapes = ConcurrentHashMap<Dp, Array<Shape>>()
 
 fun listItemShape(index: Int, count: Int, radius: Dp = 24.dp): Shape {

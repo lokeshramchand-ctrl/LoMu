@@ -7,18 +7,9 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 
-/**
- * Highest-quality artwork for the full player.
- *
- * 1. The iTunes catalogue (official album art, up to 3000x3000), when a result clearly matches the song.
- * 2. Otherwise the YouTube artwork re-requested at 2160px (4K).
- *
- * Only the song title and artist names are sent to the iTunes Search API. Results (including misses) are cached for the session.
- */
 object HiResArt {
     private val cache = HashMap<String, String?>()
 
-    /** 4K fallback for any YouTube / Google artwork URL. */
     fun fallback(url: String?): String? = url?.resize(2160, 2160)
 
     suspend fun best(title: String, artists: List<String>, current: String?): String? {

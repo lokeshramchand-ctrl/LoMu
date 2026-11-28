@@ -2,7 +2,6 @@
 import { artistNames } from '@/lib/format';
 import { dismissRemote, resumeRemote, useRemoteQueue } from '@/player/queue-sync';
 
-/** "Continue listening": offered when another device (phone, desktop) was playing more recently than this one. */
 export function ContinueBanner() {
   const q = useRemoteQueue((s) => s.q);
   if (!q) return null;

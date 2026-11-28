@@ -1,12 +1,4 @@
 'use strict';
-/*
- * LoMu for Windows.
- *
- * The app is the web player plus its own copy of the LoMu server (the same code that runs on the homelab),
- * started on 127.0.0.1 with its data in %APPDATA%\LoMu. Because the library, listening history, recommendations,
- * catalogue cache and audio cache all live on this PC, it keeps working when the home server is off. The server
- * syncs with the home server in the background whenever it can (see web/src/server/hub.ts).
- */
 const { app, BrowserWindow, Menu, Tray, nativeImage, session, shell, dialog, net, powerMonitor } = require('electron');
 const { spawn } = require('node:child_process');
 const crypto = require('node:crypto');
@@ -18,7 +10,6 @@ const { autoUpdater } = require('electron-updater');
 
 app.setName('LoMu');
 
-// Media keys and background playback.
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.commandLine.appendSwitch('enable-features', 'HardwareMediaKeyHandling,MediaSessionService');
 
@@ -27,7 +18,7 @@ if (!app.requestSingleInstanceLock()) {
   process.exit(0);
 }
 
-const TOKEN = crypto.randomBytes(24).toString('hex'); // proves to the local server that a request comes from this app
+const TOKEN = crypto.randomBytes(24).toString('hex');
 let port = 0;
 let server = null;
 let win = null;
@@ -50,7 +41,6 @@ function freePort() {
   });
 }
 
-/** Tiny local request helper that carries the app token. */
 function call(method, urlPath, body) {
   return new Promise((resolve, reject) => {
     const req = http.request(base() + urlPath, { method, headers: { 'x-lomu-local': TOKEN, 'content-type': 'application/json' }, timeout: 3000 }, (res) => {
@@ -63,7 +53,6 @@ function call(method, urlPath, body) {
   });
 }
 
-/** Optional %APPDATA%\LoMui.json: { "url": "https://llama.example.com", "key": "...", "model": "..." } turns on the daily AI mix. */
 function aiEnv() {
   try {
     const c = JSON.parse(fs.readFileSync(path.join(userData(), 'ai.json'), 'utf8'));
@@ -85,8 +74,7 @@ async function startServer() {
     stdio: ['ignore', 'pipe', 'pipe'],
     env: {
       ...process.env,
-      ELECTRON_RUN_AS_NODE: '1', // run Electron's own Node, no separate install needed
-      // Electron hides NODE_OPTIONS from the app, so extra Node flags for the server (diagnostics, tests) go through here.
+      ELECTRON_RUN_AS_NODE: '1',
       ...(process.env.LOMU_SERVER_NODE_OPTIONS ? { NODE_OPTIONS: process.env.LOMU_SERVER_NODE_OPTIONS } : {}),
       ...aiEnv(),
       NODE_ENV: 'production',
@@ -110,21 +98,17 @@ async function startServer() {
       app.quit();
     }
   });
-  // Wait until it answers.
   const deadline = Date.now() + 60_000;
   for (;;) {
     if (!server) throw new Error('server exited during start-up');
     try {
       if ((await call('GET', '/api/auth/status')) === 200) return;
     } catch {
-      /* not up yet */
     }
     if (Date.now() > deadline) throw new Error('server did not start in time');
     await new Promise((r) => setTimeout(r, 250));
   }
 }
-
-// ------------------------------------------------------------------ window
 
 const statePath = () => path.join(userData(), 'window.json');
 function loadState() {
@@ -139,7 +123,6 @@ function saveState() {
   try {
     fs.writeFileSync(statePath(), JSON.stringify({ ...win.getNormalBounds(), maximized: win.isMaximized() }));
   } catch {
-    /* not important */
   }
 }
 
@@ -169,11 +152,10 @@ function createWindow() {
   win.on('close', (e) => {
     saveState();
     if (!quitting) {
-      e.preventDefault(); // keep playing in the tray
+      e.preventDefault();
       win.hide();
     }
   });
-  // Anything that is not the local app opens in the normal browser.
   const local = (u) => u.startsWith(base());
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:/i.test(url) && !local(url)) shell.openExternal(url);
@@ -228,11 +210,6 @@ function createMenu() {
   );
 }
 
-// ------------------------------------------------------------------ updates
-// Every push to GitHub publishes a release (see .github/workflows/desktop.yml). The installed app checks for one
-// on start and every 30 minutes, downloads it in the background and offers to restart into it. If you ignore the
-// offer it is installed the next time you quit the app.
-
 let updateReady = null;
 let manualCheck = false;
 const updLog = (m) => {
@@ -240,7 +217,6 @@ const updLog = (m) => {
     fs.appendFileSync(path.join(userData(), 'logs', 'updater.log'), `${new Date().toISOString()} ${m}
 `);
   } catch {
-    /* logging only */
   }
 };
 
@@ -257,7 +233,7 @@ function offerRestart(version) {
     .then(({ response }) => {
       if (response === 0) {
         quitting = true;
-        autoUpdater.quitAndInstall(true, true); // silent, and start LoMu again afterwards
+        autoUpdater.quitAndInstall(true, true);
       }
     });
 }
@@ -297,8 +273,6 @@ function checkForUpdatesNow() {
   autoUpdater.checkForUpdates().catch(() => {});
 }
 
-// ------------------------------------------------------------------ life cycle
-
 app.on('second-instance', () => {
   if (win) {
     if (win.isMinimized()) win.restore();
@@ -315,7 +289,6 @@ app.on('will-quit', () => {
   if (server) server.kill();
 });
 app.on('window-all-closed', () => {
-  /* stay in the tray */
 });
 
 app.whenReady().then(async () => {
@@ -332,14 +305,12 @@ app.whenReady().then(async () => {
     return;
   }
 
-  // Every request the window makes to its own server carries the app token (pages, API, audio, event streams).
   session.defaultSession.webRequest.onBeforeSendHeaders({ urls: [`${base()}/*`] }, (details, cb) => {
     details.requestHeaders['x-lomu-local'] = TOKEN;
     cb({ requestHeaders: details.requestHeaders });
   });
   win.loadURL(base() + '/');
 
-  // Sync with the home server as soon as the network is back or the PC wakes up.
   let online = net.isOnline();
   setInterval(() => {
     const now = net.isOnline();

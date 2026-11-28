@@ -55,7 +55,6 @@ export function ItemCard({ item, siblings }: { item: Item; siblings?: Track[] })
           role="button"
           aria-label={`Play ${item.title}`}
           onClick={(e) => {
-            // The play button plays straight away; the rest of the card opens the page.
             e.preventDefault();
             e.stopPropagation();
             playItem(item);
@@ -95,7 +94,6 @@ function CardStyle() {
   );
 }
 
-/** Plays what a card stands for: a song (with its shelf as the queue) or the radio of an album / playlist / artist. */
 function playItem(item: Item) {
   if (item.kind === 'song') return playTrackFrom(item);
   const path = item.kind === 'album' ? `/api/album/${item.id}` : item.kind === 'artist' ? `/api/artist/${item.id}` : `/api/playlist/${item.id}`;
@@ -116,7 +114,6 @@ function ShowAll({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   );
 }
 
-/** A shelf as a bento tile: title on top, cards scrolling inside. */
 export function ShelfTile({ shelf, action, span = 12 }: { shelf: Shelf; action?: React.ReactNode; span?: number }) {
   const songs = shelf.items.filter((i): i is Track => i.kind === 'song');
   const [open, setOpen] = useState(false);

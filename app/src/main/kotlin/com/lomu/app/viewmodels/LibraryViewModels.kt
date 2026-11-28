@@ -1,7 +1,4 @@
-﻿/**
- * BeatWave Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
- */
+﻿
 
 @file:OptIn(ExperimentalCoroutinesApi::class)
 
@@ -81,9 +78,6 @@ constructor(
             .map {
                 Triple(
                     Triple(
-                        // Local-only mode pins every library tab to its LOCAL filter.
-                        // Doing it here rather than in the screen means the stored
-                        // filter is left untouched and comes back when it's turned off.
                         if (it[LocalOnlyModeKey] == true) SongFilter.LOCAL
                         else it[SongFilterKey].toEnum(SongFilter.LIKED),
                         it[SongSortTypeKey].toEnum(SongSortType.CREATE_DATE),
@@ -137,9 +131,6 @@ constructor(
             allArtists.collect { artists ->
                 artists
                     .map { it.artist }
-                    // A local artist has no YouTube page to fetch — asking for one is
-                    // a guaranteed round trip to nothing, and in local-only mode it is
-                    // network traffic the mode exists to avoid.
                     .filter { !it.isLocal }
                     .filter {
                         it.thumbnailUrl == null || Duration.between(
@@ -238,8 +229,6 @@ constructor(
             .flatMapLatest { (sortAndHide, localOnly) ->
                 val (sortType, descending, hideYoutubeShorts) = sortAndHide
                 database.playlists(sortType, descending).map { playlists ->
-                    // A synced YouTube playlist carries a browseId; the ones the user
-                    // made here don't, and those are the only ones local-only shows.
                     playlists
                         .filter { !localOnly || it.playlist.browseId == null }
                         .filterYoutubeShorts(hideYoutubeShorts)
@@ -298,8 +287,6 @@ constructor(
         context.dataStore.data
             .map { it[TopSize] ?: "50" }
             .distinctUntilChanged()
-    // The mixed Library view is built from liked/bookmarked YouTube rows; in
-    // local-only mode the same three shelves read the on-device library instead.
     private val localOnly = context.dataStore.data
         .map { it[LocalOnlyModeKey] == true }
         .distinctUntilChanged()

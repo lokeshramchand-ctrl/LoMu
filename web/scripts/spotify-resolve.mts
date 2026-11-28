@@ -1,8 +1,3 @@
-/* Spotify data export -> YouTube Music matches, so the listening history can join the same play log as the YouTube
-   Music history. Run from web/:  node --experimental-strip-types --no-warnings scripts/spotify-resolve.mts [limit]
-   Reads ../Spotify (gitignored personal export), writes ../Spotify/resolved.json (a cache: re-running only searches
-   what is missing). Only songs actually listened to (30 s or more at least once) are searched: a song that was only
-   ever skipped says nothing worth the lookup. */
 import fs from 'node:fs';
 import path from 'node:path';
 import { Innertube, Log } from 'youtubei.js';
@@ -33,7 +28,6 @@ const jaccard = (a: Set<string>, b: Set<string>) => {
   return n / (a.size + b.size - n);
 };
 
-/** Full title first; failing that the title without any "(From ...)" or " - From ..." tail, which Spotify and YouTube word differently. */
 async function find(t: Agg): Promise<Hit> {
   const first = await search(`${t.artist} ${t.track}`, t);
   if (first) return first;
@@ -78,7 +72,7 @@ async function worker() {
     for (let tryN = 0; tryN < 3; tryN++) {
       try { h = await find(t); break; } catch (e) { await new Promise((r) => setTimeout(r, 1500 * (tryN + 1))); if (tryN === 2) h = undefined as any; }
     }
-    if (h === (undefined as any)) continue; // failed three times: leave it for the next run
+    if (h === (undefined as any)) continue;
     cache[trackKey(t)] = h;
     done++;
     if (h) hit++;

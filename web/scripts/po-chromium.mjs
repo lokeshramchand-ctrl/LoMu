@@ -1,11 +1,3 @@
-// LoMu proof-of-origin token minter, real-browser edition.
-//
-// Same stdio protocol as po-minter.mjs (one JSON object per line):
-//   -> {"id":1,"cmd":"init","challenge":{...},"requestKey":"..."}   <- {"id":1,"ok":true,"ttl":43200}
-//   -> {"id":2,"cmd":"mint","binding":"<visitorData or videoId>"}    <- {"id":2,"ok":true,"token":"..."}
-//
-// Instead of faking a DOM in jsdom, BotGuard runs inside headless Chromium on a blank page served
-// from the youtube.com origin, so its fingerprint checks see a genuine browser.
 import { createInterface } from 'node:readline';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -50,7 +42,6 @@ async function ensurePage() {
 
 async function init({ challenge, requestKey }) {
   const p = await ensurePage();
-  // The interpreter lives on gstatic without CORS headers, so Node fetches it.
   if (!challenge.interpreterJavascript && challenge.interpreterUrl) {
     const url = challenge.interpreterUrl.startsWith('//') ? `https:${challenge.interpreterUrl}` : challenge.interpreterUrl;
     challenge = { ...challenge, interpreterJavascript: await (await fetch(url)).text() };

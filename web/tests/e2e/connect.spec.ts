@@ -10,7 +10,6 @@ test.describe.configure({ mode: 'serial' });
 
 type Dev = { id: string; name: string; track?: { id: string; title: string }; playing?: boolean; position?: number };
 
-/** Stand-in for the Android app: same SSE stream, same state reports, same commands. */
 class FakePhone {
   devices: Dev[] = [];
   cmds: Record<string, any>[] = [];
@@ -53,7 +52,6 @@ class FakePhone {
       state: { track: { id: 'phone-song', title: 'Phone Song', artists: [{ name: 'X' }] }, playing, position, duration: 200, volume, shuffle: false, repeat: 'off', queueLen: 1 },
     });
   }
-  /** The web tab under test (a tab from an earlier test may linger in the list for a few seconds). */
   webId: string | null = null;
   web = () => this.devices.find((d) => (this.webId ? d.id === this.webId : d.id !== this.id));
 }
@@ -76,21 +74,18 @@ test('web and phone stay in sync, both directions', async ({ page, request, base
   await phone.connect();
   await expect.poll(() => phone.devices.length >= 2 && !!phone.web(), { timeout: 15_000 }).toBe(true);
 
-  // Play on the web.
   await page.goto('/search?q=despacito');
   const row = page.locator('[role="button"]').filter({ hasText: /Despacito/i }).first();
   await expect(row).toBeVisible({ timeout: 45_000 });
   await row.click();
   await page.getByRole('button', { name: 'Pause' }).waitFor({ timeout: 30_000 });
 
-  // 1. The phone sees the web tab playing, with progress that moves.
   await expect.poll(() => phone.web()?.playing, { timeout: 15_000 }).toBe(true);
   const p0 = phone.web()!.position!;
   await expect.poll(() => phone.web()!.position!, { timeout: 15_000 }).toBeGreaterThan(p0);
   const webId = phone.web()!.id;
   expect(phone.web()!.track?.id).toBeTruthy();
 
-  // 2. Phone presses pause / play N times: the web follows every time and reports back.
   for (let i = 0; i < ROUNDS; i++) {
     await phone.send(webId, { type: 'pause' });
     await expect(page.getByRole('button', { name: 'Play', exact: true }).first()).toBeVisible({ timeout: 10_000 });
@@ -100,46 +95,39 @@ test('web and phone stay in sync, both directions', async ({ page, request, base
     await expect.poll(() => phone.web()?.playing, { timeout: 10_000 }).toBe(true);
   }
 
-  // 3. Seek from the phone moves the web clock.
   await phone.send(webId, { type: 'seek', position: 100 });
   const seek = page.getByRole('slider', { name: 'Seek' }).first();
   await expect.poll(async () => Number(await seek.getAttribute('aria-valuenow')), { timeout: 15_000 }).toBeGreaterThan(95);
   await expect.poll(() => phone.web()!.position!, { timeout: 15_000 }).toBeGreaterThan(95);
 
-  // 4. Phone starts something: the web is paused (one active device) and the web bar now shows the phone.
   await phone.report(true);
   await expect(page.getByText('Playing on Pixel E2E')).toBeVisible({ timeout: 10_000 });
   await expect(page.getByRole('button', { name: 'Play', exact: true }).first()).toBeHidden();
 
-  // 5. Web bar controls reach the phone; pausing it keeps the web steering the phone (no flip back).
   for (let i = 0; i < ROUNDS; i++) {
     phone.cmds.length = 0;
     await page.getByRole('button', { name: i % 2 ? 'Play' : 'Pause', exact: true }).first().click();
     await expect.poll(() => phone.cmds.some((c) => c.type === 'toggle'), { timeout: 10_000 }).toBe(true);
-    await phone.report(i % 2 === 1); // the phone answers with its new state
+    await phone.report(i % 2 === 1);
     await expect(page.getByText('Playing on Pixel E2E')).toBeVisible({ timeout: 10_000 });
   }
   await phone.report(false);
   await expect(page.getByRole('button', { name: 'Play', exact: true }).first()).toBeVisible();
-  await expect(page.getByText('Playing on Pixel E2E')).toBeVisible(); // still steering while paused
+  await expect(page.getByText('Playing on Pixel E2E')).toBeVisible();
 
-  // 6. Next from the web reaches the phone.
   phone.cmds.length = 0;
   await page.getByRole('button', { name: 'Next', exact: true }).click();
   await expect.poll(() => phone.cmds.some((c) => c.type === 'next'), { timeout: 10_000 }).toBe(true);
 
-  // 7. "This device" in the picker pulls playback back: the phone is asked to hand off to the web tab.
   phone.cmds.length = 0;
   await page.getByRole('button', { name: 'Devices' }).first().click();
   await page.getByRole('button', { name: /This device/ }).click();
   await expect.poll(() => phone.cmds.find((c) => c.type === 'handoff')?.to, { timeout: 10_000 }).toBe(webId);
-  // The phone answers like the app does: a load command for the web tab.
   await phone.send(webId, { type: 'load', tracks: [{ kind: 'song', id: VIDEO, title: 'Handed Off', artists: [{ name: 'X' }] }], index: 0, position: 5, play: true });
   await expect(page.getByText('Playing on Pixel E2E')).toBeHidden({ timeout: 10_000 });
   await expect(page.getByText('Handed Off').first()).toBeVisible({ timeout: 15_000 });
   await expect.poll(() => phone.web()?.playing, { timeout: 20_000 }).toBe(true);
 
-  // 8. Web -> phone: pick the phone in the picker; it receives the queue to play.
   phone.cmds.length = 0;
   await page.getByRole('button', { name: 'Devices' }).first().click();
   await page.getByRole('button', { name: /Pixel E2E/ }).click();
@@ -150,7 +138,7 @@ test('web and phone stay in sync, both directions', async ({ page, request, base
 });
 
 test('song menu: every entry works, and queue actions follow the steered device', async ({ page, request, baseURL }) => {
-  await request.post('/api/auth/setup', { data: { username: USER, password: PASS } }); // no-op when it already exists
+  await request.post('/api/auth/setup', { data: { username: USER, password: PASS } });
   await login(page);
   await page.goto('/search?q=despacito');
   const row = page.locator('[role="button"]').filter({ hasText: /Despacito/i }).first();
@@ -161,24 +149,21 @@ test('song menu: every entry works, and queue actions follow the steered device'
     await expect(page.getByRole('menu')).toBeVisible();
   };
 
-  // The menu lists the usual entries and stays inside the viewport.
   await open();
   for (const name of ['Start radio', 'Play next', 'Add to queue', 'Like', 'Add to playlist', 'Go to album', 'Share']) {
     await expect(page.getByRole('menu').getByText(name, { exact: false }).first()).toBeVisible();
   }
-  await expect(page.getByRole('menu').getByText(/^Go to (?!album)/).first()).toBeVisible(); // 'Go to artist' or one entry per artist
+  await expect(page.getByRole('menu').getByText(/^Go to (?!album)/).first()).toBeVisible();
   const box = (await page.getByRole('menu').boundingBox())!;
   const vp = page.viewportSize()!;
   expect(box.y).toBeGreaterThanOrEqual(0);
   expect(box.y + box.height).toBeLessThanOrEqual(vp.height);
 
-  // Like toggles, and the menu reflects it.
   await page.getByRole('menu').getByText('Like', { exact: true }).click();
   await open();
   await expect(page.getByRole('menu').getByText('Remove from liked')).toBeVisible();
   await page.getByRole('menu').getByText('Remove from liked').click();
 
-  // Add to playlist -> New playlist (the name is typed into a field in the menu; window.prompt() does not exist in the desktop app).
   await open();
   await page.getByRole('menu').getByText('Add to playlist').click();
   await page.getByRole('menu').getByText('New playlist').click();
@@ -186,14 +171,12 @@ test('song menu: every entry works, and queue actions follow the steered device'
   await page.keyboard.press('Enter');
   await expect(page.getByText('Added to Menu Test')).toBeVisible();
 
-  // Go to album / artist navigate.
   await open();
   await page.getByRole('menu').getByText('Go to album').click();
   await expect(page).toHaveURL(/\/album\//);
   await page.goBack();
   await expect(row).toBeVisible({ timeout: 30_000 });
 
-  // Queue actions are sent to the phone while the web steers it.
   const cookie = (await page.context().cookies()).map((c) => `${c.name}=${c.value}`).join('; ');
   const phone = new FakePhone(baseURL!, cookie, 'android-e2e-0002');
   phone.webId = await page.evaluate(() => sessionStorage.getItem('lomu-device'));

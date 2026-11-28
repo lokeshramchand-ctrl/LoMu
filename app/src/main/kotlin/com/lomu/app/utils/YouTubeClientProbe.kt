@@ -1,7 +1,4 @@
-﻿/**
- * BeatWave Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
- */
+﻿
 package com.lomu.app.utils
 
 import com.music.innertube.YouTube
@@ -13,30 +10,12 @@ import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.system.measureTimeMillis
 
-/**
- * Asks every InnerTube client, one at a time, whether it can still produce a playable
- * stream â€” and says which ones did.
- *
- * Which clients YouTube honours is a moving target: they are fingerprints, and YouTube
- * silently starts rejecting them. When playback breaks for a lot of people at once the
- * question is never "is our fallback chain correct" (it is) but "which of these eleven
- * still work today", and that cannot be answered by reading source. It needs a real
- * request against a real videoId from a real device on a real network â€” which is also why
- * this lives in the app rather than in a unit test: the answer depends on the user's IP,
- * their login state and their region, and it differs between them.
- *
- * Diagnostic only. Nothing calls this during playback; it is driven from the debug screen
- * so a user reporting "nothing plays" can produce a result worth acting on instead of a
- * guess.
- */
 object YouTubeClientProbe {
 
-    /** How each client fared. */
     data class Result(
         val clientName: String,
         val outcome: Outcome,
         val playabilityStatus: String?,
-        /** Populated when YouTube explains itself, e.g. bot-detection copy. */
         val reason: String?,
         val formatCount: Int,
         val elapsedMillis: Long,
@@ -53,25 +32,14 @@ object YouTubeClientProbe {
     }
 
     enum class Outcome(val symbol: String) {
-        /** Returned a stream URL that a HEAD request confirmed is actually serving. */
         PLAYABLE("OK "),
-        /** Gave a stream URL, but fetching it failed â€” the usual shape of a stale fingerprint. */
         DEAD_URL("URL"),
-        /** Player response came back, but with no usable audio format. */
         NO_FORMAT("FMT"),
-        /** YouTube refused: bot detection, login required, age gate, region block. */
         REFUSED("NO "),
-        /** Request itself failed or timed out. */
         ERROR("ERR"),
-        /** Not attempted â€” needs a login the user does not have. */
         SKIPPED("-- "),
     }
 
-    /**
-     * Probe [clients] against [videoId] in order. Sequential on purpose: eleven parallel
-     * player requests from one IP is itself a bot-detection signal, and a probe that
-     * changes the thing it measures is worthless.
-     */
     suspend fun run(
         videoId: String,
         clients: List<YouTubeClient>,
@@ -111,9 +79,6 @@ object YouTubeClientProbe {
                         else -> {
                             val url = audio.firstOrNull { !it.url.isNullOrEmpty() }?.url
                             when {
-                                // A signatureCipher-only response is not a failure, but this
-                                // probe deliberately does not solve ciphers: it is measuring
-                                // which fingerprints YouTube still serves directly.
                                 url == null -> Outcome.NO_FORMAT
                                 urlIsServing(url) -> Outcome.PLAYABLE
                                 else -> Outcome.DEAD_URL
@@ -130,11 +95,6 @@ object YouTubeClientProbe {
         return Result(client.label, outcome, status, reason, formats, elapsed)
     }
 
-    /**
-     * A stream URL can be handed back and still 403 immediately â€” that is what a rejected
-     * fingerprint usually looks like, and it is invisible unless the URL is actually
-     * fetched. Range-limited to one byte so this costs nothing.
-     */
     private fun urlIsServing(url: String): Boolean = runCatching {
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
@@ -149,7 +109,6 @@ object YouTubeClientProbe {
         }
     }.getOrDefault(false)
 
-    /** Render a run as something a user can paste into a bug report. */
     fun format(videoId: String, results: List<Result>): String = buildString {
         appendLine("Client probe for videoId=$videoId")
         appendLine("=".repeat(72))
@@ -169,6 +128,5 @@ object YouTubeClientProbe {
     private const val URL_CHECK_TIMEOUT_MILLIS = 8_000
 }
 
-/** Clients carry an optional friendly name; fall back to the wire name so a row is never blank. */
 private val YouTubeClient.label: String
     get() = friendlyName ?: clientName

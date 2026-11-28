@@ -16,11 +16,6 @@ import javax.inject.Singleton
 
 data class ImportSummary(val likedSongs: Int, val playlists: Int, val songs: Int)
 
-/**
- * One-time import of a YouTube Music account: liked songs and library playlists are copied
- * into LoMu's own database. The Google session cookie is used only for the duration of this
- * call and is cleared afterwards, whatever the outcome; LoMu never keeps it.
- */
 @Singleton
 class YtmImporter @Inject constructor(private val database: MusicDatabase) {
 
@@ -62,7 +57,6 @@ class YtmImporter @Inject constructor(private val database: MusicDatabase) {
             out += next.items.filterIsInstance<PlaylistItem>()
             cont = next.continuation
         }
-        // "Liked music" and "Episodes for later" are system lists, not user playlists.
         return out.filter { it.id.removePrefix("VL") !in setOf("LM", "SE") }.distinctBy { it.id }
     }
 
@@ -90,7 +84,7 @@ class YtmImporter @Inject constructor(private val database: MusicDatabase) {
         database.withTransaction {
             val entity = PlaylistEntity(
                 name = p.title,
-                browseId = null, // a local copy, not linked back to the Google account
+                browseId = null,
                 isEditable = true,
                 isLocal = true,
                 bookmarkedAt = LocalDateTime.now(),

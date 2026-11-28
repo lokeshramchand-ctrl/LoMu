@@ -4,14 +4,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
-// The data directory lives outside the project tree (writes inside it would retrigger the dev
-// bundler) and is the only thing that needs backing up: one SQLite file.
 const dir = process.env.LOMU_DATA_DIR || path.join(os.homedir(), '.lomu');
 
 type G = typeof globalThis & { __lomuDb?: DatabaseSync };
 const g = globalThis as G;
 
-/** Brings an older database up to date. Everything an older version stored belongs to user 1 (the former single owner). */
 function migrate(d: DatabaseSync) {
   const cols = (t: string) => (d.prepare(`PRAGMA table_info(${t})`).all() as { name: string }[]).map((c) => c.name);
   if (!cols('refresh').includes('uid')) d.exec('ALTER TABLE refresh ADD COLUMN uid INTEGER NOT NULL DEFAULT 1');
@@ -50,7 +47,6 @@ function migrate(d: DatabaseSync) {
 const backupDir = path.join(dir, 'backups');
 const KEEP = 7;
 
-/** One consistent copy of the live database per day (VACUUM INTO is safe while it is in use); keeps the newest KEEP. */
 export function backupNow(d: DatabaseSync = db()): void {
   const file = path.join(backupDir, `lomu-${new Date().toISOString().slice(0, 10)}.db`);
   try {
@@ -59,7 +55,7 @@ export function backupNow(d: DatabaseSync = db()): void {
       try {
         d.prepare('VACUUM INTO ?').run(file);
       } catch (e) {
-        fs.rmSync(file, { force: true }); // a half-written copy would block today's retry
+        fs.rmSync(file, { force: true });
         throw e;
       }
     }
@@ -70,7 +66,6 @@ export function backupNow(d: DatabaseSync = db()): void {
   }
 }
 
-/** Unix ms of the newest backup, or null when there is none. */
 export function lastBackup(): number | null {
   try {
     const t = fs.readdirSync(backupDir).filter((f) => f.endsWith('.db')).map((f) => fs.statSync(path.join(backupDir, f)).mtimeMs);
@@ -103,7 +98,7 @@ export function db(): DatabaseSync {
   migrate(d);
   g.__lomuDb = d;
   backupNow(d);
-  setInterval(() => g.__lomuDb && backupNow(g.__lomuDb), 6 * 3600_000).unref(); // 6 h so a server running for days still rolls over at midnight
+  setInterval(() => g.__lomuDb && backupNow(g.__lomuDb), 6 * 3600_000).unref();
   return d;
 }
 
@@ -115,7 +110,6 @@ export function setSetting(k: string, v: string) {
   db().prepare('INSERT INTO settings (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v').run(k, v);
 }
 
-/** Closes the connection (tests, graceful shutdown). */
 export function closeDb() {
   g.__lomuDb?.close();
   g.__lomuDb = undefined;

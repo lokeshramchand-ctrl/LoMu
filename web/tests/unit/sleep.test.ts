@@ -6,7 +6,6 @@ import type { Track } from '@/lib/types';
 const T = (id: string): Track => ({ kind: 'song', id, title: id, artists: [{ name: 'A' }] });
 const MIN = 60_000;
 const start = new Date(2026, 10, 18, 23, 0).getTime();
-// n back-to-back 3.5 minute songs, all finished, starting at `at`
 const run = (n: number, at = start, ms = 210_000) =>
   Array.from({ length: n }, (_, i) => ({ track: T('s' + i), at: at + i * ms, playedMs: ms, completed: true }));
 
@@ -18,10 +17,10 @@ describe('detectSleep', () => {
     expect(s.start).toBe(start);
     expect(s.asleepFrom).toBe(start + 15 * MIN);
     expect(s.asleepMs).toBe(100 * 210_000 - 15 * MIN);
-    expect(s.confidence).toBe('high'); // overnight and 5+ hours
+    expect(s.confidence).toBe('high');
   });
   it('ignores short runs and runs broken by a skip', () => {
-    expect(detectSleep(run(12))).toHaveLength(0); // 42 min: just a long listen
+    expect(detectSleep(run(12))).toHaveLength(0);
     const broken = run(40);
     broken[20] = { ...broken[20], completed: false, playedMs: 8000, skipped: true } as never;
     expect(detectSleep(broken)).toHaveLength(0);

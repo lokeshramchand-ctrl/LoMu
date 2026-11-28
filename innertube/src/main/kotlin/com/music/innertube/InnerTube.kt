@@ -33,10 +33,6 @@ import kotlinx.coroutines.delay
 import java.util.*
 import kotlin.io.encoding.Base64
 
-/**
- * Provide access to InnerTube endpoints.
- * For making HTTP requests, not parsing response.
- */
 @OptIn(ExperimentalEncodingApi::class)
 class InnerTube {
     private var httpClient = createClient()
@@ -48,15 +44,6 @@ class InnerTube {
     var visitorData: String? = null
     var dataSyncId: String? = null
         set(value) {
-            // YouTube hands out DATASYNC_ID as "<id>||" (primary account) or
-            // "<channelId>||<accountId>" (second/brand channel), but the API's
-            // onBehalfOfUser only accepts the bare LEADING id — the "||" form makes
-            // every authenticated request fail with HTTP 500, and keeping the
-            // trailing half instead resolves every channel of one Google account to
-            // the same identity, which is what silently reverted channel switches.
-            // Normalized here rather than at each call site so login, session
-            // restore, channel switch and token import all get it, including
-            // already-stored bad values.
             field = value?.takeIf { it.isNotBlank() && it != "null" }?.substringBefore("||")
         }
     var cookie: String? = null
@@ -101,38 +88,31 @@ class InnerTube {
             deflate(0.8F)
         }
 
-        // Enhanced network configuration for better performance
         engine {
             config {
-                // Connection pool settings for better connection reuse
                 connectionPool(
                     okhttp3.ConnectionPool(
-                        10, // maxIdleConnections
-                        5, // keepAliveDuration
+                        10,
+                        5,
                         java.util.concurrent.TimeUnit.MINUTES
                     )
                 )
                 
-                // Timeout configurations
                 connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
                 readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
                 writeTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
                 
-                // Enable HTTP/2 for better performance
                 protocols(listOf(okhttp3.Protocol.HTTP_2, okhttp3.Protocol.HTTP_1_1))
                 
-                // Retry on connection failure
                 retryOnConnectionFailure(true)
                 
-                // Cache configuration for better performance
                 cache(
                     okhttp3.Cache(
                         directory = java.io.File(System.getProperty("java.io.tmpdir"), "http_cache"),
-                        maxSize = 50L * 1024L * 1024L // 50 MB
+                        maxSize = 50L * 1024L * 1024L
                     )
                 )
                 
-                // Apply IP version filtering
                 dns(object : Dns {
                     override fun lookup(hostname: String): List<InetAddress> {
                         val addresses = Dns.SYSTEM.lookup(hostname)
@@ -144,12 +124,10 @@ class InnerTube {
                     }
                 })
 
-                // Apply proxy configuration
                 this@InnerTube.proxy?.let { proxyConfig ->
                     proxy(proxyConfig)
                 }
                 
-                // Apply proxy authentication
                 this@InnerTube.proxyAuth?.let { auth ->
                     proxyAuthenticator { _, response ->
                         response.request.newBuilder()
@@ -160,7 +138,6 @@ class InnerTube {
             }
         }
 
-        // Request timeout configuration
         install(HttpTimeout) {
             requestTimeoutMillis = 60000
             connectTimeoutMillis = 30000
@@ -169,10 +146,6 @@ class InnerTube {
 
         defaultRequest {
             url(YouTubeClient.API_URL_YOUTUBE_MUSIC)
-            // Was force-sending Accept-Language: en-US on every request regardless
-            // of the account's actual locale — clashes with the hl/gl fields the
-            // Context body already carries per-request, and vivi-music (working,
-            // same device/account/network) sends neither header at all.
         }
     }
 
@@ -180,7 +153,7 @@ class InnerTube {
         contentType(ContentType.Application.Json)
         headers {
             append("X-Goog-Api-Format-Version", "1")
-            append("X-YouTube-Client-Name", client.clientId /* Not a typo. The Client-Name header does contain the client id. */)
+            append("X-YouTube-Client-Name", client.clientId)
             append("X-YouTube-Client-Version", client.clientVersion)
             append("X-Origin", YouTubeClient.ORIGIN_YOUTUBE_MUSIC)
             append("Referer", YouTubeClient.REFERER_YOUTUBE_MUSIC)
@@ -199,16 +172,6 @@ class InnerTube {
         parameter("prettyPrint", false)
     }
 
-    /**
-     * Simple retry wrapper for transient IO errors (socket aborts, timeouts) and
-     * for 429/5xx HTTP responses (rate-limited or a momentary server hiccup —
-     * expectSuccess = true makes Ktor throw ResponseException for these instead
-     * of IOException). Other 4xx (400/401/403/404...) are not retried — retrying
-     * a genuine client error just wastes attempts. Retries up to [maxAttempts]
-     * times with exponential backoff, honoring a Retry-After header if the
-     * server sent one. Cancellation is respected since [delay] throws if the
-     * coroutine is cancelled.
-     */
     private suspend fun <T> withRetry(
         maxAttempts: Int = 3,
         initialDelay: Long = 500L,
@@ -441,20 +404,12 @@ class InnerTube {
         }
     }
 
-    /**
-     * Lists every YouTube channel tied to the currently-set [cookie] (a Google
-     * account can have several, and this is the only InnerTube call that
-     * enumerates them without opening YouTube's own UI in a WebView).
-     */
     suspend fun getAccountSwitcherEndpoint(client: YouTubeClient) = withRetry {
         httpClient.get("https://music.youtube.com/getAccountSwitcherEndpoint") {
             ytClient(client, setLogin = true)
         }
     }
 
-    // Not wrapped in withRetry: a mutation, and an IOException/5xx can happen
-    // after the server already applied it — an auto-retry risks double-firing
-    // (e.g. liking twice). Let the caller retry explicitly instead.
     suspend fun likeVideo(
         client: YouTubeClient,
         videoId: String,
@@ -545,7 +500,6 @@ class InnerTube {
         }
     }
 
-    // Not wrapped in withRetry — see likeVideo's comment.
     suspend fun addToPlaylist(
         client: YouTubeClient,
         playlistId: String,
@@ -630,7 +584,6 @@ class InnerTube {
         }
     }
 
-    // Not wrapped in withRetry — see likeVideo's comment.
     suspend fun createPlaylist(
         client: YouTubeClient,
         title: String,
@@ -646,7 +599,6 @@ class InnerTube {
         }
     }
 
-    // Not wrapped in withRetry — see likeVideo's comment.
     suspend fun renamePlaylist(
         client: YouTubeClient,
         playlistId: String,
@@ -740,7 +692,6 @@ class InnerTube {
         }
     }
 
-    // Not wrapped in withRetry — see likeVideo's comment.
     suspend fun deletePlaylist(
         client: YouTubeClient,
         playlistId: String,

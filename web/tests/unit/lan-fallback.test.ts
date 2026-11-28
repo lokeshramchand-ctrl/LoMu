@@ -6,10 +6,6 @@ import os from 'node:os';
 import path from 'node:path';
 import type { AddressInfo } from 'node:net';
 
-/* The home server's public name does not work from inside the LAN (no NAT loopback, or Cloudflare WARP tunnelling the
-   connection out and back). The clients then connect to the server's LAN address but keep speaking to the public name.
-   Here the "public name" is a .invalid host (never resolves) and the "LAN address" is 127.0.0.1. */
-
 const NAME = 'lomu.invalid';
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lomu-lan-test-'));
 let port = 0;
@@ -59,8 +55,6 @@ beforeAll(async () => {
   });
   await new Promise<void>((r) => srv.listen(0, '127.0.0.1', r));
   port = (srv.address() as AddressInfo).port;
-  // accepts connections and never answers: what a blocked/hairpinned route looks like
-  // Same port on 127.0.0.2, so "direct" (127.0.0.2) hangs while the LAN address (127.0.0.1) works.
   blackhole = net.createServer(() => {});
   await new Promise<void>((r) => blackhole.listen(port, '127.0.0.2', r));
   lan = await import('@/server/lanfetch');
@@ -88,7 +82,7 @@ describe('reach', () => {
     const { res, route } = await lan.reach(`http://${NAME}:${port}/echo`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"a":1}' }, { lan: '127.0.0.1' });
     expect(route).toBe('lan');
     expect(await res.json()).toEqual({ method: 'POST', body: '{"a":1}', ct: 'application/json' });
-    expect(seenHosts).toEqual([`${NAME}:${port}`]); // the server still sees the public name
+    expect(seenHosts).toEqual([`${NAME}:${port}`]);
   });
 
   it('uses the direct route when it works, and does not touch the LAN one', async () => {
@@ -150,7 +144,6 @@ describe('reach', () => {
 
   it('tries home addresses in order, skipping one that does not answer, and reports which worked', async () => {
     const t = Date.now();
-    // 127.0.0.2 hangs (black hole), 127.0.0.1 answers
     const { res, route, address } = await lan.reach(`http://${NAME}:${port}/echo`, {}, { lan: '127.0.0.2, 127.0.0.1', attemptMs: 300 });
     expect(route).toBe('lan');
     expect(address).toBe('127.0.0.1');
@@ -162,7 +155,7 @@ describe('reach', () => {
     const t = Date.now();
     const { address } = await lan.reach(`http://${NAME}:${port}/echo`, {}, { lan: '127.0.0.2, 127.0.0.1', preferLan: true, lastGood: '127.0.0.1', attemptMs: 2000 });
     expect(address).toBe('127.0.0.1');
-    expect(Date.now() - t).toBeLessThan(1000); // did not wait on the black hole first
+    expect(Date.now() - t).toBeLessThan(1000);
   });
 
   it('classifies network failures but not other errors', () => {

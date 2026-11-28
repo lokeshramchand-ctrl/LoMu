@@ -1,7 +1,4 @@
-﻿/**
- * BeatWave Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
- */
+﻿
 
 package com.lomu.app.viewmodels
 
@@ -44,7 +41,6 @@ constructor(
         refresh()
     }
 
-    /** Re-fetches this artist item list. Bound to the pull-to-refresh gesture. */
     fun refresh() {
         viewModelScope.launch {
             YouTube

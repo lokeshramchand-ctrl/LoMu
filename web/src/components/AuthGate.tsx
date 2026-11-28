@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/player/sync';
 
-/** Blocks the app behind the owner login (or first-run account creation). */
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const { status, error, needsCode, refresh, submit } = useAuth();
   const [code, setCode] = useState('');

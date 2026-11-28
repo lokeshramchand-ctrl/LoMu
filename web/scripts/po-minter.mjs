@@ -1,13 +1,3 @@
-// LoMu proof-of-origin token minter.
-//
-// Runs YouTube's BotGuard program inside jsdom to obtain an integrity token, then mints
-// WebPO tokens bound to a visitor id (session token, appended to googlevideo URLs as
-// `pot`) or to a video id (content token, sent with player requests).
-//
-// It lives in its own process because BotGuard needs browser globals (window, document)
-// that must never leak into the Next.js server. Protocol: one JSON object per line.
-//   -> {"id":1,"cmd":"init","challenge":{...},"requestKey":"..."}   <- {"id":1,"ok":true,"ttl":43200}
-//   -> {"id":2,"cmd":"mint","binding":"<visitorData or videoId>"}    <- {"id":2,"ok":true,"token":"..."}
 import { createInterface } from 'node:readline';
 import { JSDOM } from 'jsdom';
 import { BotGuardClient } from 'bgutils-js/botguard';

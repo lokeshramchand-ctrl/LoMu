@@ -14,7 +14,6 @@ type LibraryState = {
   artists: Record<string, { item: ArtistCard; at: number }>;
   savedPlaylists: Record<string, { item: PlaylistCard; at: number }>;
   recentSearches: string[];
-  /** Artists never to recommend, keyed by lower-case name. Synced as 'block' documents. */
   blocked: Record<string, { name: string; at: number }>;
 
   isLiked: (id: string) => boolean;
@@ -33,7 +32,6 @@ type LibraryState = {
   unblockArtist: (key: string) => void;
 };
 
-/** Plays kept in the browser. Was 2000, which silently dropped older plays that the phone still counted. */
 export const HISTORY_CAP = 8000;
 
 const uid =() => (crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)).replace(/-/g, '').slice(0, 16);

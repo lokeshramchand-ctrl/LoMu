@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 
 export default function ErrorPage({ error, reset }: { error: Error; reset: () => void }) {
   useEffect(() => {
-    console.error(error); // the details stay in the console, not on the page
+    console.error(error);
   }, [error]);
   return (
     <div className="empty" role="alert" style={{ minHeight: '60dvh', justifyContent: 'center' }}>

@@ -1,5 +1,3 @@
-// Screenshot tour of the UI against a dev server started with LOMU_LOCAL_TOKEN=devui (no login screen).
-//   node tests/ui-shots.mjs <outDir> [baseUrl] [page,page,...]
 import { chromium } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';

@@ -1,7 +1,3 @@
-/**
- * LoMu (C) 2026 — derived from BeatWave, licensed under GPL-3.0
- */
-
 package com.lomu.app
 
 import android.content.ComponentName
@@ -65,12 +61,11 @@ class MainActivity : ComponentActivity() {
         startService(intent)
         bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
 
-        // Sync on start and then every minute while the app is on screen.
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 while (true) {
                     syncClient.sync()
-                    connectClient.start() // no-op while already connected or signed out
+                    connectClient.start()
                     com.lomu.app.update.AppUpdater.check(applicationContext) { connection?.isPlaying?.value == true }
                     delay(60_000)
                 }
@@ -90,7 +85,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** While this phone steers another device, its volume buttons change that device's volume. */
     override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
         val up = event.keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP
         if ((up || event.keyCode == android.view.KeyEvent.KEYCODE_VOLUME_DOWN) && event.action == android.view.KeyEvent.ACTION_DOWN) {

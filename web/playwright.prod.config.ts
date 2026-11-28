@@ -1,6 +1,5 @@
 import { defineConfig } from '@playwright/test';
 
-// Smoke run against the deployed site (set LOMU_URL / LOMU_USER / LOMU_PASS). No local server is started.
 export default defineConfig({
   testDir: 'tests/prod',
   timeout: 240_000,

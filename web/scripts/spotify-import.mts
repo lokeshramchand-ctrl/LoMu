@@ -1,7 +1,3 @@
-/* Sends the Spotify listening history to a LoMu server as ordinary plays, using the matches that spotify-resolve.mts
-   found. Plays join the same log as everything else, so the engine and every device see one history.
-   From web/:  LOMU_PW=... node --experimental-strip-types --no-warnings scripts/spotify-import.mts [dry]
-   Env: LOMU_USER (default admin), LOMU_HOST (public name), LOMU_LAN (home address to connect to instead). */
 import fs from 'node:fs';
 import https from 'node:https';
 import path from 'node:path';
@@ -16,9 +12,6 @@ type Hit = { id: string; title: string; artists: string[]; duration?: number; al
 const resolved: Record<string, Hit> = JSON.parse(fs.readFileSync(path.join(DIR, 'resolved.json'), 'utf8'));
 const { plays } = readSpotify(DIR);
 
-// Small set (the default, kept light for the phone): songs listened to MIN_REAL+ times, at most PER_SONG of their most
-// recent real plays each. That keeps "played 3+ times", recency and who the favourite artists are, in a fraction of the rows.
-// Pass `full` to send every matched play instead.
 const full = process.argv.includes('full');
 const MIN_REAL = 3;
 const PER_SONG = 8;
@@ -41,7 +34,6 @@ for (const p of plays) {
   if (seen.has(key)) continue;
   seen.add(key);
   const dur = (hit.duration ?? 0) * 1000;
-  // Spotify reports exactly how long each play lasted, so these are real completions and real skips.
   const completed = dur > 0 ? p.ms >= dur * 0.85 : p.ms >= 100_000;
   const skipped = !completed && p.ms < 30_000;
   docs.push({

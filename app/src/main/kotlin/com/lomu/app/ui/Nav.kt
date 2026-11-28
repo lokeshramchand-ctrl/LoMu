@@ -23,18 +23,14 @@ sealed interface Screen {
     data object Artists : Screen
     data object Sleep : Screen
     data object Wrapped : Screen
-    /** A list of songs shown as an album-style page; the songs are held in [MixStore]. */
     data object Mix : Screen
 }
 
-/** Tiny back stack: the bottom entry is the current tab, the rest are pushed detail pages. */
 class Nav {
     val stack = mutableStateListOf<Screen>(Screen.Home)
-    /** Home's scroll position lives here, not in Home itself, so opening a mix and coming back lands where you left off. */
     val homeList = androidx.compose.foundation.lazy.LazyListState()
     val current: Screen get() = stack.last()
     val canPop get() = stack.size > 1
-    /** The last kind of navigation, so the screen transition knows which way to slide. */
     var op by mutableStateOf(NavOp.Tab)
         private set
     fun push(s: Screen) { op = NavOp.Push; stack.add(s) }
@@ -42,10 +38,8 @@ class Nav {
     fun tab(s: Screen) { op = NavOp.Tab; stack.clear(); stack.add(s) }
 }
 
-/** The songs behind [Screen.Mix] (set just before navigating). */
 object MixStore {
     var title: String = ""
     var tracks: List<com.lomu.app.models.MediaMetadata> = emptyList()
-    /** Track id -> the "why this song?" line, for mixes that have one. */
     var why: Map<String, String> = emptyMap()
 }

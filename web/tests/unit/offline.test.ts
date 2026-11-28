@@ -17,9 +17,9 @@ describe('save offline', () => {
     const { download, savedCount } = await import('@/server/audiocache');
     const ids = ['aaaaaaaaaaa', 'bbbbbbbbbbb', 'not-an-id'];
     expect(download(ids, 'opus')).toBe(2);
-    expect(download(ids, 'opus')).toBe(0); // already queued or in flight
+    expect(download(ids, 'opus')).toBe(0);
     await vi.waitFor(() => expect(savedCount(ids, 'opus')).toBe(2));
     expect(fs.readFileSync(path.join(dir, 'aaaaaaaaaaa.opus'), 'utf8')).toBe('abcdef');
-    expect(download(ids, 'opus')).toBe(0); // already saved
+    expect(download(ids, 'opus')).toBe(0);
   });
 });

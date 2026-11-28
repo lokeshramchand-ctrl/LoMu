@@ -1,7 +1,4 @@
-﻿/**
- * BeatWave Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
- */
+﻿
 
 package com.lomu.app.viewmodels
 
@@ -148,7 +145,6 @@ constructor(
 
     init {
         fetchRemoteHistory()
-        // Auto-clear remote history when user logs out
         viewModelScope.launch(Dispatchers.IO) {
             context.dataStore.data
                 .map { it[InnerTubeCookieKey] ?: "" }

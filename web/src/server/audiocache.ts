@@ -5,10 +5,6 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { parseRange, proxyAudio, type Codec } from './stream';
 
-/* Audio kept on disk (desktop app only, enabled by LOMU_AUDIO_CACHE_DIR). A song you actually listen to is
-   downloaded in full in the background; from then on it plays from the file, which works with no internet and
-   with the homelab off. The oldest files are removed once the folder passes LOMU_AUDIO_CACHE_MB (default 2 GB). */
-
 const dir = () => process.env.LOMU_AUDIO_CACHE_DIR || '';
 export const audioCacheEnabled = () => !!dir();
 const limitBytes = () => (Number(process.env.LOMU_AUDIO_CACHE_MB) || 2048) * 1024 * 1024;
@@ -20,7 +16,6 @@ const filling: Set<string> = (g.__lomuFilling ??= new Set());
 
 const file = (id: string, codec: Codec) => path.join(dir(), `${id}.${codec}`);
 
-/** The cached file for this song, if it is complete. Touching it keeps it fresh for eviction. */
 export function cachedFile(id: string, codec: Codec): string | null {
   if (!audioCacheEnabled() || !/^[\w-]{11}$/.test(id)) return null;
   const f = file(id, codec);
@@ -34,7 +29,6 @@ export function cachedFile(id: string, codec: Codec): string | null {
   }
 }
 
-/** Serves a cached file with the same 200/206 behaviour as the live proxy. */
 export function serveFile(f: string, codec: Codec, rangeHeader: string | null): Response {
   const len = fs.statSync(f).size;
   const range = parseRange(rangeHeader, len);
@@ -54,10 +48,6 @@ export function serveFile(f: string, codec: Codec, rangeHeader: string | null): 
   return new Response(body, { status: range ? 206 : 200, headers });
 }
 
-/**
- * Called for every live stream request. If the same song is still the one being listened to a few seconds
- * later (skipping through a list does not count), download it in full in the background.
- */
 export function maybeFill(id: string, codec: Codec) {
   if (!/^[\w-]{11}$/.test(id)) return;
   if (!audioCacheEnabled()) return;
@@ -76,7 +66,6 @@ export function maybeFill(id: string, codec: Codec) {
 const queue: { id: string; codec: Codec }[] = [];
 let workers = 0;
 
-/** Explicit "save offline": downloads the songs two at a time. Returns how many were queued (skips saved and in-flight ones). */
 export function download(ids: string[], codec: Codec): number {
   if (!audioCacheEnabled()) return 0;
   let n = 0;
@@ -96,7 +85,6 @@ export function download(ids: string[], codec: Codec): number {
 
 async function drain() {
   for (let j = queue.shift(); j; j = queue.shift()) {
-    // shortcut: saved songs are evicted like any other once the folder passes LOMU_AUDIO_CACHE_MB; raise it for a big library
     await fill(j.id, j.codec)
       .catch((e) => console.error('[audio-cache]', j.id, e instanceof Error ? e.message : e))
       .finally(() => filling.delete(`${j.id}.${j.codec}`));
@@ -104,7 +92,6 @@ async function drain() {
   workers--;
 }
 
-/** How many of these songs are on disk already (without touching their eviction time). */
 export function savedCount(ids: string[], codec: Codec): number {
   return ids.filter((id) => /^[\w-]{11}$/.test(id) && fs.existsSync(file(id, codec))).length;
 }
@@ -124,7 +111,6 @@ async function fill(id: string, codec: Codec) {
   evict();
 }
 
-/** Deletes the least recently used files until the folder fits the limit; also clears leftovers of interrupted downloads. */
 function evict() {
   try {
     const entries = fs.readdirSync(dir()).map((n) => {
@@ -141,6 +127,5 @@ function evict() {
       total -= f.size;
     }
   } catch {
-    /* best effort */
   }
 }

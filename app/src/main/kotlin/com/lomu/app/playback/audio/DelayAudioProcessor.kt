@@ -1,8 +1,3 @@
-/**
- * BeatWave Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
- */
-
 package com.lomu.app.playback.audio
 
 import androidx.media3.common.C
@@ -12,36 +7,18 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.roundToInt
 
-/**
- * Simple feedback delay line (16-bit PCM only) for the DJ-mix transition
- * effect chain — Android has no stock delay/echo AudioEffect the way it has
- * PresetReverb, so this fills that one gap. Transparent passthrough (echo
- * mix at 0) when [wetMix] is 0, which is the default and what every non-DJ-
- * mode player instance sits at.
- */
 @UnstableApi
 class DelayAudioProcessor(
     private val delayMs: Long = 220L,
     private val feedback: Float = 0.35f,
 ) : AudioProcessor {
 
-    /** 0 = dry (no effect, default), up to ~0.6 for an audible slap-back echo. */
     @Volatile
     var wetMix: Float = 0f
 
-    /**
-     * Freeze: stop feeding the track into the delay line and let what is
-     * already in there circulate and decay on its own.
-     *
-     * This is the "echo out" — the source drops away and the last bar hangs in
-     * the air repeating while the next track arrives underneath. Output is
-     * entirely wet while frozen, since the point is that the dry signal is gone.
-     */
     @Volatile
     var frozen: Boolean = false
 
-    /** Feedback used while [frozen]; higher than the normal slap-back so the
-     *  tail rings for a few repeats instead of vanishing immediately. */
     @Volatile
     var freezeFeedback: Float = 0.72f
 
@@ -100,7 +77,6 @@ class DelayAudioProcessor(
                 val delayed = delayBuffer[bufIdx]
 
                 val wet = if (freeze) {
-                    // Nothing new goes in; the line just feeds itself and decays.
                     (delayed * freezeFeedback).roundToInt()
                         .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
                 } else {
@@ -120,11 +96,6 @@ class DelayAudioProcessor(
             writeIndex = (writeIndex + channelCount) % bufferLen
         }
 
-        // Same reason as the passthrough branch's out.put(inputBuffer) above:
-        // the pipeline treats a buffer with bytes remaining as "not accepted"
-        // and re-queues it. The reads in this branch are absolute, so nothing
-        // has moved the position and it has to be marked consumed by hand —
-        // otherwise enabling the echo re-feeds one chunk indefinitely.
         inputBuffer.position(inputBuffer.limit())
 
         out.flip()

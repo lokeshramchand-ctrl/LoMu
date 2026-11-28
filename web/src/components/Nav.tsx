@@ -22,7 +22,6 @@ function useTabs() {
 }
 const isActive = (path: string, href: string) => (href === '/' ? path === '/' : path.startsWith(href));
 
-/** The wordmark: bold sans, no logo artwork. */
 export function Brand() {
   return (
     <Link href="/" className="brand" aria-label="LoMu, home">
@@ -40,7 +39,6 @@ const THEMES: { id: Theme; label: string; dot: string }[] = [
   { id: 'system', label: 'System', dot: 'var(--signal)' },
 ];
 
-/** Interface theme dropdown. */
 export function ThemeSelect({ up = false }: { up?: boolean }) {
   const theme = useSettings((s) => s.theme);
   const [open, setOpen] = useState(false);
@@ -91,9 +89,6 @@ export function ThemeSelect({ up = false }: { up?: boolean }) {
   );
 }
 
-// ---------------------------------------------------------------- top bar
-
-/** One translucent bar: wordmark, the pages as text, search, devices, account. Content scrolls under it. */
 export function Topbar() {
   const router = useRouter();
   const path = usePathname();
@@ -118,7 +113,6 @@ export function Topbar() {
   useEffect(() => {
     if (!path.startsWith('/search')) setQ('');
   }, [path]);
-  // a hairline appears only once content has scrolled under the bar
   useEffect(() => {
     const panel = bar.current?.closest('.panel');
     if (!panel) return;

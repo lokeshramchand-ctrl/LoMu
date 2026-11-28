@@ -1,7 +1,3 @@
-/* LoMu identity: Soundwaves. A white page, black ink and accent, soft pastel cards, SF Pro (Inter as the fallback). One flat surface (no panels), translucent chrome,
-   a 4 / 8 / 12 radius scale, square sleeves for artwork. Springs and gestures follow Apple's fluid-interface rules:
-   feedback on pointer-down, nothing locks input, reduced motion / transparency / contrast are honoured. */
-
 @font-face { font-family: 'SF Pro Text'; font-weight: 400; font-display: swap; src: url('/fonts/SF-Pro-Text-Regular.otf') format('opentype'); }
 @font-face { font-family: 'SF Pro Text'; font-weight: 500; font-display: swap; src: url('/fonts/SF-Pro-Text-Medium.otf') format('opentype'); }
 @font-face { font-family: 'SF Pro Text'; font-weight: 600; font-display: swap; src: url('/fonts/SF-Pro-Text-Semibold.otf') format('opentype'); }
@@ -66,18 +62,14 @@
   }
 }
 :root {
-  /* radius scale: 4 sleeves and inputs, 8 controls and cards, 12 sheets and menus */
   --r-sm: 4px; --r: 8px; --r-lg: 12px;
   --top-h: 60px; --player-h: 76px; --gutter: 32px; --page-max: 1280px;
-  /* chrome lines up with the content column, however wide the window is */
   --chrome-x: max(var(--gutter), env(safe-area-inset-left), env(safe-area-inset-right), calc((100% - var(--page-max)) / 2 + var(--gutter)));
-  /* SF Pro when its files are served from /fonts (they are not part of the public repository), Inter otherwise */
   --font-text: 'SF Pro Text', var(--font-ui), 'Inter', -apple-system, 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
   --font-display: 'SF Pro Display', 'SF Pro Text', var(--font-ui), 'Inter', -apple-system, 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
   --font-num: var(--font-text);
   --ease: cubic-bezier(.3, 0, 0, 1);
   --ease-out: cubic-bezier(.22, 1, .36, 1);
-  /* surfaces that keep their colour in both themes (player over artwork, art overlays) */
   --fixed-dark: #14120f; --fixed-light: #f6f1e4;
   --liked: linear-gradient(135deg, var(--signal) 0%, color-mix(in srgb, var(--signal) 45%, var(--pink)) 100%);
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --gap: 40px;
@@ -107,7 +99,6 @@ code { font-family: var(--font-num); font-size: .8em; background: var(--surface-
 * { scrollbar-width: thin; scrollbar-color: var(--scroll) transparent; }
 html { scroll-behavior: smooth; }
 
-/* ---------- type ---------- */
 .h1 { font-family: var(--font-display); font-size: 1.75rem; line-height: 1.15; }
 .h3 { font-size: .9375rem; font-weight: 600; font-family: var(--font-text); letter-spacing: 0; }
 .muted { color: var(--muted); }
@@ -121,17 +112,14 @@ html { scroll-behavior: smooth; }
 .row { display: flex; align-items: center; gap: 12px; }
 .nowrap { white-space: nowrap; }
 
-/* ---------- surfaces ---------- */
 .card { background: var(--surface); border-radius: var(--r); }
 .card.pad { padding: 16px; }
 .inset { background: var(--surface-2); border-radius: var(--r); }
-/* translucent chrome: content scrolls underneath. Solid when transparency is reduced. */
 .glass { background: var(--glass); -webkit-backdrop-filter: blur(24px) saturate(150%); backdrop-filter: blur(24px) saturate(150%); }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .glass { background: var(--bg); } }
 @media (prefers-reduced-transparency: reduce) { .glass { background: var(--bg); -webkit-backdrop-filter: none; backdrop-filter: none; } }
 @media (prefers-contrast: more) { .glass { background: var(--bg); -webkit-backdrop-filter: none; backdrop-filter: none; border-color: var(--border-2); } }
 
-/* ---------- buttons: feedback on pointer-down, instantly; the accent is the primary action ---------- */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 0 16px;
   border-radius: var(--r); border: 0; background: var(--pill); color: var(--text);
@@ -158,7 +146,6 @@ html { scroll-behavior: smooth; }
 .icon-btn.bordered:hover { background: var(--card-hover); }
 .icon-btn.on { color: var(--signal-t); }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-/* Touch screens: keep the look, grow the area that reacts to a finger to 44 px. */
 @media (pointer: coarse) {
   .icon-btn, .btn.sm, .showall { position: relative; }
   .icon-btn.sm::after { content: ''; position: absolute; inset: -7px; }
@@ -168,7 +155,6 @@ html { scroll-behavior: smooth; }
 }
 
 
-/* ---------- badges, pills, chips ---------- */
 .badge { display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 8px; border-radius: var(--r-sm); font-size: .6875rem; font-weight: 600; background: var(--pill); color: var(--muted); }
 .badge.green { background: var(--green-soft); color: var(--green-t); }
 .badge.signal { background: var(--signal-soft); color: var(--signal-t); }
@@ -182,7 +168,6 @@ html { scroll-behavior: smooth; }
 .chips button:active { transform: scale(.97); }
 .chips button.on { background: var(--ink); color: var(--on-ink); }
 
-/* ---------- layout: one flat surface; the page scrolls under translucent chrome ---------- */
 .app { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); height: 100dvh; background: var(--bg); }
 .col { min-width: 0; min-height: 0; }
 .col > .panel { overscroll-behavior: contain; position: relative; height: 100%; background: var(--bg); overflow-x: hidden; overflow-y: auto; }
@@ -196,7 +181,6 @@ html { scroll-behavior: smooth; }
 
 .grid-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(176px, 1fr)); gap: 16px; }
 
-/* a shelf scrolls sideways and every card is reachable; "Show all" lets it wrap */
 .hscroll { --card-w: 168px; display: flex; gap: 16px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: none; padding-block-end: 4px; margin-inline: calc(var(--gutter) * -1); padding-inline: var(--gutter); scroll-padding-inline: var(--gutter); }
 .hscroll::-webkit-scrollbar { display: none; }
 .hscroll > * { flex: 0 0 var(--card-w); min-width: 0; scroll-snap-align: start; }
@@ -205,13 +189,11 @@ html { scroll-behavior: smooth; }
 .showall:hover { color: var(--text); background: var(--pill-hover); }
 .showall:active { transform: scale(.97); }
 
-/* ---------- artwork: square sleeves ---------- */
 .cover { position: relative; border-radius: var(--r-sm); overflow: hidden; background: var(--surface-2); flex: none; box-shadow: inset 0 0 0 1px var(--border); }
 .cover img { width: 100%; height: 100%; object-fit: cover; }
 .cover.round { border-radius: 50%; }
 .ph { background: var(--surface-2); display: grid; place-items: center; color: var(--faint); overflow: hidden; }
 
-/* ---------- states ---------- */
 .skeleton { background: var(--surface-2); animation: pulse 1.4s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: .55; } }
 .fade-in { animation: rise .35s var(--ease-out) both; }
@@ -222,18 +204,15 @@ html { scroll-behavior: smooth; }
 .empty b { color: var(--text); font-size: 1rem; font-weight: 600; }
 .empty .display { font-family: var(--font-display); font-weight: 400; font-size: 2rem; letter-spacing: -.02em; color: var(--ink); }
 
-/* ---------- tick meter ---------- */
 .ticks { display: flex; gap: 2px; height: 12px; }
 .ticks i { flex: 1; border-radius: 1px; background: var(--surface-2); }
 .ticks i.on { background: var(--signal); }
 
-/* ---------- lists ---------- */
 .group-head { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 12px; color: var(--muted); font-family: var(--font-num); font-size: .75rem; border-bottom: 1px solid var(--border); }
 .group-head .count { margin-inline-start: 2px; }
 .group-head .grow { display: flex; align-items: center; gap: 8px; }
 .list { display: flex; flex-direction: column; border-radius: var(--r); overflow: hidden; }
 
-/* ---------- detail header (album / playlist / artist) ---------- */
 .ph-page { display: flex; flex-direction: column; gap: 24px; }
 .ph-head { display: flex; gap: 32px; align-items: flex-end; flex-wrap: wrap; }
 .ph-art { width: 232px; height: 232px; flex: none; border-radius: var(--r-sm); overflow: hidden; box-shadow: 0 0 0 1px var(--border), 0 24px 48px -24px rgba(0, 0, 0, .5); }
@@ -270,7 +249,6 @@ html { scroll-behavior: smooth; }
   :root { --gutter: 16px; --player-h: 60px; }
   html, body { overflow: auto; }
   .app { display: block; height: auto; }
-  /* the page itself scrolls on narrow screens; .col > .panel (desktop) would otherwise out-rank this and trap scrolling */
   .col > .panel { height: auto; min-height: 100dvh; overflow: visible; overscroll-behavior: auto; }
   .content { padding-top: calc(env(safe-area-inset-top) + 10px); padding-bottom: calc(var(--player-h) + 120px); gap: 28px; }
   .avatar-link { display: grid; place-items: center; order: 1; flex: none; width: 36px; height: 36px; border-radius: 50%; background: var(--signal); color: var(--on-signal); font-weight: 600; font-size: .875rem; }
@@ -281,17 +259,14 @@ html { scroll-behavior: smooth; }
   .ph-head { flex-direction: column; align-items: flex-start; gap: 16px; }
   .ph-art { width: 160px; height: 160px; }
   .hscroll { --card-w: 140px; }
-  /* phones: the chrome is nearly opaque so text never reads through it */
   :root, :root[data-theme='light'] { --glass: color-mix(in srgb, var(--bg) 95%, transparent); }
 }
 
-/* ---------- reduced motion: movement becomes a short cross-fade ---------- */
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
 }
 
-/* ---------- sections ("tiles"): open sections on the page, hairline-framed when they hold a fact ---------- */
 .bento { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); row-gap: var(--gap); column-gap: 24px; align-items: start; }
 .bento > .page-head { grid-column: 1 / -1; padding: var(--sp-1) 0 var(--sp-2); }
 .bento > .bento-full { grid-column: 1 / -1; }
@@ -334,7 +309,6 @@ button.tile.clickable:hover, a.tile.tone-card:hover, a.tile.tone-glow:hover { ba
   .tile-t h2 { font-size: 1.375rem; }
 }
 
-/* detail pages */
 .tile.hd { padding: 0; background: none; box-shadow: none; }
 .facts { margin: 0; display: grid; gap: 4px; }
 .facts > div { display: flex; justify-content: space-between; gap: var(--sp-4); padding: 6px 0; font-size: .875rem; }
@@ -353,15 +327,12 @@ div.big { display: flex; align-items: baseline; gap: var(--sp-2); min-width: 0; 
 .tile.rs2 { grid-row: span 2; }
 @media (max-width: 1100px) { .tile.rs2 { grid-row: auto; } }
 
-/* skip link: first tab stop, visible only while focused */
 .skip { position: fixed; top: 8px; inset-inline-start: 8px; z-index: 200; padding: 10px 16px; border-radius: var(--r); background: var(--ink); color: var(--on-ink); font-weight: 600; transform: translateY(-160%); transition: transform .2s var(--ease); }
 .skip:focus-visible { transform: none; }
 main:focus { outline: none; }
 
-/* pointer-down feedback on rows and cards */
 .q:active, a.tile:active, button.tile.clickable:active { transform: scale(.985); }
 
-/* ---------- home: black feature card, On Repeat, pastel picks ---------- */
 .fcard { grid-column: 1 / -1; display: flex; gap: 24px; align-items: stretch; padding: 16px; border-radius: 28px; background: var(--feature); color: #fff; }
 .fcard .fart { flex: none; width: 132px; height: 132px; border-radius: 18px; overflow: hidden; }
 .fcard .ftext { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; }
@@ -398,17 +369,14 @@ main:focus { outline: none; }
 .week-line h2 { font-family: var(--font-num); font-size: .75rem; font-weight: 400; letter-spacing: 0; color: var(--muted); margin-inline-end: 8px; }
 @media (max-width: 900px) { .pgrid, .pgrid.five { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pgrid.five .pick:last-child { grid-column: 1 / -1; } .fcard .fart { width: 112px; height: 112px; } }
 
-/* times and figures keep their own reading order inside right-to-left pages */
 .num, .facts dd { direction: ltr; unicode-bidi: isolate; }
 :dir(rtl) .facts dd { text-align: left; }
 :dir(rtl) .log-row time { text-align: right; }
 
-/* supporting figures: smaller, unframed, so one figure leads the page */
 .tile.stat { gap: var(--sp-2); }
 .tile.stat .tile-t h2 { font-family: var(--font-text); font-size: .875rem; font-weight: 500; letter-spacing: 0; color: var(--muted); }
 
 
-/* ---------- album, playlist and mix pages ---------- */
 .acol { grid-column: 1 / -1; width: 100%; max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
 .abar { display: flex; align-items: center; gap: 12px; padding-top: 4px; }
 .apill { display: inline-flex; align-items: center; gap: 2px; padding: 3px; border-radius: 999px; background: var(--surface-2); }

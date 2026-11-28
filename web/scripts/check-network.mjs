@@ -1,10 +1,3 @@
-/* Run this on a device on the home network to see which ways it can reach the LoMu server.
-
-     node web/scripts/check-network.mjs                      (defaults below)
-     node web/scripts/check-network.mjs https://lomu.example.com 192.168.1.10 192.168.1.20
-
-   Each home address is tried the way the apps do it: connect to the address, but speak to the public name (TLS server name and
-   Host header), so a valid certificate proves the route is usable. Read-only: it only calls /api/health. */
 import https from 'node:https';
 import dns from 'node:dns';
 
@@ -20,7 +13,6 @@ const probe = (host, label, path = '/api/health') =>
         let b = '';
         res.on('data', (c) => (b += c));
         res.on('end', async () => {
-          // An older server has no /api/health: any valid answer from /api/auth/status proves the route works.
           if (res.statusCode === 404 && path === '/api/health') {
             const r = await probe(host, label, '/api/auth/status');
             return resolve({ ...r, note: r.ok ? 'reachable (server build is older than /api/health)' : r.note });
@@ -29,7 +21,6 @@ const probe = (host, label, path = '/api/health') =>
           try {
             j = JSON.parse(b);
           } catch {
-            /* not json */
           }
           resolve({ label, ok: res.statusCode === 200 && (path === '/api/auth/status' || j.ok === true), ms: Date.now() - t0, note: res.statusCode === 200 ? `v${j.version ?? '?'} db ${j.db ?? '?'}` : `HTTP ${res.statusCode}${res.statusCode === 404 ? '' : ''}` });
         });

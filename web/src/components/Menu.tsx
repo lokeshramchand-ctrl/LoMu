@@ -49,7 +49,6 @@ export function TrackMenuHost() {
   }, [track, close]);
 
   const [fit, setFit] = useState<number | null>(null);
-  // Search results carry no album, so look it up for "Go to album".
   const [album, setAlbum] = useState<{ id: string; name: string } | null>(null);
   useEffect(() => {
     setAlbum(null);
@@ -61,7 +60,6 @@ export function TrackMenuHost() {
       live = false;
     };
   }, [track]);
-  // Keep the whole menu on screen whatever its height (it changes with the page and the artist count).
   useLayoutEffect(() => {
     if (!track || !ref.current) return setFit(null);
     const h = ref.current.offsetHeight;
@@ -82,7 +80,6 @@ export function TrackMenuHost() {
         toast('Link copied');
       }
     } catch {
-      /* share sheet dismissed */
     }
   };
   const artists = track.artists.filter((a) => a.id).slice(0, 3);
@@ -129,7 +126,6 @@ export function TrackMenuHost() {
           )}
         </>
       ) : mode === 'name' ? (
-        // An inline field: window.prompt() does not exist in the desktop app (Electron).
         <form
           className="namebox"
           onSubmit={(e) => {

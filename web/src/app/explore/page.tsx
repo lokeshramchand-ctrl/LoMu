@@ -12,7 +12,6 @@ import { usePlayer } from '@/player/store';
 
 type Tab = 'trending' | 'new' | 'moods';
 
-/** Stable hue per mood name, so each tile keeps its colour. */
 function hue(s: string) {
   let h = 0;
   for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360;

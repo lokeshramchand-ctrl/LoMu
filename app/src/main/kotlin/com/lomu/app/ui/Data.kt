@@ -25,7 +25,6 @@ sealed interface Load<out T> {
     data class Err(val message: String, val retry: () -> Unit = {}) : Load<Nothing>
 }
 
-/** Runs [block] when [key] changes and exposes the outcome as state. */
 @Composable
 fun <T> load(key: Any?, block: suspend () -> Result<T>): State<Load<T>> {
     var attempt by androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(0) }
@@ -39,14 +38,9 @@ val LocalPlayer = staticCompositionLocalOf<PlayerConnection?> { null }
 val LocalSync = staticCompositionLocalOf<com.lomu.app.sync.SyncClient?> { null }
 val LocalNav = staticCompositionLocalOf<Nav> { error("no nav") }
 
-/*
- * Every "play this" in the UI goes through these helpers. While this phone is steering another
- * device (see ConnectClient.remote) they send the songs there instead of playing locally.
- */
 private fun remoteTarget(): Pair<ConnectClient, String>? =
     ConnectClient.instance?.let { c -> c.remote.value?.let { c to it.id } }
 
-/** Play one song and let YouTube radio carry on after it. */
 fun PlayerConnection.playRadio(song: SongItem) = playRadio(song.toMediaMetadata())
 
 fun PlayerConnection.playRadio(m: MediaMetadata) {
@@ -55,7 +49,6 @@ fun PlayerConnection.playRadio(m: MediaMetadata) {
     else playQueue(YouTubeQueue(WatchEndpoint(videoId = m.id), m))
 }
 
-/** Play a list of songs in order starting at [index]. */
 fun PlayerConnection.playList(title: String?, songs: List<SongItem>, index: Int = 0) {
     val r = remoteTarget()
     if (r != null) r.first.playOn(r.second, songs.map { it.toMediaMetadata() }, index)

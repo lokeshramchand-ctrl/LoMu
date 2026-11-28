@@ -1,7 +1,6 @@
 'use client';
 import { dataMode, MODES } from '@/lib/worst';
 
-/** Dev-only switch, fixed top-centre, clear of the tab bar: Demo data / Worst case / Empty / One. Reloads so every query refetches through the same boundary. */
 export function DataToggle() {
   if (process.env.NODE_ENV === 'production') return null;
   const cur = dataMode();

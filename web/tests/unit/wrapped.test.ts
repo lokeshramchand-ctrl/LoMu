@@ -22,7 +22,7 @@ describe('buildWrapped', () => {
     expect(w.longestStreak).toBe(3);
     expect(w.busiestMonth!.month).toBe('January');
     expect(w.persona.title).toBe('Night Owl');
-    expect(w.newArtists).toBe(1); // Gamma is first heard in 2026; Alpha and Beta came in 2025
+    expect(w.newArtists).toBe(1);
     expect(w.skipRate).toBeCloseTo(1 / 5);
   });
   it('all time covers every year, and a year with nothing is null', () => {
@@ -30,7 +30,7 @@ describe('buildWrapped', () => {
     expect(buildWrapped(history, 2020)).toBeNull();
   });
   it('reads hours in the viewer zone', () => {
-    const w = buildWrapped([p(a, Date.UTC(2026, 0, 5, 20, 30))], 2026, -330)!; // IST: 2am next day
+    const w = buildWrapped([p(a, Date.UTC(2026, 0, 5, 20, 30))], 2026, -330)!;
     expect(w.peakHour).toBe(2);
     expect(w.persona.title).toBe('Night Owl');
   });

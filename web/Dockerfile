@@ -1,4 +1,3 @@
-# LoMu web player + sync server, built for Coolify (Dockerfile build pack, base directory: web).
 FROM node:24-bookworm-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./

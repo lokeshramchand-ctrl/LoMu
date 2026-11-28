@@ -4,10 +4,6 @@ import { usePlayer, currentTrack, remoteRoute } from './store';
 import type { Track } from '@/lib/types';
 import { toast } from '@/components/Toast';
 
-/* Connect client: shows the devices signed in to this account and lets them control each other.
-   This tab reports what it is playing and executes commands sent by other devices (see
-   server/connect.ts for the protocol). */
-
 export type Device = {
   id: string;
   name: string;
@@ -27,19 +23,17 @@ type ConnectState = {
   self: string;
   devices: Device[];
   active: string | null;
-  receivedAt: number; // local clock when `devices` last arrived (to extrapolate progress)
+  receivedAt: number;
   online: boolean;
-  /** The device this tab is steering (null = this tab plays). Sticky until changed, also while that device is paused. */
   target: string | null;
 };
 
 export const useConnect = create<ConnectState>(() => ({ self: '', devices: [], active: null, receivedAt: 0, online: false, target: null }));
 
-/** The device being steered, if any. */
 export const remoteDevice = (s: Pick<ConnectState, 'devices' | 'target'>): Device | null => (s.target ? s.devices.find((d) => d.id === s.target) ?? null : null);
 
 let suppressLatchUntil = 0;
-let executing = false; // true while running a command that was meant for this tab
+let executing = false;
 
 function latch() {
   const s = useConnect.getState();
@@ -63,7 +57,6 @@ function deviceId(): string {
 
 function deviceName(): string {
   const ua = navigator.userAgent;
-  // The Windows desktop app is Chromium inside, so it would read "Chrome on Windows": call it what it is.
   if (/Electron\//.test(ua)) return 'Windows';
   const browser = /Edg\//.test(ua) ? 'Edge' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : 'Browser';
   const os = /Windows/.test(ua) ? 'Windows' : /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iOS' : /Mac OS/.test(ua) ? 'Mac' : /Linux/.test(ua) ? 'Linux' : '';
@@ -84,7 +77,6 @@ export async function sendCommand(to: string, cmd: Record<string, unknown>): Pro
   }
 }
 
-/** Sends this tab's queue to `to` and pauses here. */
 function handoffTo(to: string) {
   const P = usePlayer.getState();
   const from = Math.max(0, P.index - 3);
@@ -95,7 +87,6 @@ function handoffTo(to: string) {
   });
 }
 
-/** "Play on this device": move playback from wherever it is to `id`. */
 export function transferTo(id: string) {
   const { self, active, target } = useConnect.getState();
   if (id === self) {
@@ -105,7 +96,6 @@ export function transferTo(id: string) {
     if (source && source !== self) sendCommand(source, { type: 'handoff', to: self });
     return;
   }
-  // Steer `id` from here; if music plays somewhere else (here or on another device), move it over first.
   useConnect.setState({ target: id });
   const source = active ?? self;
   if (source === id) return;
@@ -114,7 +104,6 @@ export function transferTo(id: string) {
   } else sendCommand(source, { type: 'handoff', to: id });
 }
 
-// Song lists, the queue buttons and radio all call the store; while steering another device they go there.
 const remoteId = () => (executing ? null : useConnect.getState().target);
 remoteRoute.play = (tracks, start) => {
   const to = remoteId();
@@ -185,7 +174,7 @@ function exec(cmd: Record<string, any>, from: string) {
     case 'load': {
       const tracks = Array.isArray(cmd.tracks) ? (cmd.tracks as Track[]).filter((t) => t && typeof t.id === 'string') : [];
       if (!tracks.length) break;
-      useConnect.setState({ target: null }); // music plays here now
+      useConnect.setState({ target: null });
       P.play(tracks, Number(cmd.index) || 0, { source: 'remote' });
       if (Number(cmd.position) > 1) usePlayer.getState().seek(Number(cmd.position));
       if (cmd.play === false) setTimeout(() => usePlayer.getState().playing && usePlayer.getState().toggle(), 50);
@@ -213,8 +202,6 @@ function exec(cmd: Record<string, any>, from: string) {
   }
   void from;
 }
-
-// ---------------------------------------------------------------- engine
 
 let events: EventSource | null = null;
 let unsub: (() => void) | null = null;
@@ -252,12 +239,10 @@ function report() {
 
 function onPlayerChange() {
   const s = usePlayer.getState();
-  // Starting to play here (not merely still playing) ends steering of another device.
   if (s.playing && !wasPlaying && useConnect.getState().target) useConnect.setState({ target: null });
   wasPlaying = s.playing;
   const t = currentTrack(s);
   const key = [t?.id, s.playing, s.shuffle, s.repeat, s.volume, s.muted, s.queue.length, s.queue[s.index + 1]?.id].join('|');
-  // A jump in position that playback alone cannot explain is a seek: tell the others.
   const jumped = Math.abs(s.position - (lastPos.pos + (s.playing ? (Date.now() - lastPos.at) / 1000 : 0))) > 2.5;
   if (key === lastKey && !jumped) return;
   lastKey = key;
@@ -290,7 +275,6 @@ export function startConnect() {
       try {
         run(cmd, from);
       } catch {
-        /* a bad command must not break the stream */
       }
     });
     events.onerror = () => {

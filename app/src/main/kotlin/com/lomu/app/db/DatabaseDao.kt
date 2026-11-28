@@ -1,8 +1,3 @@
-/**
- * BeatWave Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
- */
-
 package com.lomu.app.db
 
 import androidx.room.Dao
@@ -68,13 +63,6 @@ import java.time.ZoneOffset
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
-// Artist name -> id, process-lifetime. Song/album import (insert(mediaMetadata),
-// insert(albumPage)) previously ran one `SELECT * FROM artist WHERE name = :name`
-// per artist per song — for a 100-song playlist import with repeated artists,
-// that's hundreds of redundant round-trips for names already resolved earlier
-// in the same batch. Artist count is small relative to song count, so caching
-// the whole name->id mapping in memory is cheap and turns repeat lookups within
-// (and across) imports into O(1) hits instead of a DB query each.
 private val artistIdCache = ConcurrentHashMap<String, String>()
 
 private fun DatabaseDao.resolveArtistId(name: String): String? =
@@ -132,7 +120,6 @@ interface DatabaseDao {
 
         SongSortType.PLAY_TIME -> songsByPlayTimeAsc()
     }.map { it.reversed(descending) }
-        // Collator sort of the full library must not run on the collector (main).
         .flowOn(Dispatchers.Default)
 
     @Transaction
@@ -151,7 +138,6 @@ interface DatabaseDao {
     @Query("SELECT * FROM song WHERE liked ORDER BY totalPlayTime")
     fun likedSongsByPlayTimeAsc(): Flow<List<Song>>
 
-    /** Ids only — [DownloadUtil] watches this to auto-download newly liked songs. */
     @Query("SELECT id FROM song WHERE liked")
     fun likedSongIds(): Flow<List<String>>
 
@@ -651,10 +637,6 @@ interface DatabaseDao {
     @Query("SELECT * FROM format WHERE id = :id")
     fun format(id: String?): Flow<FormatEntity?>
 
-    /** Cached DJ analysis, filtered to the current algorithm version — a grid
-     *  from an older detector is re-analyzed rather than trusted. Callers pass
-     *  `SongAnalysisEntity.CURRENT_ANALYSIS_VERSION`; Room does not reliably
-     *  honour Kotlin default arguments on `@Query` methods. */
     @Query("SELECT * FROM song_analysis WHERE id = :id AND analysisVersion = :version")
     suspend fun songAnalysis(id: String, version: Int): SongAnalysisEntity?
 
@@ -749,7 +731,7 @@ interface DatabaseDao {
             ArtistSortType.PLAY_TIME -> artistsByPlayTimeAsc()
         }.map { artists ->
             artists
-                .filter { it.artist.isYouTubeArtist || it.artist.isLocal } // TODO: add ui to filter by local or remote or something idk
+                .filter { it.artist.isYouTubeArtist || it.artist.isLocal }
                 .reversed(descending)
         }.flowOn(Dispatchers.Default)
 
@@ -761,7 +743,7 @@ interface DatabaseDao {
             ArtistSortType.PLAY_TIME -> artistsBookmarkedByPlayTimeAsc()
         }.map { artists ->
             artists
-                .filter { it.artist.isYouTubeArtist || it.artist.isLocal } // TODO: add ui to filter by local or remote or something idk
+                .filter { it.artist.isYouTubeArtist || it.artist.isLocal }
                 .reversed(descending)
         }.flowOn(Dispatchers.Default)
 
@@ -789,14 +771,6 @@ interface DatabaseDao {
     )
     fun artistsLocalByNameAsc(): Flow<List<Artist>>
 
-    /**
-     * Local artists in the order they were added.
-     *
-     * artist has no created-at column, so rowId stands in for insertion order -- the same
-     * proxy [albumsLocalByRowIdAsc] already uses for local albums. Before this existed the
-     * CREATE_DATE branch below aliased to [artistsLocalByNameAsc], so choosing "Date added"
-     * on local artists silently sorted by name and the setting looked broken.
-     */
     @Transaction
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
     @Query(
@@ -1427,9 +1401,6 @@ interface DatabaseDao {
         .flowOn(Dispatchers.Default)
 
     @Transaction
-    // Local songs are scanned, never downloaded, so dateDownload is NULL for all of
-    // them and ordering by it did nothing. inLibrary holds the file's MediaStore
-    // DATE_ADDED (see LocalAudioScanner).
     @Query("SELECT * FROM song WHERE isLocal = 1 ORDER BY inLibrary")
     fun localSongsByCreateDateAsc(): Flow<List<Song>>
 
@@ -1516,9 +1487,6 @@ interface DatabaseDao {
         previewSize: Int = Int.MAX_VALUE,
     ): Flow<List<Playlist>>
 
-    // Same scope as the search* queries above, minus the LIKE predicate — the fuzzy fallback
-    // in LocalSearchViewModel scores these in Kotlin when the exact substring search (a typo)
-    // comes back empty, so this must stay in sync with whatever "in library" means up there.
     @Transaction
     @Query("SELECT * FROM song WHERE inLibrary IS NOT NULL")
     fun allSearchableSongs(): Flow<List<Song>>
@@ -1551,11 +1519,9 @@ interface DatabaseDao {
     @Query("SELECT * FROM event ORDER BY rowId ASC LIMIT 1")
     fun firstEvent(): Flow<EventWithSong?>
 
-    /** Sync: has this exact play (same song, same instant) already been recorded here? Keeps pulls idempotent. */
     @Query("SELECT COUNT(*) FROM event WHERE songId = :songId AND timestamp = :timestamp")
     fun eventExists(songId: String, timestamp: LocalDateTime): Int
 
-    /** Sync repair: removes repeated copies of the same play (same song and instant), keeping the first. */
     @Query("DELETE FROM event WHERE id NOT IN (SELECT MIN(id) FROM event GROUP BY songId, timestamp)")
     fun deleteDuplicateEvents(): Int
 
@@ -1574,7 +1540,6 @@ interface DatabaseDao {
     @Query("DELETE FROM search_history")
     fun clearSearchHistory()
 
-    // Recognition History
     @Transaction
     @Query("SELECT * FROM recognition_history ORDER BY recognizedAt DESC")
     fun recognitionHistory(): Flow<List<RecognitionHistory>>
@@ -1611,9 +1576,6 @@ interface DatabaseDao {
     @Query("UPDATE playCount SET count = count + 1 WHERE song = :songId AND year = :year AND month = :month")
     fun incrementPlayCount(songId: String, year: Int, month: Int)
 
-    /**
-     * Increment by one the play count with today's year and month.
-     */
     fun incrementPlayCount(songId: String) {
         val time = LocalDateTime.now().atOffset(ZoneOffset.UTC)
         var oldCount: Int
@@ -1621,7 +1583,6 @@ interface DatabaseDao {
             oldCount = getPlayCountByMonth(songId, time.year, time.monthValue).first()
         }
 
-        // add new
         if (oldCount <= 0) {
             insert(PlayCountEntity(songId, time.year, time.monthValue, 0))
         }
@@ -1922,7 +1883,6 @@ interface DatabaseDao {
             }.forEach(::upsert)
 
         albumPage.album.artists?.let { artists ->
-            // Recreate album artists
             albumArtistMaps(album.id).forEach(::delete)
             artists
                 .map { artist ->

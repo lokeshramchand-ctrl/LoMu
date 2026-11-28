@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 const USER = process.env.LOMU_USER ?? 'admin';
-const PASS = process.env.LOMU_PASS ?? ''; // set LOMU_PASS; never commit it
+const PASS = process.env.LOMU_PASS ?? '';
 const SHOTS = process.env.LOMU_SHOTS ?? 'test-results/prod';
 const log = (...a: unknown[]) => console.log('>>', ...a);
 
@@ -45,8 +45,6 @@ test('web steers the phone, then takes playback over', async ({ page }) => {
   await expect.poll(async () => (await phone(page))?.track?.id, { timeout: 15_000 }).not.toBe(before);
   log('next reached phone ->', (await phone(page)).track.title);
 
-  // Play something new from the web onto the phone.
-  // A full page load would drop the steering, so search through the app's own box.
   await page.getByLabel('Search').first().fill('tum hi ho');
   await page.keyboard.press('Enter');
   await page.waitForTimeout(3500);
@@ -54,7 +52,6 @@ test('web steers the phone, then takes playback over', async ({ page }) => {
   await expect.poll(async () => (await phone(page))?.track?.title, { timeout: 15_000 }).toBe('Tum Hi Ho');
   log('web-started song plays on phone');
 
-  // Take it back to this browser.
   await page.getByRole('button', { name: 'Devices' }).first().click();
   await page.getByRole('button', { name: /This device/ }).click();
   await page.waitForTimeout(6000);

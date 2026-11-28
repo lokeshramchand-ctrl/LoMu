@@ -14,8 +14,6 @@ export const GET = async (req: Request, ctx: { params: Promise<{ id: string }> }
       await warmAudio(id, codec);
       return new Response(null, { status: 204 });
     }
-    // Desktop app: a song already on disk plays from the file (works offline); otherwise stream it live and
-    // keep a copy once it has really been listened to.
     const file = cachedFile(id, codec);
     if (file) return serveFile(file, codec, req.headers.get('range'));
     maybeFill(id, codec);

@@ -6,7 +6,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.unit.dp
 
-/** Phosphor icons, the same set the web player uses (generated from web/src/components/icons.ts). */
 enum class Ph(internal val path: String) {
     Home("M219.31,108.68l-80-80a16,16,0,0,0-22.62,0l-80,80A15.87,15.87,0,0,0,32,120v96a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V160h32v56a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V120A15.87,15.87,0,0,0,219.31,108.68ZM208,208H160V152a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8v56H48V120l80-80,80,80Z"),
     Search("M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"),
@@ -56,14 +55,12 @@ enum class Ph(internal val path: String) {
     AddList("M32,64a8,8,0,0,1,8-8H216a8,8,0,0,1,0,16H40A8,8,0,0,1,32,64Zm8,72H216a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16Zm104,48H40a8,8,0,0,0,0,16H144a8,8,0,0,0,0-16Zm88,0H216V168a8,8,0,0,0-16,0v16H184a8,8,0,0,0,0,16h16v16a8,8,0,0,0,16,0V200h16a8,8,0,0,0,0-16Z");
 
     val vector: ImageVector by lazy {
-        // Where the web player uses a Linear glyph (see web/src/components/Icon.tsx), use the same one here.
         linear()?.vector ?: ImageVector.Builder(name = name, defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 256f, viewportHeight = 256f)
             .addPath(PathParser().parsePathString(path).toNodes(), fill = SolidColor(Color.Black))
             .build()
     }
 }
 
-/** Same mapping as `LINEAR_FOR` in the web player's Icon.tsx. */
 private fun Ph.linear(): Lin? = when (this) {
     Ph.Home -> Lin.Focus
     Ph.Search -> Lin.Search

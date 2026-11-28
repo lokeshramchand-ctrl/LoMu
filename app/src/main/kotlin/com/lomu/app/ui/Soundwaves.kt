@@ -40,21 +40,15 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 
-/* The "Soundwaves" look: a white page, black ink, soft pastel cards, one black feature card, round grey buttons.
-   Home, Collections (the library) and Create live here; the player screens are not part of this file. */
-
-/** Pastel fill for the nth card, so neighbouring cards differ. */
 @Composable
 internal fun tileColor(i: Int): Color = LocalLo.current.tiles[Math.floorMod(i, LocalLo.current.tiles.size)]
 
-/** Round grey icon button (bell, search, close in the reference). */
 @Composable
 internal fun RoundBtn(icon: ImageVector, label: String, onClick: () -> Unit, size: Dp = 44.dp) {
     val lo = LocalLo.current
     Box(Modifier.size(size).a11y(label).background(lo.surface2, CircleShape).pressable(CircleShape, onClick = onClick), Alignment.Center) { IcV(icon, 20.dp, lo.ink) }
 }
 
-/** Page title in bold sans with round controls on the right. */
 @Composable
 internal fun SoundTitle(title: String, sub: String? = null, trailing: @Composable RowScope.() -> Unit = {}) {
     val lo = LocalLo.current
@@ -72,8 +66,6 @@ private fun SoundSection(text: String, modifier: Modifier = Modifier) {
     Text(text, style = LoType.section, color = LocalLo.current.ink, modifier = modifier.padding(start = 20.dp, end = 20.dp, top = 26.dp, bottom = 12.dp))
 }
 
-// ======================================================================================= Home
-
 @Composable
 fun HomeScreen() {
     val player = LocalPlayer.current
@@ -88,11 +80,7 @@ fun HomeScreen() {
     val remoteQueue by (sync?.remoteQueue ?: noQueue).collectAsState()
     val lo = LocalLo.current
     val ctx = androidx.compose.ui.platform.LocalContext.current
-    // Start from the cached shelves so Home does not flash the open feed before the personal picks are built.
     var recsLoaded by remember { mutableStateOf(sync == null) }
-    // The shelves are kept until a newer non-empty set arrives. (produceState with keys put the value back to the
-    // old starting list every time a sync finished, and an empty or failed rebuild blanked Home: the mixes
-    // vanished until the next rebuild came back.)
     var recsRaw by remember { mutableStateOf(runCatching { sync?.cachedRecs() }.getOrNull().orEmpty()) }
     LaunchedEffect(syncState.user, syncState.status.startsWith("Up to date")) {
         val fresh = runCatching { sync?.recs() }.getOrNull().orEmpty()
@@ -101,25 +89,21 @@ fun HomeScreen() {
         val mixTitle = Regex("^(Daily Mix.*|Discover Weekly|(Morning|Afternoon|Evening|Late Night) Mix)$")
         runCatching { (ctx.applicationContext as com.lomu.app.App).downloadUtilProvider.get().keepMixesOffline(fresh.filter { mixTitle.matches(it.title) }.flatMap { it.tracks }) }
     }
-    // Blocking an artist hides them at once, before the next rebuild of the mixes.
     val blockedNow by (sync?.blocked ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptySet<String>()) }).collectAsState()
     val recs = remember(recsRaw, blockedNow) { sync?.hideBlocked(recsRaw, blockedNow) ?: recsRaw }
     val state by load("home") { YouTube.home() }
 
     val likedMeta = remember(liked) { liked.take(50).map { it.toMediaMetadata() } }
     val onRepeat = recs.firstOrNull { it.title == "On Repeat" }?.tracks ?: likedMeta.take(50)
-    // Everything that is not "On Repeat", flattened and de-duplicated: the feature card and the pastel tiles come from here.
     val picks = remember(recs, likedMeta) {
         val fromRecs = recs.filter { it.title != "On Repeat" }.flatMap { it.tracks }.distinctBy { it.id }
         if (fromRecs.size >= 3) fromRecs else (fromRecs + likedMeta).distinctBy { it.id }
     }
     val feature = picks.firstOrNull()
     val mixes = remember(recs) { recs.filter { it.title.startsWith("Daily Mix") } }
-    // Discover Weekly and the four time-of-day mixes: a second set of tiles under the daily mixes.
     val moodMixes = remember(recs) { recs.filter { Regex("^(Repeat Rewind|Slowed & Reverb|Unplugged & Acoustic|Instrumentals & Themes)$").matches(it.title) } }
     val dayMixes = remember(recs) { recs.filter { it.title == "Discover Weekly" || Regex("^(Morning|Afternoon|Evening|Late Night) Mix$").matches(it.title) } }
 
-    // The page takes the colour of the playing song's cover, as the player does, fading to white lower down.
     val noMeta = remember { kotlinx.coroutines.flow.MutableStateFlow<MediaMetadata?>(null) }
     val cur by (player?.mediaMetadata ?: noMeta).collectAsState()
     Box(Modifier.fillMaxSize().background(lo.bg)) {
@@ -147,7 +131,6 @@ fun HomeScreen() {
                             val at = resume.positionMs
                             sync?.dismissRemoteQueue()
                             if (at > 2_000) pc.player.let { p ->
-                                // The queue is handed to the player service asynchronously: seek once it has the song.
                                 android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ if (p.currentMediaItem?.mediaId == first.id) p.seekTo(at) }, 800)
                             }
                         } ?: android.widget.Toast.makeText(ctx, "Player is starting", android.widget.Toast.LENGTH_SHORT).show()
@@ -178,7 +161,6 @@ fun HomeScreen() {
         if (mixes.isNotEmpty()) item { MixTiles("Mixes", mixes, 0) }
         if (dayMixes.isNotEmpty()) item { MixTiles("For your day", dayMixes, 1) }
         if (moodMixes.isNotEmpty()) item { MixTiles("Moods and throwbacks", moodMixes, 2) }
-        // Until the personal picks arrive (or when signed out) fall back to the open feed.
         if (recs.isEmpty() && liked.isEmpty() && !recsLoaded) item { SkeletonShelves() }
         else if (recs.isEmpty() && liked.isEmpty()) when (val st = state) {
             is Load.Loading -> item { SkeletonShelves() }
@@ -189,7 +171,6 @@ fun HomeScreen() {
     }
 }
 
-/** The black card: cover, title, artist, a heart and a round play button. */
 @Composable
 private fun FeatureCard(m: MediaMetadata) {
     val lo = LocalLo.current
@@ -232,7 +213,6 @@ private fun FeatureCard(m: MediaMetadata) {
     }
 }
 
-/** Big pastel tile with round art, the title and the artist underneath. */
 @Composable
 private fun PickTile(title: String, subtitle: String, thumb: String?, fill: Color, modifier: Modifier, onClick: () -> Unit) {
     val lo = LocalLo.current
@@ -243,8 +223,6 @@ private fun PickTile(title: String, subtitle: String, thumb: String?, fill: Colo
         Text(subtitle, style = LoType.small, color = lo.grey, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
     }
 }
-
-// =================================================================================== Collections
 
 @Composable
 fun LibraryScreen() {
@@ -259,7 +237,6 @@ fun LibraryScreen() {
     val artists = artistsFlow.collectAsState(emptyList()).value.filter { it.artist.isYouTubeArtist && !it.artist.isLocal }
     var filter by remember { mutableStateOf(0) }
 
-    // One card: art, name, a grey line. Round art for artists.
     class Card(val title: String, val line: String, val thumb: String?, val round: Boolean = false, val go: () -> Unit)
     val liked = if (songs.isEmpty()) emptyList() else listOf(Card("Liked Songs", "${songs.size} tracks", songs.first().song.thumbnailUrl) { nav.push(Screen.Liked) })
     val lists = playlists.map { p ->
@@ -300,8 +277,6 @@ fun LibraryScreen() {
         }
     }
 }
-
-// ======================================================================================= Create
 
 @Composable
 fun CreateScreen() {
@@ -374,7 +349,6 @@ private fun CreateCard(icon: Ph, title: String, line: String, fill: Color, onCli
     }
 }
 
-/** Two-column grid of coloured mix tiles; each opens the mix as an album-style page. */
 @Composable
 private fun MixTiles(heading: String, shelves: List<com.lomu.app.sync.SyncClient.RecShelf>, appearAt: Int) {
     val nav = LocalNav.current

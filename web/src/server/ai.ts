@@ -1,14 +1,7 @@
 import 'server-only';
 
-/* A thin client for any OpenAI-compatible chat endpoint (llama.cpp's llama-server, Ollama, a hosted API).
-   Configuration comes from the environment only, so the key never reaches a browser or the repository:
-     LOMU_AI_URL    base address, e.g. https://llama.example.com   (no AI features while this is empty)
-     LOMU_AI_KEY    optional bearer key, sent as "Authorization: Bearer ..."
-     LOMU_AI_MODEL  optional model name (llama-server ignores it) */
-
 export const aiConfigured = () => !!process.env.LOMU_AI_URL?.trim();
 
-/** Plain-language reason for a failed call, for the Settings test. */
 export function explain(e: unknown): string {
   const m = e instanceof Error ? e.message : String(e);
   if (/answered 30\d/.test(m)) return 'The address redirects to a login page. Use an address that accepts the key without a browser login.';
@@ -37,7 +30,7 @@ export async function chatJson(system: string, user: string, timeoutMs = 120_000
         { role: 'user', content: user },
       ],
     }),
-    redirect: 'manual', // a login page (302) means the endpoint is behind SSO and the key cannot get through
+    redirect: 'manual',
     signal: AbortSignal.timeout(timeoutMs),
   });
   if (!res.ok) throw new Error(`AI server answered ${res.status}`);
@@ -45,7 +38,6 @@ export async function chatJson(system: string, user: string, timeoutMs = 120_000
   return parseJson(body.choices?.[0]?.message?.content ?? '');
 }
 
-/** Models wrap JSON in prose, code fences or <think> blocks; take the first balanced object. */
 export function parseJson(text: string): unknown {
   const clean = text.replace(/<think>[\s\S]*?<\/think>/g, '');
   const start = clean.indexOf('{');
@@ -54,7 +46,6 @@ export function parseJson(text: string): unknown {
   return JSON.parse(clean.slice(start, end + 1));
 }
 
-/** Settings test: one tiny request, so a wrong address, key or a stopped model shows up in seconds. */
 export async function ping(): Promise<{ ms: number }> {
   const t0 = Date.now();
   await chatJson('Answer with JSON only.', 'Reply with {"ok": true}', 60_000);

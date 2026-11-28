@@ -1,8 +1,3 @@
-/**
- * BeatWave Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
- */
-
 package com.lomu.app.models
 
 import androidx.compose.runtime.Immutable
@@ -89,7 +84,6 @@ fun Song.toMediaMetadata() =
             )
         },
         explicit = song.explicit,
-        // Use a non-ATV type if isVideo is true to indicate it's a video song
         musicVideoType = if (song.isVideo) "MUSIC_VIDEO_TYPE_OMV" else null,
         suggestedBy = null,
     )

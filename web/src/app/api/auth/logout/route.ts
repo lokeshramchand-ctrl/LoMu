@@ -2,7 +2,6 @@ import { readJson } from '@/server/body';
 import { cookies } from 'next/headers';
 import { clearAuthCookies, currentUser, refreshOwner, revokeUser } from '@/server/auth';
 
-/** Signs the calling account out of every device (and only that account). */
 export async function POST(req: Request) {
   let uid = (await currentUser())?.id ?? null;
   if (uid === null) {
@@ -10,7 +9,6 @@ export async function POST(req: Request) {
     try {
       refresh = (await readJson(req))?.refresh;
     } catch {
-      /* no body */
     }
     refresh ??= (await cookies()).get('lomu_rt')?.value;
     uid = refresh ? refreshOwner(refresh) : null;

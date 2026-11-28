@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { Icon } from './Icon';
 import { useAuth } from '@/player/sync';
 
-/** Docs-style side panel (bottom sheet on phones). Focus goes to Close on open; Escape closes. */
 export function Sheet({
   open,
   onClose,
@@ -72,7 +71,6 @@ export function Sheet({
   );
 }
 
-/** One labelled on/off row. */
 export function Toggle({ on, onChange, label, hint }: { on: boolean; onChange: (v: boolean) => void; label: string; hint?: string }) {
   return (
     <div className="tg">

@@ -118,7 +118,6 @@ export default function SettingsPage() {
 
 type Hub = { local: boolean; url: string | null; user: string | null; state: 'off' | 'syncing' | 'online' | 'offline' | 'error'; lastSync: number | null; pending: number; error: string | null; lan: string | null; route: 'direct' | 'lan' | null };
 
-/** Desktop app: connection to the home server that keeps this PC, the phone and the browser in step. */
 function HubGroup() {
   const [hub, setHub] = useState<Hub | null>(null);
   const [url, setUrl] = useState('https://lomu.example.com');
@@ -216,7 +215,6 @@ function HomeToggle({ id, label }: { id: (typeof HOME_SECTIONS)[number]['id']; l
 type AiStatus = { configured: boolean; host: string | null; building: boolean; builtAt: number | null; title: string | null; songs: number; lastTry: number | null; lastError: string | null; shown: boolean };
 type AiResult = { ok: boolean; error?: string; ms?: number; report?: { title: string; proposed: number; found: number; kept: number; ms: number }; status?: AiStatus };
 
-/** The daily AI mix: is the model reachable, and what happened the last time it built a playlist. */
 function AiGroup() {
   const [st, setSt] = useState<AiStatus | null>(null);
   const [res, setRes] = useState<AiResult | null>(null);
@@ -335,7 +333,6 @@ function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
   );
 }
 
-/** Change your own password. Every other device is signed out. */
 function PasswordRow() {
   const [open, setOpen] = useState(false);
   const [cur, setCur] = useState('');
@@ -381,7 +378,6 @@ function PasswordRow() {
 
 type Acct = { id: number; username: string; role: 'admin' | 'user'; disabled: boolean; created: number; devices: number };
 
-/** Admin only: add, pause and remove accounts. Each account has its own library, history and recommendations. */
 function AccountsGroup() {
   const me = useAuth((s) => s.user);
   const [users, setUsers] = useState<Acct[]>([]);

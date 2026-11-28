@@ -1,8 +1,3 @@
-// Screenshot tour of the web player. Usage: node tests/shots.mjs <outDir> [baseUrl]
-// Start a server first with a throwaway data dir, e.g.
-//   LOMU_DATA_DIR=/tmp/lomu-shots npm run dev
-// The script creates the owner account if none exists, signs in, and seeds a listening history so
-// the personalised parts of the home page have something to show.
 import { chromium } from '@playwright/test';
 import fs from 'node:fs';
 
@@ -12,7 +7,6 @@ const USER = 'lo';
 const PASS = 'screenshot-password';
 fs.mkdirSync(out, { recursive: true });
 
-// Sign in (or create the owner) once, with plain fetch, to read the seed album.
 async function session() {
   const st = await (await fetch(`${base}/api/auth/status`)).json();
   const res = await fetch(`${base}/api/auth/${st.setup ? 'login' : 'setup'}`, {

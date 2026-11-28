@@ -31,7 +31,6 @@ import org.json.JSONObject
 import java.text.DateFormat
 import java.util.Date
 
-/** The user's corrections (run start -> the song they remember last), kept on the phone. */
 private fun loadAnchors(c: Context): Map<Long, Long> = runCatching {
     val o = JSONObject(c.getSharedPreferences("lomu_sleep", Context.MODE_PRIVATE).getString("anchors", null) ?: "{}")
     o.keys().asSequence().associate { it.toLong() to o.getLong(it) }
@@ -43,10 +42,8 @@ private fun saveAnchors(c: Context, m: Map<Long, Long>) {
     c.getSharedPreferences("lomu_sleep", Context.MODE_PRIVATE).edit().putString("anchors", o.toString()).apply()
 }
 
-/** One selectable line in the nap picker: a queue (or history) song and, when it has been played, the play that gives it a time. */
 private data class PickRow(val title: String, val artist: String, val play: SleepPlay?)
 
-/** A nap the user calculated and kept. */
 private data class SavedNap(val name: String, val from: Long, val to: Long, val betweenMs: Long, val wholeMs: Long, val songs: Int, val startTitle: String, val endTitle: String)
 
 private fun loadNaps(c: Context): List<SavedNap> = runCatching {
@@ -66,7 +63,6 @@ private fun saveNaps(c: Context, l: List<SavedNap>) {
 private fun clock(t: Long): String = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(t))
 private fun day(t: Long): String = java.text.SimpleDateFormat("EEE d MMM", java.util.Locale.getDefault()).format(Date(t))
 
-/** The play log as sleep-detection input. */
 @Composable
 fun rememberPlays(): List<SleepPlay> {
     val player = LocalPlayer.current
@@ -88,14 +84,12 @@ fun rememberPlays(): List<SleepPlay> {
     return plays
 }
 
-/** Auto-detected sleep runs, plus the user's corrections. Shared by the Sleep screen and the Home card. */
 @Composable
 fun rememberSleepSessions(anchors: Map<Long, Long>): List<SleepSession> {
     val plays = rememberPlays()
     return remember(plays, anchors) { detectSleep(plays, anchors) }
 }
 
-/** The most recent sleep with the queue on, whenever it was. For the Home card; older ones are on the Sleep screen. */
 @Composable
 fun lastSleep(): SleepSession? {
     val ctx = LocalContext.current
@@ -133,7 +127,6 @@ fun SleepScreen() {
     val recent = remember(plays) { collapseRepeats(plays).sortedByDescending { it.at }.take(150) }
     val player = LocalPlayer.current
     val windows by remember(player) { player?.queueWindows ?: flowOf(emptyList<androidx.media3.common.Timeline.Window>()) }.collectAsState(emptyList())
-    // The time of a queue song comes from the play log: its most recent logged play.
     val newest = remember(plays) { collapseRepeats(plays).groupBy { it.id }.mapValues { e -> e.value.maxBy { it.at } } }
     var fromHistory by remember { mutableStateOf(false) }
     val rows = remember(windows, newest, recent, fromHistory) {
@@ -155,7 +148,6 @@ fun SleepScreen() {
                 style = LoType.sub, color = lo.grey, modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
             )
         }
-        // ---- Trip nap: pick the song you dozed off to and the one you woke up to; the play log gives the clock.
         item {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp).fillMaxWidth().background(lo.surface2, RoundedCornerShape(16.dp)).padding(16.dp)) {
                 Text("Trip nap", style = LoType.title, color = lo.ink)

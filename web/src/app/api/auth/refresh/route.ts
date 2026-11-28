@@ -7,7 +7,6 @@ export async function POST(req: Request) {
   try {
     refresh = (await readJson(req))?.refresh;
   } catch {
-    /* cookie-based clients send no body */
   }
   refresh ??= (await cookies()).get('lomu_rt')?.value;
   const t = refresh ? rotate(refresh, req.headers.get('x-lomu-device') ?? 'web') : null;

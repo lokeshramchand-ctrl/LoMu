@@ -1,4 +1,3 @@
-// Probe: does a Chromium-minted PO token unlock googlevideo past the first MiB?
 import vm from 'node:vm';
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';

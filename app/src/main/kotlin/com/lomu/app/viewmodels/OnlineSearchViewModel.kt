@@ -1,7 +1,4 @@
-﻿/**
- * BeatWave Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
- */
+﻿
 
 package com.lomu.app.viewmodels
 
@@ -51,8 +48,6 @@ constructor(
 
     init {
         viewModelScope.launch {
-            // Only fetches what isn't cached yet â€” switching filters back and forth
-            // must not re-hit the network. refresh() drops the cache entry first.
             filter.collect { load(it) }
         }
     }
@@ -98,13 +93,6 @@ constructor(
         }
     }
 
-    /**
-     * Re-runs the current query. Bound to the pull-to-refresh gesture.
-     *
-     * Clears this filter's cached page first, otherwise [load] short-circuits on
-     * it â€” and calls [load] directly rather than re-setting [filter], since a
-     * StateFlow drops a write of the value it already holds.
-     */
     fun refresh() {
         val current = filter.value
         if (current == null) summaryPage = null else viewStateMap.remove(current.value)

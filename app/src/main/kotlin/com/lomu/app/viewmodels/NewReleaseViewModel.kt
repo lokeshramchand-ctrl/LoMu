@@ -1,8 +1,3 @@
-/**
- * BeatWave Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
- */
-
 package com.lomu.app.viewmodels
 
 import android.content.Context
@@ -29,8 +24,6 @@ class NewReleaseViewModel
 @Inject
 constructor(
     @ApplicationContext val context: Context,
-    // A property, not a plain constructor param: refresh() is a member function,
-    // and a bare param is only in scope for initializers and init blocks.
     private val database: MusicDatabase,
 ) : ViewModel() {
     private val _newReleaseAlbums = MutableStateFlow<List<AlbumItem>>(emptyList())
@@ -40,7 +33,6 @@ constructor(
         refresh()
     }
 
-    /** Re-fetches new releases. Bound to the pull-to-refresh gesture. */
     fun refresh() {
         viewModelScope.launch {
             YouTube

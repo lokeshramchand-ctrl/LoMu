@@ -1,6 +1,3 @@
-// Online end-to-end run of the Windows app: window, security, every page, catalogue, playback and its controls,
-// likes, playlists, saved items, sync log, audio cache, tray/single-instance behaviour, persistence across restarts.
-//   node desktop/tests/core.mjs            (uses the installed app; LOMU_EXE=... to test another build)
 import { spawn, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -19,7 +16,6 @@ const goto = async (p, wait = 2500) => {
   await sleep(wait);
 };
 const text = () => page.evaluate(() => document.body.innerText);
-// The engine's Audio element is not part of the page, so playback is observed the way a user sees it: the seek bar and the Play/Pause button.
 const audioState = () => page.evaluate(() => {
   const bar = document.querySelector('[aria-label="Seek"]');
   const playing = !!document.querySelector('button[aria-label="Pause"]');
@@ -27,7 +23,6 @@ const audioState = () => page.evaluate(() => {
 });
 let track = {};
 
-// ------------------------------------------------------------------ window and security
 await step('window opens on the local server with no login screen', async () => {
   const w = await app.evaluate(({ BrowserWindow }) => { const b = BrowserWindow.getAllWindows()[0]; return { title: b.getTitle(), w: b.getBounds().width, h: b.getBounds().height, visible: b.isVisible() }; });
   expect(w.visible && w.w >= 900 && w.h >= 600, 'window size/visibility ' + JSON.stringify(w));
@@ -51,7 +46,6 @@ await step('server refuses requests without the app token and is loopback-only',
   return `LAN addresses tried: ${lan.join(', ') || 'none'}`;
 });
 
-// ------------------------------------------------------------------ pages
 for (const [name, p] of [['home', '/'], ['search', '/search'], ['explore', '/explore'], ['library', '/library'], ['settings', '/settings'], ['import', '/import']]) {
   await step(`page ${name} renders`, async () => {
     const before = problems.length;
@@ -64,7 +58,6 @@ for (const [name, p] of [['home', '/'], ['search', '/search'], ['explore', '/exp
   });
 }
 
-// ------------------------------------------------------------------ catalogue through the local server
 let ids = {};
 await step('search returns songs, albums, artists and playlists', async () => {
   const r = await api('/api/search?q=' + encodeURIComponent('coldplay'));
@@ -118,7 +111,6 @@ await step('radio, related, track details, lyrics, mood', async () => {
   return `radio ${r.j.length}, lyrics ${ly.j?.synced?.length ?? ly.j?.lines?.length ?? (ly.j?.plain ? 'plain' : 'none')}`;
 });
 
-// ------------------------------------------------------------------ UI search and playback
 await step('search box finds a song', async () => {
   await goto('/', 1500);
   const box = page.getByPlaceholder(/What do you want to play/).first();
@@ -307,7 +299,6 @@ await step('recommendations endpoint answers', async () => {
   return r.j.map((s) => s.title).join(', ') || 'no shelves yet (needs more plays)';
 });
 
-// ------------------------------------------------------------------ window behaviour
 await step('closing the window hides it (tray) and the app keeps running', async () => {
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].close());
   await sleep(800);
@@ -326,7 +317,6 @@ await step('a second launch hands over to the running app', async () => {
   expect(v === true, 'first window not brought back');
 });
 
-// ------------------------------------------------------------------ restart: persistence
 await step('window size is remembered and quitting stops the server', async () => {
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setBounds({ x: 40, y: 40, width: 1111, height: 777 }));
   await sleep(500);

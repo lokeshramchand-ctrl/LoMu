@@ -1,8 +1,3 @@
-/**
- * BeatWave Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
- */
-
 package com.lomu.app.viewmodels
 
 import androidx.lifecycle.SavedStateHandle
@@ -25,8 +20,6 @@ import javax.inject.Inject
 class AlbumViewModel
 @Inject
 constructor(
-    // A property, not a plain constructor param: refresh() is a member function,
-    // and a bare param is only in scope for initializers and init blocks.
     private val database: MusicDatabase,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -45,7 +38,6 @@ constructor(
         refresh()
     }
 
-    /** Re-fetches the album page. Bound to the pull-to-refresh gesture. */
     fun refresh() {
         viewModelScope.launch {
             val album = database.album(albumId).first()

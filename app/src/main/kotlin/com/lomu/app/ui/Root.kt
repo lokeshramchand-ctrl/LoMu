@@ -94,7 +94,6 @@ fun LoMuRoot(seenWelcome: Boolean, onWelcomeDone: () -> Unit) {
     BackHandler(enabled = menu != null || showDevices || showPlayer || nav.canPop) {
         if (menu != null) menu = null else if (showDevices) showDevices = false else if (showPlayer) showPlayer = false else nav.pop()
     }
-    // Tab bar 58dp + gaps, plus the mini player capsule (48dp) when something is loaded.
     val hasPlayer = meta != null || remote != null
     val landscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
     val insetBase by androidx.compose.animation.core.animateDpAsState(if (landscape) (if (hasPlayer) 112.dp else 62.dp) else if (hasPlayer) 138.dp else 82.dp, tween(380, easing = IosEase), label = "inset")
@@ -106,14 +105,12 @@ fun LoMuRoot(seenWelcome: Boolean, onWelcomeDone: () -> Unit) {
                 targetState = nav.current,
                 transitionSpec = {
                     when (nav.op) {
-                        // Push: the new page slides in over the old one, which drifts left and dims (iOS / Apple Music).
                         NavOp.Push -> (slideInHorizontally(tween(430, easing = IosEase)) { it } + fadeIn(tween(160)))
                             .togetherWith(slideOutHorizontally(tween(430, easing = IosEase)) { -it / 4 } + fadeOut(tween(430), targetAlpha = 0.55f))
                             .apply { targetContentZIndex = 1f }
                         NavOp.Pop -> (slideInHorizontally(tween(430, easing = IosEase)) { -it / 4 } + fadeIn(tween(430), initialAlpha = 0.55f))
                             .togetherWith(slideOutHorizontally(tween(380, easing = IosEase)) { it } + fadeOut(tween(260, delayMillis = 120)))
                             .apply { targetContentZIndex = -1f }
-                        // Tabs: a quick cross-fade with the slightest settle.
                         NavOp.Tab -> (fadeIn(tween(240, delayMillis = 60)) + scaleIn(tween(300, easing = IosEase), initialScale = 0.985f)) togetherWith fadeOut(tween(120))
                     }
                 },
@@ -143,9 +140,7 @@ fun LoMuRoot(seenWelcome: Boolean, onWelcomeDone: () -> Unit) {
                 }
                 }
             }
-            // Swipe in from the left edge to go back.
             if (nav.canPop && !showPlayer) Box(Modifier.align(Alignment.CenterStart).fillMaxHeight().width(22.dp).edgeSwipeBack(true) { nav.pop() })
-            // Soft fade so rows slide under the floating bars instead of being cut off.
             Box(
                 Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(inset + 8.dp)
                     .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, lo.bg.copy(alpha = 0.92f), lo.bg))),
@@ -175,7 +170,6 @@ fun LoMuRoot(seenWelcome: Boolean, onWelcomeDone: () -> Unit) {
 
 private data class TabDef(val label: String, val icon: ImageVector, val screen: Screen)
 
-/** A flat bar with rounded top corners: a simple glyph over a small label, the current tab in full ink and the rest grey. */
 @Composable
 private fun TabBar(nav: Nav) {
     val lo = LocalLo.current

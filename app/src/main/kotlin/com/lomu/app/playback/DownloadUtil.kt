@@ -1,8 +1,3 @@
-/**
- * BeatWave Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
- */
-
 package com.lomu.app.playback
 import timber.log.Timber
 import coil3.SingletonImageLoader
@@ -84,7 +79,6 @@ constructor(
     private val audioQuality by enumPreference(context, AudioQualityKey, AudioQuality.AUTO)
     private val ipVersion by enumPreference(context, IpVersionKey, IpVersion.AUTO)
     private val songUrlCache = HashMap<String, Pair<String, Long>>()
-    // Keep a reference to context so we can read DataStore prefs for JioSaavn support
     private val appContext: Context = context
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -92,19 +86,12 @@ constructor(
     val downloads = MutableStateFlow<Map<String, Download>>(emptyMap())
 
     init {
-        // Auto-download-on-like watches the `liked` column instead of hooking the
-        // like action: the hook used to live in MusicService.toggleLike(), which
-        // only the player screen's like button and the media-session action ever
-        // reach. Liking from a song/queue/selection menu, a swipe, or the YouTube
-        // sync writes the same column and never triggered a download.
         scope.launch {
             var known: Set<String>? = null
             database.likedSongIds().collect { ids ->
                 val current = ids.toSet()
                 val previous = known
                 known = current
-                // The first emission is the existing library, not a batch of new
-                // likes — seeding it stops a fresh start from queueing everything.
                 if (previous == null) return@collect
                 if (!appContext.dataStore.get(AutoDownloadOnLikeKey, false)) return@collect
 
@@ -122,8 +109,6 @@ constructor(
                             false,
                         )
                     }.onFailure {
-                        // Backgrounded apps can be blocked from starting the download
-                        // service; losing one auto-download must not kill the collector.
                         Timber.e(it, "Auto-download on like failed for $songId")
                     }
                 }
@@ -168,10 +153,6 @@ constructor(
                 return@Factory dataSpec
             }
 
-            // ">" — the entry is usable while its expiry is still in the FUTURE. This
-            // was "<", which paired with the expiry being stored as a bare duration
-            // (see below) meant a cached URL was reused forever, long past the point
-            // where YouTube stopped serving it, and never re-resolved.
             songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
                 return@Factory dataSpec.withUri(it.first.toUri())
             }
@@ -181,10 +162,7 @@ constructor(
                     mediaId,
                     audioQuality = audioQuality,
                     connectivityManager = connectivityManager,
-                    // Pass context so the JioSaavn intercept fires when the toggle is ON
                     context = appContext,
-                    // Lossless is streaming-only for now: downloads stay YouTube so the
-                    // offline cache (keyed by videoId) never mixes FLAC and Opus bytes.
                     allowLossless = false,
                 )
             }.getOrThrow()
@@ -212,9 +190,6 @@ constructor(
                 val updatedSong = if (existing != null) {
                     existing.copy(
                         dateDownload = existing.dateDownload ?: now,
-                        // Rows inserted before a full metadata fetch (search-result add, queue
-                        // add, local-scan hybrid) can have a null thumbnailUrl; backfill it here
-                        // or a downloaded song is left with no thumbnail to show or pre-cache.
                         thumbnailUrl = existing.thumbnailUrl
                             ?: playbackData.videoDetails?.thumbnail?.thumbnails?.lastOrNull()?.url?.resize(1200, 1200),
                     )
@@ -231,14 +206,6 @@ constructor(
 
                 upsert(updatedSong)
 
-                // Pre-cache the high-res thumbnail immediately when download starts.
-                // Keyed on the raw (un-resized) URL, not the default (the actual
-                // request data, which is this same string): every UI thumbnail
-                // request instead resizes this URL to its own target decode size
-                // first, so without a shared stable key this entry sits under a
-                // URL nothing else ever asks for and is invisible offline despite
-                // being cached. ItemThumbnail/LocalThumbnail below key their
-                // requests the same way, off the same DB-stored thumbnailUrl.
                 updatedSong.thumbnailUrl?.let { url ->
                     val request = ImageRequest.Builder(context)
                         .data(url)
@@ -250,12 +217,8 @@ constructor(
                 }
             }
 
-            // Append &range= so the download cache can handle progressive HTTP range requests.
             val streamUrl = "${playbackData.streamUrl}&range=0-${format.contentLength ?: 10_000_000}"
 
-            // Absolute deadline, not a bare duration — the read above compares this
-            // against System.currentTimeMillis(). MusicService's resolver already
-            // stored it this way; this one was ~6h past the epoch, i.e. always stale.
             songUrlCache[mediaId] =
                 streamUrl to System.currentTimeMillis() + (playbackData.streamExpiresInSeconds * 1000L)
             dataSpec.withUri(streamUrl.toUri())
@@ -274,10 +237,6 @@ constructor(
             Executor(Runnable::run)
         ).apply {
             maxParallelDownloads = 3
-            // Built to post a notification on a failed download but never actually
-            // registered anywhere — a failure produced no system notification, no
-            // in-app error state (see the STATE_FAILED handling below/in the menus),
-            // nothing. It just silently looked like the download had never happened.
             addListener(
                 ExoDownloadService.TerminalStateNotificationHelper(
                     context,
@@ -298,13 +257,6 @@ constructor(
                             }
                         }
 
-                        // finalException was being dropped on the floor, so a download
-                        // that failed left no trace of WHY anywhere — which is exactly
-                        // the situation in the "only half my songs download, and the
-                        // Hindi ones never do" reports: no way to tell a region block
-                        // from a dead stream URL from a network drop. Logged through
-                        // Timber so it lands in the in-app log viewer (Settings ->
-                        // Content -> Logs) and can be read off a user's device.
                         if (download.state == Download.STATE_FAILED) {
                             Timber.e(
                                 finalException,
@@ -343,10 +295,6 @@ constructor(
         downloads.value = result
     }
 
-    /**
-     * Settings -> "Keep mixes offline": downloads the songs of the current mixes (Wi-Fi only) and removes the ones this
-     * function added earlier that have rotated out. Liked songs and downloads made by hand are never removed.
-     */
     suspend fun keepMixesOffline(tracks: List<com.lomu.app.models.MediaMetadata>) {
         val prefs = appContext.getSharedPreferences("lomu", Context.MODE_PRIVATE)
         if (!prefs.getBoolean("keepMixesOffline", false) || connectivityManager.isActiveNetworkMetered) return

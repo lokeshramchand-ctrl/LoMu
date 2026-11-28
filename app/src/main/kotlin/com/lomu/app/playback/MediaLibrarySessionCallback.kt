@@ -1,7 +1,4 @@
-﻿/**
- * BeatWave Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
- */
+﻿
 
 package com.lomu.app.playback
 
@@ -78,7 +75,6 @@ constructor(
     var toggleStartRadio: () -> Unit = {}
     var toggleLibrary: () -> Unit = {}
 
-    // Android Auto shows only this many root items as tabs.
     private var rootChildrenLimit = Int.MAX_VALUE
 
     override fun onConnect(
@@ -413,7 +409,6 @@ constructor(
         val lyricPath = mediaItems.firstOrNull()?.mediaId?.split("/")
         if (lyricPath?.firstOrNull() == MusicService.LYRICS) {
             seekToLyricLine(mediaSession.player, lyricPath)
-            // Failing keeps the queue as it is; the tap was only a seek.
             return Futures.immediateFailedFuture(
                 UnsupportedOperationException("Lyric lines seek, they don't replace the queue"),
             )
@@ -482,7 +477,6 @@ constructor(
                         }
                     }.first()
 
-                    // Check if this is a shuffle action
                     if (songId == MusicService.SHUFFLE_ACTION) {
                         MediaItemsWithStartPosition(
                             songs.shuffled().map { it.toMediaItem() },
@@ -511,7 +505,6 @@ constructor(
                         return@future defaultResult
                     }
 
-                    // Check if this is a shuffle action
                     if (songId == MusicService.SHUFFLE_ACTION) {
                         MediaItemsWithStartPosition(
                             songs.shuffled(),
@@ -668,7 +661,6 @@ constructor(
         ),
     )
 
-    /** Root tabs, plus Lyrics when it's on. Artists gives way if the car can't show them all. */
     private fun rootTabs(): List<MediaItem> {
         return rootChildren().take(rootChildrenLimit)
     }
@@ -681,14 +673,8 @@ constructor(
         MediaMetadata.MEDIA_TYPE_FOLDER_MIXED,
     )
 
-    /**
-     * One row: the current line as the title and the next one as the subtitle, which
-     * Android Auto draws smaller and dimmer. It's rebuilt on every line change.
-     */
     private fun lyricsChildren(): List<MediaItem> = emptyList()
 
-    // Not playable: Android Auto offers playable items as "For you" suggestions on the
-    // home screen, and a status message has no business there.
     private fun lyricsMessageItem(message: String) =
         lyricLineMediaItem(MusicService.LYRICS + "/", message, drawableUri(R.drawable.lyrics), playable = false)
 
@@ -720,7 +706,6 @@ constructor(
         }
     }
 
-    /** mediaId is lyrics/<songId>/<timeMs>; only seeks if that song is still playing. */
     private fun seekToLyricLine(player: Player, path: List<String>) {
         val songId = path.getOrNull(1) ?: return
         val timeMs = path.getOrNull(2)?.toLongOrNull() ?: return

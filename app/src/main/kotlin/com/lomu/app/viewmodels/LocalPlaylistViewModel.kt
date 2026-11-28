@@ -1,7 +1,4 @@
-﻿/**
- * BeatWave Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
- */
+﻿
 
 package com.lomu.app.viewmodels
 
@@ -104,8 +101,4 @@ constructor(
         }
     }
 
-    /**
-     * Re-syncs this playlist against YouTube. Bound to the pull-to-refresh gesture.
-     * No-op for a purely local playlist, which has no browseId to sync against.
-     */
 }

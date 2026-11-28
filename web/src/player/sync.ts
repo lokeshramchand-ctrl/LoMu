@@ -4,10 +4,6 @@ import { useLibrary, HISTORY_CAP, type Play, type UserPlaylist } from './library
 import { noteQueueRows, startQueueSync } from './queue-sync';
 import type { AlbumCard, ArtistCard, PlaylistCard, Track } from '@/lib/types';
 
-/* Account + sync client. The library store stays the source of truth in the browser; this module
-   mirrors it to the server as documents (see server/sync.ts) and applies what other devices push.
-   Local edits are diffed against the previous snapshot, so the stores themselves need no changes. */
-
 type Doc = { kind: string; key: string; value: unknown | null; updated: number; deleted?: boolean };
 type Row = Doc & { deleted: boolean; seq: number };
 
@@ -15,8 +11,8 @@ type AuthState = {
   status: 'loading' | 'setup' | 'login' | 'ready';
   user: string | null;
   needsCode: boolean;
-  admin: boolean; // may add and remove accounts
-  local: boolean; // Windows desktop app: its own server, no login screen, sync goes through the hub
+  admin: boolean;
+  local: boolean;
   error: string | null;
   sync: 'off' | 'syncing' | 'live' | 'error';
   lastSync: number | null;
@@ -25,18 +21,14 @@ type AuthState = {
   logout: () => Promise<void>;
 };
 
-/* Everything this browser keeps about one person. When a different account signs in, it is wiped, so one person's
-   likes and history are never uploaded into another account, and the old sync cursor cannot make the new account
-   skip its own documents. (The device id and theme belong to the browser and stay.) */
 const ACCOUNT_KEY = 'lomu-account';
 const PER_ACCOUNT_KEYS = ['lomu-library', 'lomu-sync-seq', 'lomu-sleep', 'lomu-player', 'lomu-queue-at', 'lomu-queue-seen'];
 
-/** Returns true when the stored data belonged to someone else and was cleared (the page must reload to start clean). */
 export function adoptAccount(user: string): boolean {
   if (typeof localStorage === 'undefined') return false;
   const owner = localStorage.getItem(ACCOUNT_KEY);
   if (owner === user.toLowerCase()) return false;
-  const reset = owner !== null; // first run after an update: nobody owned it yet, so keep it for the first account
+  const reset = owner !== null;
   if (reset) for (const k of PER_ACCOUNT_KEYS) localStorage.removeItem(k);
   localStorage.setItem(ACCOUNT_KEY, user.toLowerCase());
   return reset;
@@ -63,12 +55,10 @@ export const useAuth = create<AuthState>((set, get) => ({
         startSync();
         return;
       }
-      // Access token expired: the refresh cookie may still be good.
       const rr = await fetch('/api/auth/refresh', { method: 'POST' });
       if (rr.ok) return get().refresh();
       set({ status: 'login', user: null });
     } catch {
-      // Offline or server restarting: keep working from the local library.
       set({ status: 'ready', user: get().user });
     }
   },
@@ -88,7 +78,6 @@ export const useAuth = create<AuthState>((set, get) => ({
   },
 }));
 
-/** Fetch that renews the session once on 401 and flips the app to the login screen if it cannot. */
 export async function api(input: string, init?: RequestInit): Promise<Response> {
   let r = await fetch(input, init);
   if (r.status === 401) {
@@ -98,8 +87,6 @@ export async function api(input: string, init?: RequestInit): Promise<Response> 
   }
   return r;
 }
-
-// ---------------------------------------------------------------- mapping
 
 const playKey = (p: Play) => `${p.at}:${p.track.id}`;
 
@@ -115,7 +102,6 @@ export function toDocs(prev: Snapshot | null, s = useLibrary.getState(), now = D
   };
   const docs: Doc[] = [];
   if (!prev) {
-    // First sync on this device: offer everything.
     for (const [id, v] of Object.entries(s.liked)) docs.push({ kind: 'like', key: id, value: v, updated: v.at });
     for (const p of s.playlists) docs.push({ kind: 'playlist', key: p.id, value: p, updated: p.updatedAt });
     for (const [id, v] of [...Object.entries(s.albums), ...Object.entries(s.artists), ...Object.entries(s.savedPlaylists)])
@@ -141,7 +127,7 @@ export type Snapshot = { likes: Map<string, number>; playlists: Map<string, numb
 
 export function applyRows(rows: Row[]) {
   if (!rows.length) return;
-  noteQueueRows(rows); // the 'queue' document is offered as "Continue listening", never applied
+  noteQueueRows(rows);
   useLibrary.setState((s) => {
     const liked = { ...s.liked };
     const albums = { ...s.albums };
@@ -179,8 +165,6 @@ export function applyRows(rows: Row[]) {
   });
 }
 
-// ---------------------------------------------------------------- engine
-
 let started = false;
 let applying = false;
 let snap: Snapshot | null = null;
@@ -209,7 +193,7 @@ async function pull() {
         } finally {
           applying = false;
         }
-        snap = toDocs(snap ?? emptySnap(), useLibrary.getState()).snap; // remote data is not a local edit
+        snap = toDocs(snap ?? emptySnap(), useLibrary.getState()).snap;
         localStorage.setItem(SEQ_KEY, String(seq));
         if (docs.length < 2000) break;
       }
@@ -232,7 +216,6 @@ async function pushPending() {
     const r = await api('/api/sync', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ docs: docs.slice(i, i + 1000) }) });
     if (!r.ok) throw new Error(String(r.status));
     const { seq } = (await r.json()) as { seq: number };
-    // Our own writes come back through SSE; skip them by advancing the cursor.
     if (seq - getSeq() === docs.length) localStorage.setItem(SEQ_KEY, String(seq));
   }
   snap = next;
@@ -251,8 +234,6 @@ export async function startSync() {
   if (started || typeof window === 'undefined') return;
   started = true;
   await pull();
-  // Offer everything local once per session (last-write-wins makes this idempotent, and it
-  // also uploads edits made while offline); afterwards only diffs are sent.
   snap = null;
   await pushPending().catch(() => {});
   unsub = useLibrary.subscribe(schedulePush);
@@ -260,7 +241,7 @@ export async function startSync() {
     const r = await api('/api/sync', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ docs: [doc] }) });
     if (!r.ok) throw new Error(String(r.status));
     const { seq } = (await r.json()) as { seq: number };
-    if (seq - getSeq() === 1) localStorage.setItem(SEQ_KEY, String(seq)); // our own write: no need to pull it back
+    if (seq - getSeq() === 1) localStorage.setItem(SEQ_KEY, String(seq));
   });
   const open = () => {
     events = new EventSource('/api/sync/events');

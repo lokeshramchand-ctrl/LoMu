@@ -69,7 +69,6 @@ internal fun likedSongs(): List<Song> {
     return songs
 }
 
-/** Page title row: large bold title on the left, the account avatar on the right (opens Settings). */
 @Composable
 private fun TitleBar(title: String) {
     val lo = LocalLo.current
@@ -83,7 +82,6 @@ private fun TitleBar(title: String) {
     }
 }
 
-/** Section heading with a grey caption under it, as on "Top Picks for you / Mood for You". */
 @Composable
 private fun CaptionedTitle(title: String, caption: String?, action: String? = null, onAction: (() -> Unit)? = null) {
     val lo = LocalLo.current
@@ -98,8 +96,6 @@ private fun CaptionedTitle(title: String, caption: String?, action: String? = nu
     }
 }
 
-// ======================================================================================= New
-
 @Composable
 fun NewScreen() {
     val state by load("home") { YouTube.home() }
@@ -112,8 +108,6 @@ fun NewScreen() {
         }
     }
 }
-
-// ===================================================================================== Search
 
 private val TRY_SEARCHES = listOf("Top hits India", "Lo-fi beats", "Workout", "Arijit Singh", "Anirudh", "Chill vibes", "Punjabi", "90s Bollywood")
 private val TILE_COLORS = listOf(
@@ -193,7 +187,6 @@ fun SearchScreen() {
                 is Load.Err -> item { ErrorBox(r.message, r.retry) }
                 is Load.Ok -> {
                     val sums = r.value?.summaries.orEmpty().let { all ->
-                        // The top result should be a song: if the card is an artist/album, lead with the best song match.
                         val top = all.firstOrNull()
                         if (top == null || top.items.firstOrNull() is SongItem) all else {
                             val song = top.items.firstOrNull { it is SongItem }
@@ -233,8 +226,6 @@ fun ResultRow(item: YTItem, onClick: () -> Unit) {
     }
 }
 
-// ==================================================================================== Library
-
 @Composable
 internal fun playlistsState(): List<com.lomu.app.db.entities.Playlist> {
     val player = LocalPlayer.current
@@ -243,7 +234,6 @@ internal fun playlistsState(): List<com.lomu.app.db.entities.Playlist> {
     return playlists
 }
 
-/** Glass "back" capsule above a large title, for pushed list pages. */
 @Composable
 internal fun BackTitle(back: String, title: String, onBack: () -> Unit) {
     val lo = LocalLo.current
@@ -331,22 +321,13 @@ fun SavedArtistsScreen() {
     }
 }
 
-// ================================================================================ Detail pages
-
-/** What the header offers: play the list, shuffle it, and a few round extras (save, copy, radio, delete) shown in the top pill. */
 class DetailActions(val play: (() -> Unit)?, val shuffle: (() -> Unit)?, vararg val extras: Triple<ImageVector, String, () -> Unit>)
 
-/** "1:45:13" for a total running time in milliseconds (formatTime stops at minutes). */
 private fun runTime(ms: Long): String {
     val s = ms / 1000
     return if (s >= 3600) "%d:%02d:%02d".format(s / 3600, s % 3600 / 60, s % 60) else "%d:%02d".format(s / 60, s % 60)
 }
 
-/**
- * Album / playlist / artist page after the reference: a row of round controls on top, one big pastel card
- * ("Selected for you", the title, the cover, the track count with the running time and a black shuffle button),
- * then plain song rows with the running time on the right.
- */
 @Composable
 private fun Detail(
     cover: String?, title: String, accent: String?, count: String, length: String? = null,
@@ -548,9 +529,6 @@ fun LocalPlaylistScreen(id: String) {
     }
 }
 
-// =================================================================================== Settings
-
-/** iOS grouped section: small grey header, white rounded cells separated by inset hairlines, grey footer. */
 @Composable
 private fun Group(header: String?, footer: String? = null, content: @Composable ColumnScope.() -> Unit) {
     val lo = LocalLo.current
@@ -707,7 +685,6 @@ fun SettingsScreen() {
     }
 }
 
-/** "On Repeat" and other generated lists, laid out exactly like an album: pastel card, shuffle, plain rows with durations. */
 @Composable
 fun MixScreen() {
     val player = LocalPlayer.current

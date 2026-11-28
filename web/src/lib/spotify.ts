@@ -1,10 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-/* Spotify "Download your data" export -> per-song listening totals and timestamped plays.
-   Both export formats are read (the older StreamingHistoryN.json and the newer StreamingHistory_music_N.json).
-   Spotify records how long each play lasted (msPlayed), which Google's history does not, so a skip is a real skip. */
-
 export type SpotifyRow = { endTime: string; artistName: string; trackName: string; msPlayed: number };
 export type Agg = { artist: string; track: string; plays: number; real: number; ms: number };
 export type SpotifyPlay = { artist: string; track: string; start: number; ms: number };
@@ -19,7 +15,6 @@ export const norm = (s: string) =>
 
 export const trackKey = (t: { artist: string; track: string }) => `${norm(t.artist)}|${norm(t.track)}`;
 
-/** "2023-02-20 15:50" is UTC; the play began msPlayed before it ended. */
 const startOf = (r: SpotifyRow) => {
   const m = r.endTime.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/);
   if (!m) return null;
@@ -45,7 +40,7 @@ export function readSpotify(dir: string): { tracks: Map<string, Agg>; plays: Spo
       const artist = (r.artistName ?? '').trim();
       const track = (r.trackName ?? '').trim();
       if (start === null || !artist || !track || artist === 'Unknown Artist') continue;
-      const dup = `${r.endTime}|${artist}|${track}`; // the two exports (and the zip inside the folder) must not double count
+      const dup = `${r.endTime}|${artist}|${track}`;
       if (seen.has(dup)) continue;
       seen.add(dup);
       const k = trackKey({ artist, track });

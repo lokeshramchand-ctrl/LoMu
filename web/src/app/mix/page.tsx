@@ -5,7 +5,6 @@ import { useRecs } from '@/lib/api';
 import { Collection, PageError, PageSkeleton } from '@/components/Collection';
 import type { Track } from '@/lib/types';
 
-/** One of the generated mixes (On Repeat and the others) as an album-style page. */
 function Mix() {
   const name = useSearchParams().get('name') ?? '';
   const { data, isLoading, error, refetch } = useRecs();

@@ -5,8 +5,6 @@ import os from 'node:os';
 import path from 'node:path';
 import type { AddressInfo } from 'node:net';
 
-/* The desktop app's hub worker against a fake hub that behaves like the real /api/sync + /api/auth routes. */
-
 type Doc = { kind: string; key: string; value: unknown; updated: number; deleted?: boolean };
 const hubDocs = new Map<string, Doc & { seq: number }>();
 let hubSeq = 0;
@@ -68,11 +66,11 @@ describe('hub sync worker', () => {
     await hub.syncHub();
 
     expect(hub.hubStatus()).toMatchObject({ state: 'online', pending: 0, user: 'me' });
-    expect(sync.all(1, 'like').map((d) => d.key).sort()).toEqual(['h1', 'l1']); // hub doc arrived here
-    expect(hubDocs.get('like:l1')?.value).toEqual({ from: 'pc' }); // local doc arrived there
+    expect(sync.all(1, 'like').map((d) => d.key).sort()).toEqual(['h1', 'l1']);
+    expect(hubDocs.get('like:l1')?.value).toEqual({ from: 'pc' });
     const hubBefore = hubSeq;
     await hub.syncHub();
-    expect(hubSeq).toBe(hubBefore); // a quiet round writes nothing
+    expect(hubSeq).toBe(hubBefore);
   });
 
   it('queues edits while the hub is down and delivers them when it is back', async () => {
@@ -97,14 +95,14 @@ describe('hub sync worker', () => {
     hubDocs.set('like:l1', { kind: 'like', key: 'l1', value: null, updated: 999, deleted: true, seq: ++hubSeq });
     sync.push(1, [{ kind: 'like', key: 'h1', value: { from: 'pc-newer' }, updated: 500 }]);
     await hub.syncHub();
-    expect(sync.all(1, 'like').map((d) => d.key)).toEqual(['h1']); // l1 deleted on the hub (newer), h1 kept
+    expect(sync.all(1, 'like').map((d) => d.key)).toEqual(['h1']);
     expect(hubDocs.get('like:h1')?.value).toEqual({ from: 'pc-newer' });
   });
 
   it('renews an expired access token with the refresh token and carries on', async () => {
     const sync = await import('@/server/sync');
     const hub = await import('@/server/hub');
-    accessOk = 'expired-for-everyone-but-b'; // the stored access token ('a') is now rejected
+    accessOk = 'expired-for-everyone-but-b';
     sync.push(1, [{ kind: 'search', key: 'after-expiry', value: { q: 1 }, updated: 700 }]);
     await hub.syncHub();
     expect(refreshes).toBe(1);

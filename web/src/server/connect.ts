@@ -1,24 +1,17 @@
 import 'server-only';
 
-/* "Connect": the devices signed in to this account, what each one is playing, and a relay for
-   remote-control commands (for a single-owner server).
-
-   A device is present while it holds an open server-sent-events connection (/api/connect/events);
-   it reports its player state with POST /api/connect/state, and any device can send a command to
-   another with POST /api/connect/command. Everything is in memory: it is live state, not data. */
-
 export type Json = Record<string, unknown>;
 
 export type RemoteState = {
   track: Json | null;
   playing: boolean;
-  position: number; // seconds, at the moment of the report
+  position: number;
   duration: number;
-  volume: number; // 0..1
+  volume: number;
   shuffle: boolean;
   repeat: 'off' | 'all' | 'one';
   queueLen: number;
-  queue: Json[]; // the songs after the current one (first 30), so another device can show "Playing next"
+  queue: Json[];
 };
 
 export type DeviceInfo = { id: string; name: string; kind: 'web' | 'android' } & Partial<RemoteState> & { stateAge: number | null };
@@ -35,15 +28,14 @@ type Device = {
 };
 
 const COMMANDS = new Set([
-  'play', 'pause', 'toggle', 'next', 'prev', 'seek', 'volume', 'shuffle', 'repeat', // transport
-  'load', // replace the queue: { tracks, index, position, play }
-  'radio', // play a song and let radio carry on: { track }
-  'enqueue', // add songs to the end: { tracks }
-  'handoff', // "send your playback to device `to`"
-  'skipto', // jump to a song of the queue: { offset } songs after the current one
+  'play', 'pause', 'toggle', 'next', 'prev', 'seek', 'volume', 'shuffle', 'repeat',
+  'load',
+  'radio',
+  'enqueue',
+  'handoff',
+  'skipto',
 ]);
 
-/** One room per account: devices only ever see, and control, the other devices of the same account. */
 type G = typeof globalThis & { __lomuConnect2?: Map<number, Map<string, Device>> };
 const rooms: Map<number, Map<string, Device>> = ((globalThis as G).__lomuConnect2 ??= new Map());
 const room = (uid: number): Map<string, Device> => {
@@ -52,10 +44,10 @@ const room = (uid: number): Map<string, Device> => {
   return r;
 };
 
-const MAX_DEVICES = 16; // per account
-const MAX_CONNS = 6; // live connections per device (several tabs)
+const MAX_DEVICES = 16;
+const MAX_CONNS = 6;
 
-const GRACE_MS = 6000; // a reload reconnects within this and keeps its place in the list
+const GRACE_MS = 6000;
 
 function cleanState(s: Partial<RemoteState> | null | undefined): RemoteState | null {
   if (!s || typeof s !== 'object') return null;
@@ -82,12 +74,10 @@ export function snapshot(uid: number) {
     name: d.name,
     kind: d.kind,
     ...(d.state ?? {}),
-    // Progress is extrapolated to "now" so a controller does not have to guess the report's age.
     position: d.state ? d.state.position + (d.state.playing ? (now - d.stateAt) / 1000 : 0) : undefined,
     stateAge: d.state ? now - d.stateAt : null,
   }));
   list.sort((a, b) => a.name.localeCompare(b.name));
-  // Active device: whoever is playing, else whoever reported most recently (within ten minutes).
   const playing = [...devices.values()].filter((d) => d.state?.playing).sort((a, b) => b.stateAt - a.stateAt)[0];
   const recent = [...devices.values()].filter((d) => d.state?.track && now - d.stateAt < 10 * 60_000).sort((a, b) => b.stateAt - a.stateAt)[0];
   return { devices: list, active: (playing ?? recent)?.id ?? null, now };
@@ -105,7 +95,6 @@ function sendTo(uid: number, id: string, event: string, data: unknown): boolean 
   return true;
 }
 
-/** Registers a live connection; returns the function that removes it. */
 export function connect(uid: number, id: string, name: string, kind: 'web' | 'android', send: Send): () => void {
   const devices = room(uid);
   let d = devices.get(id);
@@ -134,7 +123,6 @@ export function connect(uid: number, id: string, name: string, kind: 'web' | 'an
   };
 }
 
-/** A device reports what it is playing. Starting to play pauses every other device. */
 export function report(uid: number, id: string, raw: Partial<RemoteState>): boolean {
   const devices = room(uid);
   const d = devices.get(id);
@@ -156,7 +144,6 @@ export function command(uid: number, from: string, to: string, cmd: Json): 'ok' 
   return sendTo(uid, to, 'command', { from, cmd }) ? 'ok' : 'offline';
 }
 
-/** Drops every live device of an account (it was disabled or deleted). Their streams end on the next ping. */
 export function revokeDevices(uid: number) {
   const r = rooms.get(uid);
   if (!r) return;

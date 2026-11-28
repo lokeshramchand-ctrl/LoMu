@@ -17,7 +17,6 @@ async function getJson(url: string): Promise<any> {
 
 const val = (x: unknown) => (typeof x === 'string' && x.trim() && x !== 'null' ? x.trim() : undefined);
 
-/** TheAudioDB: square artist photo, wide banner, genre, origin, formation year. */
 async function audiodb(name: string): Promise<ArtistExtra | null> {
   const d = await getJson(`https://www.theaudiodb.com/api/v1/json/123/search.php?s=${encodeURIComponent(name)}`);
   const a = (d?.artists ?? []).find((x: any) => norm(x.strArtist ?? '') === norm(name));
@@ -35,7 +34,6 @@ async function audiodb(name: string): Promise<ArtistExtra | null> {
 
 const MUSICAL = /\b(singer|rapper|musician|band|group|duo|composer|producer|dj|songwriter|vocalist|guitarist|music)\b/i;
 
-/** Wikipedia: biography (and a portrait as a last-resort image). */
 async function wikipedia(name: string): Promise<ArtistExtra | null> {
   for (const title of [name, `${name} (musician)`, `${name} (band)`, `${name} (singer)`, `${name} (rapper)`]) {
     try {
@@ -44,13 +42,11 @@ async function wikipedia(name: string): Promise<ArtistExtra | null> {
         return { bio: d.extract, bioSource: 'Wikipedia', image: d.originalimage?.source ?? d.thumbnail?.source };
       }
     } catch {
-      /* try the next title */
     }
   }
   return null;
 }
 
-/** Best-effort artist extras. Every source is optional; failures are silent. */
 export function enrichArtist(name: string, needBio: boolean): Promise<ArtistExtra> {
   return cached(`enrich:${norm(name)}:${needBio ? 1 : 0}`, 24 * 3600_000, async () => {
     const [adb, wp] = await Promise.all([audiodb(name).catch(() => null), wikipedia(name).catch(() => null)]);

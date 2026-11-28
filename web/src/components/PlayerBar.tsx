@@ -76,7 +76,6 @@ export function Seek({ compact = false, remote }: { compact?: boolean; remote?: 
   );
 }
 
-/** Position of a remote device in seconds, advancing while it plays. */
 function useRemotePosition(d: Device | null, receivedAt: number) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -125,7 +124,6 @@ export function PlayerBar() {
   const liked = useLibrary((s) => (shown ? !!s.liked[shown.id] : false));
   if (!shown) return null;
   const P = usePlayer.getState();
-  // While steering another device the bar shows that device's song and its controls send commands.
   const isPlaying = remote ? !!remote.playing : playing;
   const cmd = (type: string) => remote && sendCommand(remote.id, { type });
   const seekEl = remote ? <Seek remote={{ position: rpos, duration: remote.duration ?? shown.duration ?? 0, onSeek: (v) => remote && sendCommand(remote.id, { type: 'seek', position: v }) }} /> : <Seek />;
