@@ -103,6 +103,8 @@ The app asks for your server address on the sign-in screen. To change the addres
 MUSIC_SERVER_URL=https://music.example.com
 ```
 
+The app only allows plain HTTP to the example addresses in `app/src/main/res/xml/network_security_config.xml`. Replace them with your own server's LAN address if you use the home network fallback; everything else must be HTTPS.
+
 Unit tests: `./gradlew :app:testDebugUnitTest :innertube:testDebugUnitTest`. `app/smoke-test.sh` installs a build on a connected device and fails if it crashes on launch.
 
 ## Windows app
