@@ -4,7 +4,6 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 
 export type Theme = 'system' | 'light' | 'dark' | 'blue';
 
-/** Home page sections the owner can switch on and off. */
 export const HOME_SECTIONS = [
   { id: 'quick', label: 'Featured mix', hint: 'The featured mix at the top' },
   { id: 'stats', label: 'Your week', hint: 'Minutes listened, streak, top artist' },
@@ -20,7 +19,6 @@ export type HomeSectionId = (typeof HOME_SECTIONS)[number]['id'];
 type Settings = {
   theme: Theme;
   home: Record<HomeSectionId, boolean>;
-  /** Developer flags: features that are off by default. */
   dev: { explore: boolean; streamInfo: boolean; artistEnrichment: boolean };
   setTheme: (t: Theme) => void;
   setHome: (id: HomeSectionId, v: boolean) => void;

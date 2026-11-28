@@ -5,20 +5,14 @@ import { search } from './catalog';
 import { readStale, writeStale } from './yt';
 import { dayKey, diversify, type Affinity } from './recs-core';
 
-/* "Picked by AI": one playlist per day, written by the model from your taste and then checked against the real
-   catalogue (the model proposes artist and title, YouTube Music decides what exists). It is built at most once a
-   day, in the background, so opening the app never waits for it and an idle app never calls the model.
-   If the AI server cannot be reached for a whole day, the shelf disappears and the normal mixes carry on. */
-
 export type AiMix = { day: string; at: number; title: string; blurb: string; items: Track[] };
 type Plan = { title: string; blurb: string; picks: { artist: string; title: string }[] };
 
 const HOUR = 3_600_000;
-export const SHOW_FOR = 24 * HOUR; // an AI mix older than this is hidden
-export const RETRY_AFTER = 2 * HOUR; // after a failed attempt, wait before trying again
+export const SHOW_FOR = 24 * HOUR;
+export const RETRY_AFTER = 2 * HOUR;
 const MIN_TRACKS = 12;
 
-/** Pure rule: show the stored mix while it is under a day old; ask for a new one once per calendar day. */
 export function decide(mix: AiMix | undefined, lastTry: number, now: number): { show: boolean; refresh: boolean } {
   const show = !!mix && now - mix.at < SHOW_FOR && mix.items.length >= MIN_TRACKS;
   const stale = !mix || mix.day !== dayKey(now);
@@ -44,7 +38,6 @@ const norm = (s: string) =>
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 
-/** A search hit counts only if both the title and an artist overlap what was asked for. */
 export function matches(t: Track, want: { artist: string; title: string }): boolean {
   const tt = norm(t.title);
   const wt = norm(want.title);
@@ -88,7 +81,6 @@ async function resolve(picks: Plan['picks']): Promise<Track[]> {
 const key = (uid: number, what: string) => `ai:u${uid}:${what}`;
 const running = new Set<number>();
 
-/** The stored mix as a shelf, or null when there is none or it is over a day old. */
 export function aiShelf(uid: number, now = Date.now()): Shelf | null {
   const mix = readStale<AiMix>(key(uid, 'mix'));
   if (!mix || !decide(mix, 0, now).show) return null;
@@ -97,7 +89,6 @@ export function aiShelf(uid: number, now = Date.now()): Shelf | null {
 
 export type BuildReport = { title: string; proposed: number; found: number; kept: number; ms: number };
 
-/** One full build: ask the model, check every pick against the catalogue, store the result. Throws with a readable reason. */
 export async function buildAiMix(uid: number, aff: Affinity, now = Date.now()): Promise<BuildReport> {
   const t0 = Date.now();
   const plan = parsePlan(await chatJson(SYSTEM, profile(aff)));
@@ -109,7 +100,6 @@ export async function buildAiMix(uid: number, aff: Affinity, now = Date.now()): 
   return { title: plan.title, proposed: plan.picks.length, found: found.length, kept: items.length, ms: Date.now() - t0 };
 }
 
-/** Starts today's build in the background when it is due. Never throws and never waits. */
 export function refreshAiMix(uid: number, aff: Affinity, now = Date.now()): void {
   if (!aiConfigured() || running.has(uid)) return;
   const mix = readStale<AiMix>(key(uid, 'mix'));
@@ -150,7 +140,6 @@ export function aiStatus(uid: number, now = Date.now()): AiStatus {
   };
 }
 
-/** Builds now, ignoring the once-a-day rule (the Settings button). */
 export async function buildAiMixNow(uid: number, aff: Affinity): Promise<BuildReport> {
   if (running.has(uid)) throw new Error('A build is already running. Try again in a minute.');
   running.add(uid);

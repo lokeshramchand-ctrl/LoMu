@@ -6,7 +6,7 @@ import { gate } from '@/server/auth';
 export const dynamic = 'force-dynamic';
 
 export const POST = async (req: Request) => {
-  const denied = await gate(); // before reading the body: strangers do not get to make us parse it
+  const denied = await gate();
   if (denied) return denied;
   const body = (await readJson(req, 100_000).catch(() => ({}))) as { items?: ImportRef[] };
   const items = (Array.isArray(body.items) ? body.items : []).slice(0, 30).map((i) => ({

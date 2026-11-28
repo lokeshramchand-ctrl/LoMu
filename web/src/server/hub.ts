@@ -3,14 +3,7 @@ import { getSetting, setSetting } from './db';
 import { checkAddresses, isNetworkError, parseAddresses, reach } from './lanfetch';
 import { applyRemote, currentSeq, onChange, pull, type Row } from './sync';
 
-// The desktop app belongs to one person: the first (and only) account in its own database.
 const LOCAL = 1;
-
-/* Hub sync, used by the Windows desktop app. The desktop app runs a full LoMu server of its own (its own
-   SQLite file, its own YouTube access), so it works with no network at all. This worker mirrors that local
-   document log with a "hub" LoMu server (the homelab / Coolify one) using the same /api/sync protocol the phone
-   uses: pull what the hub has newer, push what happened here. Everything is queued in the local database, so
-   a power cut or an outage at the hub only delays the sync; nothing is lost and nothing needs retrying by hand. */
 
 export type HubStatus = {
   local: boolean;
@@ -18,10 +11,10 @@ export type HubStatus = {
   user: string | null;
   state: 'off' | 'syncing' | 'online' | 'offline' | 'error';
   lastSync: number | null;
-  pending: number; // local changes not yet at the hub
+  pending: number;
   error: string | null;
-  lan: string | null; // the server's addresses on the home network (comma separated), used when its public name cannot be reached from here
-  route: 'direct' | 'lan' | null; // which way the last request got through
+  lan: string | null;
+  route: 'direct' | 'lan' | null;
 };
 
 type Runtime = {
@@ -34,7 +27,7 @@ type Runtime = {
   started: boolean;
   refreshing: Promise<boolean> | null;
   route: 'direct' | 'lan' | null;
-  address: string | null; // the home address that last worked
+  address: string | null;
 };
 type G = typeof globalThis & { __lomuHub?: Runtime };
 const rt: Runtime = ((globalThis as G).__lomuHub ??= {
@@ -62,7 +55,6 @@ export function hubStatus(): HubStatus {
 
 const base = () => (getSetting('hub_url') ?? '').replace(/\/+$/, '');
 
-/** One request to the hub: the public name first, then the LAN address (or the reverse once the LAN has proved to be the way in). */
 async function transport(url: string, init: RequestInit, timeoutMs: number | null): Promise<Response> {
   const lan = getSetting('hub_lan') || null;
   const { res, route, address } = await reach(
@@ -94,7 +86,6 @@ async function hubFetch(path: string, init: RequestInit = {}, auth = true, timeo
   return r;
 }
 
-/** Asks the server for its LAN address (it advertises LOMU_LAN_ADDRESS) and remembers it, unless one was set by hand. */
 async function learnLan() {
   try {
     if (getSetting('hub_lan')) return;
@@ -103,11 +94,9 @@ async function learnLan() {
     const found = parseAddresses(j.lan);
     if (found.length) setSetting('hub_lan', found.join(','));
   } catch {
-    /* optional */
   }
 }
 
-/** Sets (or clears, with an empty string) the home-network address of the server. */
 export function setHubLan(address: string) {
   const { ok, bad } = checkAddresses(address);
   if (bad.length) throw new Error(`Not a home network address: ${bad.join(', ')}. Use addresses like 10.10.10.136 or 192.168.1.17, separated by commas.`);
@@ -117,14 +106,6 @@ export function setHubLan(address: string) {
   if (getSetting('hub_url') && !rt.running) kick(0);
 }
 
-/**
- * Connect (the devices list and remote control) lives on the hub, because that is where the phone connects. The desktop
- * app runs a server of its own, so without this it would register on a server nobody else can see: the phone would never list
- * the PC, and could not control it. When a hub is set up, the local /api/connect/* routes hand their requests to the hub
- * instead, as this PC's own signed-in session. Returns null when there is no hub or it cannot be reached, and the caller then
- * falls back to the local relay (so the app still works on its own).
- */
-/** True on the desktop app when a home server is set up (so a stream on the local relay should try the hub again). */
 export const hubConfigured = () => !!process.env.LOMU_LOCAL_TOKEN && !!getSetting('hub_url');
 
 export async function hubConnect(path: string, init: RequestInit = {}, stream = false): Promise<Response | null> {
@@ -137,7 +118,6 @@ export async function hubConnect(path: string, init: RequestInit = {}, stream = 
   }
 }
 
-/** One refresh at a time: the hub rotates refresh tokens, so two parallel refreshes would invalidate each other. */
 function refreshTokens(): Promise<boolean> {
   rt.refreshing ??= (async () => {
     try {
@@ -162,7 +142,6 @@ function refreshTokens(): Promise<boolean> {
   return rt.refreshing;
 }
 
-/** Signs in to the hub and starts syncing. Throws a message fit for the UI. */
 export async function connectHub(url: string, username: string, password: string, lan = ''): Promise<void> {
   const u = url.trim().replace(/\/+$/, '');
   if (!/^https?:\/\//i.test(u)) throw new Error('Start the address with https://');
@@ -191,8 +170,8 @@ export async function connectHub(url: string, username: string, password: string
   setSetting('hub_user', username.trim());
   setSetting('hub_access', j.access);
   setSetting('hub_refresh', j.refresh);
-  setSetting('hub_seq', '0'); // first sync pulls everything the hub has...
-  setSetting('hub_pushed', '0'); // ...and offers everything this PC has
+  setSetting('hub_seq', '0');
+  setSetting('hub_pushed', '0');
   void learnLan();
   rt.error = null;
   rt.failures = 0;
@@ -200,7 +179,6 @@ export async function connectHub(url: string, username: string, password: string
   kick(0);
 }
 
-/** Sync right now (the app calls this when the network comes back or the PC wakes up). */
 export function syncNow() {
   if (getSetting('hub_url') && !rt.running) kick(0);
 }
@@ -213,13 +191,11 @@ export function disconnectHub() {
   rt.error = null;
 }
 
-/** One full round: pull what the hub has, then push what is new here. Never throws. */
 export async function syncHub(): Promise<void> {
   if (rt.running || !getSetting('hub_url')) return;
   rt.running = true;
   rt.state = 'syncing';
   try {
-    // Pull
     for (;;) {
       const since = num('hub_seq');
       const r = await hubFetch(`/api/sync?since=${since}`);
@@ -228,12 +204,10 @@ export async function syncHub(): Promise<void> {
       const { seq, docs } = (await r.json()) as { seq: number; docs: Row[] };
       if (!docs.length) break;
       const { before, after } = applyRemote(LOCAL, docs);
-      // What we just wrote came from the hub: do not send it straight back (unless local edits were already waiting).
       if (before === num('hub_pushed')) setSetting('hub_pushed', String(after));
       setSetting('hub_seq', String(seq));
       if (docs.length < 2000) break;
     }
-    // Push
     for (;;) {
       const from = num('hub_pushed');
       const { docs } = pull(LOCAL, from, 1000);
@@ -247,7 +221,6 @@ export async function syncHub(): Promise<void> {
       if (!r.ok) throw new Error(`hub answered ${r.status}`);
       const res = (await r.json()) as { seq: number; applied: number };
       setSetting('hub_pushed', String(docs[docs.length - 1].seq));
-      // Our own writes are the next hub seqs: skip them instead of pulling them back.
       if (res.seq - num('hub_seq') === res.applied) setSetting('hub_seq', String(res.seq));
       if (docs.length < 1000) break;
     }
@@ -283,12 +256,11 @@ function kick(delay: number) {
   }, delay);
 }
 
-/** Called once when the desktop server boots: resumes a saved hub connection and syncs soon after local edits. */
 export function startHub() {
   if (rt.started) return;
   rt.started = true;
   onChange(LOCAL, () => {
-    if (getSetting('hub_url') && !rt.running && rt.state !== 'offline') kick(1500); // when offline the backoff timer (or syncNow) decides
+    if (getSetting('hub_url') && !rt.running && rt.state !== 'offline') kick(1500);
   });
   if (getSetting('hub_url')) kick(2000);
 }

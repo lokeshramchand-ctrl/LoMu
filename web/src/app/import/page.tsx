@@ -55,7 +55,6 @@ export default function ImportPage() {
     }
   };
 
-  /** Sends the plays straight to the account's sync log (not through the 8,000-entry on-screen history), so every device and the recommendation engine see all of it. */
   const importHistory = async () => {
     if (!hist) return;
     setBusy(true);

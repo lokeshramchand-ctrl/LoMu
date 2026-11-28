@@ -1,8 +1,3 @@
-/**
- * BeatWave Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
- */
-
 package com.lomu.app.playback.audio
 
 import androidx.media3.common.C
@@ -12,11 +7,6 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.abs
 
-/**
- * Lightweight PCM pass-through processor that detects long stretches of near-silence.
- * When [instantModeEnabled] is true and a silence block longer than [minSilenceDurationUs]
- * is detected, [onLongSilence] is invoked exactly once per silent segment.
- */
 @UnstableApi
 @Suppress("DEPRECATION")
 class SilenceDetectorAudioProcessor(
@@ -48,7 +38,6 @@ class SilenceDetectorAudioProcessor(
         channelCount = inputAudioFormat.channelCount
         encoding = inputAudioFormat.encoding
 
-        // Bypass if not 16-bit PCM (e.g. 24-bit, float, or passthrough)
         if (encoding != C.ENCODING_PCM_16BIT) {
             sampleRate = 0
             channelCount = 0
@@ -66,7 +55,6 @@ class SilenceDetectorAudioProcessor(
             return
         }
 
-        // Analyze the incoming PCM for silence without mutating the buffer position.
         if (instantModeEnabled && sampleRate > 0 && channelCount > 0) {
             detectSilence(inputBuffer)
         } else {
@@ -79,7 +67,6 @@ class SilenceDetectorAudioProcessor(
     }
 
     private fun detectSilence(inputBuffer: ByteBuffer) {
-        // Ensure predictable endian access for getShort(index).
         inputBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
         val frameCount = inputBuffer.remaining() / 2 / channelCount

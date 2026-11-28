@@ -1,5 +1,3 @@
-// Test helper (NODE_OPTIONS=--require): from the home network the public name lomu.deploy-ui.lokeshrc.me lands on the
-// router instead of the homelab, so the tests map it to the homelab's LAN address (192.168.1.17).
 const dns = require('node:dns');
 const orig = dns.lookup;
 const MAP = { 'lomu.deploy-ui.lokeshrc.me': process.env.LOMU_TEST_HUB_IP || '192.168.1.17' };

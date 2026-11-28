@@ -1,8 +1,3 @@
-/**
- * BeatWave Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
- */
-
 package com.lomu.app.utils
 
 import android.content.Context
@@ -32,27 +27,10 @@ import kotlin.properties.ReadOnlyProperty
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
-/**
- * Last known full [Preferences] snapshot, kept current by [preferenceMirror].
- *
- * Every seed read below used to be its own `runBlocking(Dispatchers.IO) { data.first() }`:
- * a main-thread block, a dispatcher hop, and a deserialisation of the WHOLE preferences
- * file, to pull out one key. That is per call site, not per key — a screen reading
- * fourteen preferences paid it fourteen times on the frame it first composed, and again
- * for any call site that first composes later (a lazy item scrolling into view). With
- * ~200 call sites across the app it is a steady background tax on every screen entry.
- *
- * One mirror serves all of them. After the first read the cost is a map lookup.
- */
 private val preferenceSnapshot = AtomicReference<Preferences?>(null)
 
 private val preferenceMirrorStarted = AtomicBoolean(false)
 
-/**
- * Keeps [preferenceSnapshot] in step with the store. Started on first access and never
- * cancelled — it is process-wide state backing a process-wide store, so there is no
- * scope narrower than the process that would be correct to tie it to.
- */
 private fun DataStore<Preferences>.startPreferenceMirror() {
     if (!preferenceMirrorStarted.compareAndSet(false, true)) return
     CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
@@ -60,15 +38,6 @@ private fun DataStore<Preferences>.startPreferenceMirror() {
     }
 }
 
-/**
- * The current snapshot, blocking only if nothing has been read yet.
- *
- * The mirror lags a write by however long DataStore takes to emit it. That window does
- * not affect the UI: writes go through the [MutableState] returned by
- * [rememberPreference], which updates its own value immediately, and the Flow
- * collectors there observe the store directly rather than through this cache. This is
- * only ever the *seed* for a call site's first frame.
- */
 private fun DataStore<Preferences>.snapshot(): Preferences {
     startPreferenceMirror()
     preferenceSnapshot.get()?.let { return it }
@@ -106,11 +75,6 @@ fun <T> rememberPreference(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    // The seed value goes through DataStore's blocking accessor, which does a
-    // runBlocking disk read. As a bare argument it was re-evaluated on every
-    // recomposition, so each preference a composable reads cost one synchronous
-    // file read per recomposition — on the main thread. remember pins it to the
-    // first composition, which is the only one whose value is ever used.
     val initialValue = remember { context.dataStore[key] ?: defaultValue }
     val state =
         remember {
@@ -146,9 +110,6 @@ inline fun <reified T : Enum<T>> rememberEnumPreference(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    // remembered for the same reason as in [rememberPreference]: this is a
-    // blocking main-thread disk read, and unremembered it ran on every
-    // recomposition.
     val initialValue = remember { context.dataStore[key].toEnum(defaultValue = defaultValue) }
     val state =
         remember {

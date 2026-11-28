@@ -6,13 +6,6 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
-/**
- * Sleep-with-the-queue-on detection, a port of web/src/lib/sleep.ts (same rules, so the phone and the PC agree).
- *
- * Falling asleep with the queue running leaves a clear trace in the play log: a long run of songs that each played to the
- * end, back to back, with no skip in between. The run starts at the last thing the user did on purpose and ends at the next
- * one. It is an estimate: people take a few minutes to nod off, and a long run can also be a work session.
- */
 data class SleepPlay(
     val id: String, val title: String, val artist: String, val thumb: String?,
     val at: Long, val playedMs: Long, val completed: Boolean, val skipped: Boolean,
@@ -25,7 +18,7 @@ data class SleepSession(
     val asleepFrom: Long,
     val lastAwakeIndex: Int,
     val asleepMs: Long,
-    val confidence: String, // "high" | "medium" | "low"
+    val confidence: String,
     val corrected: Boolean,
 ) {
     val lastAwake get() = plays[lastAwakeIndex]
@@ -36,7 +29,6 @@ private const val MIN_RUN_MS = 75 * MIN
 private const val MIN_RUN_SONGS = 10
 private const val NODDING_OFF_MS = 15 * MIN
 
-/** Is [b] the song that followed [a] on its own? Allows for buffering, and for logs stamped at the start or the end of a song. */
 fun followsOn(a: SleepPlay, b: SleepPlay): Boolean {
     if (!a.completed || b.skipped) return false
     val delta = b.at - a.at
@@ -44,10 +36,6 @@ fun followsOn(a: SleepPlay, b: SleepPlay): Boolean {
     return abs(delta - a.playedMs) <= max(60_000.0, a.playedMs * 0.2) || abs(delta - b.playedMs) <= max(60_000.0, b.playedMs * 0.2)
 }
 
-/**
- * The phone's player may write several rows for one listen (each with the running total so far). Keep only the last row of each
- * burst, otherwise one song would look like several short ones and break every run.
- */
 fun collapseRepeats(plays: List<SleepPlay>): List<SleepPlay> {
     val out = ArrayList<SleepPlay>()
     for (p in plays.sortedBy { it.at }) {
@@ -63,7 +51,6 @@ private fun isNight(t: Long): Boolean {
     return h >= 21 || h < 9
 }
 
-/** Newest first. [anchors] maps a run's start time to the `at` of the song the user said was the last one they remember. */
 fun detectSleep(history: List<SleepPlay>, anchors: Map<Long, Long> = emptyMap()): List<SleepSession> {
     val plays = collapseRepeats(history)
     val out = ArrayList<SleepSession>()
@@ -99,7 +86,6 @@ private fun session(run: List<SleepPlay>, start: Long, end: Long, anchor: Long?)
     return SleepSession(start, end, run, asleepFrom, idx, max(0, end - asleepFrom), confidence, corrected)
 }
 
-/** "7h 20m", "45m". */
 fun formatSpan(ms: Long): String {
     val m = Math.round(ms / MIN.toDouble())
     if (m < 60) return "${m}m"
@@ -107,23 +93,16 @@ fun formatSpan(ms: Long): String {
     return if (m % 60 != 0L) "${h}h ${m % 60}m" else "${h}h"
 }
 
-// ---------------------------------------------------------------- manual trip nap
-// The user picks the song they were hearing when they dozed off and the one they woke up to; the play log supplies the clock.
-
 data class Nap(
-    val startAt: Long, // `at` of the first song picked
-    val endAt: Long, // `at` of the last song picked
-    val from: Long, // when the first song began
-    val to: Long, // when the last song finished
-    val betweenMs: Long, // end of the first song -> start of the last one: the stretch nobody heard
-    val wholeMs: Long, // start of the first song -> end of the last one
-    val songs: List<SleepPlay>, // every song in the range, both ends included
+    val startAt: Long,
+    val endAt: Long,
+    val from: Long,
+    val to: Long,
+    val betweenMs: Long,
+    val wholeMs: Long,
+    val songs: List<SleepPlay>,
 )
 
-/**
- * How the log stamps a song: when it started (the PC, and phone rows synced from the PC) or when it ended (the phone's own player).
- * Decided by which one makes consecutive songs line up. Defaults to "started".
- */
 fun stampsAtEnd(range: List<SleepPlay>): Boolean {
     var start = 0
     var end = 0
@@ -139,7 +118,6 @@ fun stampsAtEnd(range: List<SleepPlay>): Boolean {
     return end > start
 }
 
-/** The nap between two picked songs, in either order. Null when either pick is not in the log. */
 fun napBetween(history: List<SleepPlay>, pickA: Long, pickB: Long): Nap? {
     val plays = collapseRepeats(history)
     val lo = min(pickA, pickB)

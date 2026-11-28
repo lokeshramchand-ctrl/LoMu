@@ -1,5 +1,3 @@
-# Builds the web app, starts it on a throwaway data directory and runs the black-box audit and stress test
-# (accounts, isolation between them, auth, body limits, live streams, security headers, concurrency).
 name: Web audit
 
 on:

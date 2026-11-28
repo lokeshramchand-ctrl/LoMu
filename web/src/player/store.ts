@@ -12,7 +12,7 @@ type Panel = 'lyrics' | 'queue' | null;
 
 type PlayerState = {
   queue: Track[];
-  original: Track[] | null; // pre-shuffle order
+  original: Track[] | null;
   index: number;
   playing: boolean;
   buffering: boolean;
@@ -56,7 +56,6 @@ const shuffled = <T,>(a: T[]) => {
   return b;
 };
 
-/** While this tab steers another device, "play this" goes there instead (installed by player/connect.ts). */
 export const remoteRoute: {
   play?: (tracks: Track[], start: number) => boolean;
   radio?: (t: Track) => boolean;
@@ -221,10 +220,6 @@ export const usePlayer = create<PlayerState>()(
 
 export const currentTrack = (s: Pick<PlayerState, 'queue' | 'index'>) => s.queue[s.index];
 
-/* ------------------------------------------------------------------ */
-/* Audio engine: one <audio> element for the whole app.               */
-/* ------------------------------------------------------------------ */
-
 type Session = { track: Track; startedAt: number; listenedMs: number; lastTick: number; logged: boolean };
 
 const engine = (() => {
@@ -324,7 +319,6 @@ const engine = (() => {
 
   function warmNext() {
     const { queue, index } = S();
-    // The next two songs, a little after this one starts so it gets the bandwidth first.
     [queue[index + 1], queue[index + 2]].forEach((n, i) => n && setTimeout(() => warm(n.id), 1500 + i * 2500));
   }
 
@@ -333,7 +327,6 @@ const engine = (() => {
     extending = true;
     try {
       const { queue } = S();
-      // Adaptive autoplay: the server ranks YouTube's radio by what you like and skip; plain radio is the fallback.
       const radio = await api.nextUp(seed.id, queue.slice(-30).map((t) => t.id)).catch(() => api.radio(seed.id));
       const ids = new Set(queue.map((t) => t.id));
       const recent = new Set(useLibrary.getState().history.slice(0, 40).map((p) => p.track.id));
@@ -341,7 +334,6 @@ const engine = (() => {
       const preferred = [...fresh.filter((t) => !recent.has(t.id)), ...fresh.filter((t) => recent.has(t.id))].slice(0, 25);
       if (preferred.length) usePlayer.setState({ queue: [...S().queue, ...preferred] });
     } catch {
-      /* radio is best-effort */
     } finally {
       setTimeout(() => (extending = false), immediate ? 0 : 15_000);
     }
@@ -374,7 +366,6 @@ const engine = (() => {
     try {
       navigator.mediaSession.setPositionState({ duration: audio.duration, position: Math.min(audio.currentTime, audio.duration), playbackRate: 1 });
     } catch {
-      /* ignore */
     }
   }
 

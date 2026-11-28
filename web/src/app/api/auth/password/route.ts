@@ -4,7 +4,6 @@ import { limiter } from '@/server/ratelimit';
 
 const tries = limiter(8, 10 * 60_000);
 
-/** Change your own password: { current, next }. Every other device is signed out; this one stays signed in. */
 export async function POST(req: Request) {
   const me = await requireUser();
   if (me instanceof Response) return me;

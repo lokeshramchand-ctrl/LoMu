@@ -134,7 +134,6 @@ class NewPipeUtils(
                 url,
             )
         } catch (e: Exception) {
-            // Don't print stack trace - caller handles errors
             null
         }
 }
@@ -181,7 +180,6 @@ object NewPipeExtractor {
                 (it.itagItem?.id ?: return@mapNotNull null) to it.content
             }
         } catch (e: Exception) {
-            // Don't print stack trace - caller handles errors
             emptyList()
         }
     }

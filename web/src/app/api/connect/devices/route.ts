@@ -4,7 +4,6 @@ import { hubConnect } from '@/server/hub';
 
 export const dynamic = 'force-dynamic';
 
-/** One-shot list of online devices (the live version arrives on the events stream). */
 export async function GET() {
   const user = await requireUser();
   if (user instanceof Response) return user;

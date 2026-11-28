@@ -30,29 +30,23 @@ import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** One device signed in to the account, as the server describes it. */
 data class Dev(
     val id: String,
     val name: String,
     val kind: String,
     val track: MediaMetadata?,
     val playing: Boolean,
-    val position: Double, // seconds, when the list arrived
+    val position: Double,
     val duration: Double,
     val volume: Double,
     val shuffle: Boolean,
     val repeat: String,
     val receivedAt: Long,
-    val queue: List<MediaMetadata> = emptyList(), // the songs after the current one
+    val queue: List<MediaMetadata> = emptyList(),
 )
 
 data class DevicesState(val list: List<Dev> = emptyList(), val active: String? = null, val online: Boolean = false)
 
-/**
- * Spotify-Connect style link to the other devices on this account (protocol: web/src/server/connect.ts).
- * Holds one server-sent-events connection while the app is on screen (or music is playing), reports
- * what this phone plays, executes commands from other devices, and sends commands to them.
- */
 @Singleton
 class ConnectClient @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -71,7 +65,6 @@ class ConnectClient @Inject constructor(
     private val _devices = MutableStateFlow(DevicesState())
     val devices: StateFlow<DevicesState> = _devices.asStateFlow()
 
-    /** The device the user chose to control from this phone (null = this phone). */
     private val _target = MutableStateFlow<String?>(null)
     val target: StateFlow<String?> = _target.asStateFlow()
 
@@ -80,7 +73,6 @@ class ConnectClient @Inject constructor(
     private var volReceiver: BroadcastReceiver? = null
     private var volObserver: ContentObserver? = null
 
-    /** Tells the other devices whenever this phone's media volume changes (buttons, slider, command). */
     private fun watchVolume(on: Boolean) {
         volReceiver?.let { runCatching { context.unregisterReceiver(it) } }
         volReceiver = null
@@ -102,14 +94,9 @@ class ConnectClient @Inject constructor(
     private var volumeGuess: Triple<String, Double, Long>? = null
     private var volumeToast: Toast? = null
 
-    /**
-     * The phone's hardware volume buttons while it steers another device: they change that device's
-     * volume (as in Spotify Connect). Returns false when nothing is steered, so Android handles the key.
-     */
     fun nudgeRemoteVolume(delta: Double): Boolean {
         val r = remote.value ?: return false
         val now = System.currentTimeMillis()
-        // Quick presses add up before the device has had time to report its new volume.
         val base = volumeGuess?.takeIf { it.first == r.id && now - it.third < 1500 }?.second ?: r.volume
         val v = (base + delta).coerceIn(0.0, 1.0)
         volumeGuess = Triple(r.id, v, now)
@@ -119,11 +106,6 @@ class ConnectClient @Inject constructor(
         return true
     }
 
-    /**
-     * The device this phone is steering. It is chosen in the device list, or latched automatically when
-     * another device starts playing while nothing plays here. Once set it stays (also while that device
-     * is paused) until you pick "This phone", play here, or the device goes offline.
-     */
     val remote: StateFlow<Dev?> = combine(_devices, _target) { d, t -> t?.let { id -> d.list.find { it.id == id } } }
         .stateIn(scope, SharingStarted.Eagerly, null)
 
@@ -140,7 +122,6 @@ class ConnectClient @Inject constructor(
     }
 
     companion object {
-        /** Lets the plain `playList` / `playRadio` helpers route to a remote device without a context. */
         @Volatile var instance: ConnectClient? = null
     }
 
@@ -153,19 +134,16 @@ class ConnectClient @Inject constructor(
             override fun onPositionDiscontinuity(o: Player.PositionInfo, n: Player.PositionInfo, reason: Int) {
                 if (reason == Player.DISCONTINUITY_REASON_SEEK) seekTick.tryEmit(Unit)
             }
-            // A changed queue (add, remove, shuffle) reaches the other devices too.
             override fun onTimelineChanged(t: androidx.media3.common.Timeline, reason: Int) { seekTick.tryEmit(Unit) }
         })
         reporter = scope.launch {
-            // Report on every change that matters, and every 5 seconds while playing so progress stays true.
             launch {
                 combine(c.mediaMetadata, c.isPlaying, c.shuffleModeEnabled, c.repeatMode) { m, p, s, r -> listOf(m?.id, p, s, r) }
                     .distinctUntilChanged().debounce(150).collect { report() }
             }
             launch { seekTick.debounce(150).collect { report() } }
-            launch { volumeTick.debounce(120).collect { report() } } // hardware buttons and the system slider reach the other devices
+            launch { volumeTick.debounce(120).collect { report() } }
             launch { while (true) { delay(5000); if (c.isPlaying.value) report() } }
-            // Playing here again ends remote control.
             launch { c.isPlaying.collect { localPlaying.value = it; if (it) _target.value = null } }
         }
     }
@@ -174,14 +152,13 @@ class ConnectClient @Inject constructor(
         if (job?.isActive == true || !sync.signedIn) return
         job = scope.launch(Dispatchers.IO) {
             while (isActive && sync.signedIn) {
-                try { listen() } catch (e: CancellationException) { throw e } catch (_: Exception) { /* retry below */ }
+                try { listen() } catch (e: CancellationException) { throw e } catch (_: Exception) { }
                 _devices.value = _devices.value.copy(online = false)
                 delay(4000)
             }
         }
     }
 
-    /** Called when the app leaves the screen: keep listening only while music is playing. */
     fun stopIfIdle() {
         if (pc?.isPlaying?.value == true) return
         stop()
@@ -237,8 +214,6 @@ class ConnectClient @Inject constructor(
         }
     }
 
-    // ---------------------------------------------------------------- reporting
-
     private fun report() {
         val c = pc ?: return
         if (!_devices.value.online) return
@@ -263,8 +238,6 @@ class ConnectClient @Inject constructor(
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         return am.getStreamVolume(AudioManager.STREAM_MUSIC).toDouble() / am.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
     }
-
-    // ---------------------------------------------------------------- commands we execute
 
     private fun run(cmd: JSONObject) {
         val c = pc ?: return
@@ -311,8 +284,6 @@ class ConnectClient @Inject constructor(
     private fun tracks(a: JSONArray?): List<MediaMetadata> =
         if (a == null) emptyList() else (0 until a.length()).mapNotNull { sync.trackToMetadata(a.getJSONObject(it)) }
 
-    // ---------------------------------------------------------------- commands we send
-
     private fun post(path: String, body: JSONObject, onDone: ((Int) -> Unit)? = null) {
         scope.launch(Dispatchers.IO) {
             val code = runCatching { sync.postAuthed(path, body) }.getOrDefault(0)
@@ -325,7 +296,6 @@ class ConnectClient @Inject constructor(
 
     fun send(to: String, type: String) = send(to, JSONObject().put("type", type))
 
-    /** Plays [items] on the chosen remote device (used by the song lists while remote control is on). */
     fun playOn(to: String, items: List<MediaMetadata>, index: Int) {
         if (items.isEmpty()) return
         val from = (index - 3).coerceAtLeast(0)
@@ -334,7 +304,6 @@ class ConnectClient @Inject constructor(
         send(to, JSONObject().put("type", "load").put("tracks", arr).put("index", index - from).put("position", 0).put("play", true))
     }
 
-    /** Adds songs to the queue of a remote device (right after the current song when [next]). */
     fun enqueueOn(to: String, items: List<MediaMetadata>, next: Boolean) {
         val arr = JSONArray().also { a -> items.forEach { a.put(sync.metadataToTrack(it)) } }
         send(to, JSONObject().put("type", "enqueue").put("tracks", arr).put("next", next))
@@ -342,7 +311,6 @@ class ConnectClient @Inject constructor(
 
     fun radioOn(to: String, song: MediaMetadata) = send(to, JSONObject().put("type", "radio").put("track", sync.metadataToTrack(song)))
 
-    /** Sends this phone's queue to [to] and pauses here. */
     private fun handoffTo(to: String) {
         val c = pc ?: return
         val p = c.player
@@ -357,7 +325,6 @@ class ConnectClient @Inject constructor(
         }
     }
 
-    /** Picks where music plays. "This phone" pulls playback here; another device receives it. */
     fun transferTo(id: String) {
         val d = _devices.value
         val active = d.active?.takeIf { a -> d.list.any { it.id == a } }
@@ -367,7 +334,6 @@ class ConnectClient @Inject constructor(
             if (active != null && active != selfId) send(active, JSONObject().put("type", "handoff").put("to", selfId))
             return
         }
-        // Remote control: this phone steers `id`. If music is playing here, move it over first.
         _target.value = id
         val localHasMusic = (pc?.player?.mediaItemCount ?: 0) > 0
         when {

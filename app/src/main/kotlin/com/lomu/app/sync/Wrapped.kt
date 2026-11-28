@@ -4,10 +4,6 @@ import com.lomu.app.models.MediaMetadata
 import java.time.Instant
 import java.time.ZoneId
 
-/**
- * "Wrapped": a year (or all time) of listening as a few headline facts. A port of web/src/lib/wrapped.ts, computed on the
- * phone from its own play log. Pure, no I/O.
- */
 data class WPlay(val track: MediaMetadata, val at: Long, val playedMs: Long, val completed: Boolean, val skipped: Boolean)
 data class WArtist(val name: String, val thumb: String?, val ms: Long, val plays: Int)
 data class WSong(val track: MediaMetadata, val plays: Int)

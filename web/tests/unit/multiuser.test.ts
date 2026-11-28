@@ -59,7 +59,7 @@ describe('accounts', () => {
     const next = auth.rotate(t.refresh);
     expect(next?.user.id).toBe(2);
     auth.setDisabled(2, true);
-    expect(auth.rotate(next!.refresh)).toBeNull(); // disabled: sessions revoked
+    expect(auth.rotate(next!.refresh)).toBeNull();
     expect(await auth.checkPassword('guest.one', PW)).toBeNull();
     auth.setDisabled(2, false);
     expect(await auth.checkPassword('guest.one', PW)).not.toBeNull();
@@ -88,7 +88,7 @@ describe('accounts', () => {
 describe('data isolation', () => {
   it('each account sees only its own documents and its own seq', () => {
     sync.push(1, [{ kind: 'like', key: 'song', value: { who: 'owner' }, updated: 10 }]);
-    sync.push(2, [{ kind: 'like', key: 'song', value: { who: 'guest' }, updated: 5 }]); // same key, older: still separate
+    sync.push(2, [{ kind: 'like', key: 'song', value: { who: 'guest' }, updated: 5 }]);
     sync.push(2, [{ kind: 'like', key: 'only-guest', value: { x: 1 }, updated: 6 }]);
     expect(sync.all(1, 'like').map((d) => d.value.who ?? d.key)).toEqual(['owner']);
     expect(sync.all(2, 'like').map((d) => d.key).sort()).toEqual(['only-guest', 'song']);
@@ -126,7 +126,6 @@ describe('data isolation', () => {
     expect(sync.all(4, 'play')).toHaveLength(0);
     const r = sync.push(4, [1, 2, 3, 4, 5].map((n) => ({ kind: 'play', key: `p${n}`, value: { n }, updated: n })));
     expect(r.applied).toBe(3);
-    // an edit to an existing document still goes through at the limit
     expect(sync.push(4, [{ kind: 'play', key: 'p1', value: { n: 'edited' }, updated: 50 }]).applied).toBe(1);
     delete process.env.LOMU_MAX_DOCS;
   });
@@ -137,7 +136,6 @@ describe('data isolation', () => {
     expect(sync.pull(4, 0).docs).toEqual([]);
     expect(sync.all(1, 'like')).toHaveLength(1);
     expect(await auth.checkPassword('guest-three', PW)).toBeNull();
-    // the seat is free again, and ids are never reused
     expect(auth.createUser('guest-four', PW).id).toBe(5);
   });
 });
@@ -152,9 +150,8 @@ describe('connect rooms', () => {
     const offB = connect.connect(2, 'dev-bbbbbbbb', 'B', 'web', (e, d) => gotB.push({ e, d }));
     expect(ids(1)).toEqual(['dev-aaaaaaaa']);
     expect(ids(2)).toEqual(['dev-bbbbbbbb']);
-    expect(connect.command(1, 'dev-aaaaaaaa', 'dev-bbbbbbbb', { type: 'pause' })).toBe('offline'); // B is in another room
+    expect(connect.command(1, 'dev-aaaaaaaa', 'dev-bbbbbbbb', { type: 'pause' })).toBe('offline');
     expect(gotB.filter((x) => x.e === 'command')).toEqual([]);
-    // playing on one account does not pause the other account's device
     connect.report(2, 'dev-bbbbbbbb', st);
     connect.report(1, 'dev-aaaaaaaa', st);
     expect(gotB.filter((x) => x.e === 'command')).toEqual([]);
@@ -200,7 +197,7 @@ describe('rate limiter', () => {
     const req = (xff?: string) => new Request('http://x', { headers: xff ? { 'x-forwarded-for': xff } : {} });
     expect(clientIp(req())).toBe('local');
     expect(clientIp(req('1.1.1.1'))).toBe('1.1.1.1');
-    expect(clientIp(req('6.6.6.6, 1.1.1.1'))).toBe('1.1.1.1'); // a forged first entry does not count
+    expect(clientIp(req('6.6.6.6, 1.1.1.1'))).toBe('1.1.1.1');
     process.env.LOMU_PROXY_HOPS = '2';
     expect(clientIp(req('6.6.6.6, 1.1.1.1, 10.0.0.1'))).toBe('1.1.1.1');
     delete process.env.LOMU_PROXY_HOPS;

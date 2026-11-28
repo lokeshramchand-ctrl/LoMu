@@ -4,7 +4,6 @@ import { Providers } from '@/components/Providers';
 import { StyleRegistry } from '@/components/StyleRegistry';
 import './globals.css';
 
-// SF Pro leads the font stack (globals.css) when its files are served; Inter is the open fallback that is always there.
 const sans = Inter({ subsets: ['latin'], variable: '--font-ui', display: 'swap' });
 
 export const metadata: Metadata = {

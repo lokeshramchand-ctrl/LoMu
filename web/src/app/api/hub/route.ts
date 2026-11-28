@@ -4,7 +4,6 @@ import { connectHub, disconnectHub, hubStatus, setHubLan, startHub, syncNow } fr
 
 export const dynamic = 'force-dynamic';
 
-/** Desktop app only: status of the connection to the sync hub (the homelab server), and sign-in / sign-out / sync-now. */
 export async function GET() {
   const denied = await gate();
   if (denied) return denied;

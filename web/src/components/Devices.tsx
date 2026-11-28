@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useConnect, transferTo, startConnect, stopConnect, type Device } from '@/player/connect';
 import { Icon } from './Icon';
 
-/** Keeps this tab registered as a device for as long as the owner is signed in. */
 export function ConnectHost() {
   useEffect(() => {
     startConnect();
@@ -14,7 +13,6 @@ export function ConnectHost() {
 
 const glyph = (d: Device) => (d.kind === 'android' ? 'phone' : 'laptop');
 
-/** Button + popover listing the devices on this account; picking one moves playback there. */
 export function DevicesButton({ className = 'icon-btn', down = false }: { className?: string; down?: boolean }) {
   const [open, setOpen] = useState(false);
   const { devices, self, online, target } = useConnect();

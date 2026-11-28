@@ -11,7 +11,7 @@ const hourLabel = (h: number) => `${h % 12 || 12}${h < 12 ? 'am' : 'pm'}`;
 const long = (min: number) => (min >= 120 ? { n: (min / 60).toLocaleString('en', { maximumFractionDigits: 0 }), u: 'hours' } : { n: String(min), u: min === 1 ? 'minute' : 'minutes' });
 
 export default function WrappedPage() {
-  const [year, setYear] = useState<number | null | undefined>(undefined); // undefined: newest year with listening
+  const [year, setYear] = useState<number | null | undefined>(undefined);
   const first = useWrapped(year === undefined ? new Date().getFullYear() : year);
   const w = first.data?.wrapped;
   const picked = year === undefined ? (w?.label === 'All time' ? null : Number(w?.label ?? NaN)) : year;
@@ -19,7 +19,6 @@ export default function WrappedPage() {
 
   if (first.isLoading) return <PageHeader title="Your Wrapped" sub="Counting every song..." />;
   if (!w) {
-    // The current year has nothing yet: fall back to all time rather than an empty page.
     if (year === undefined) return <Fallback onPick={() => setYear(null)} />;
     return (
       <>

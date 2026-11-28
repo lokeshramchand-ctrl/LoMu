@@ -198,7 +198,6 @@ function Queue() {
   const localQueue = usePlayer((s) => s.queue);
   const localIndex = usePlayer((s) => s.index);
   const localPlaying = usePlayer((s) => s.playing);
-  // While steering another device the list is that device's queue (its current song, then what comes next).
   const remote = useConnect((s) => remoteDevice(s));
   const queue: Track[] = remote ? [...(remote.track ? [remote.track] : []), ...(remote.queue ?? [])] : localQueue;
   const index = remote ? 0 : localIndex;

@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 const USER = process.env.LOMU_USER ?? 'admin';
-const PASS = process.env.LOMU_PASS ?? ''; // set LOMU_PASS; never commit it
+const PASS = process.env.LOMU_PASS ?? '';
 const SHOTS = process.env.LOMU_SHOTS ?? 'test-results/prod';
 test.describe.configure({ mode: 'serial' });
 
@@ -33,7 +33,6 @@ test('walk every page, play, like, playlist, lyrics, queue', async ({ page }) =>
     await page.screenshot({ path: `${SHOTS}/page-${p.replace(/\W+/g, '_')}.png` });
   }
 
-  // Search -> play first song.
   await page.goto('/search?q=despacito');
   await page.waitForTimeout(2500);
   const link = page.locator('a[href^="/album/"]').first();

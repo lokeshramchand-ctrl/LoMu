@@ -1,8 +1,3 @@
-/**
- * BeatWave Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
- */
-
 package com.lomu.app.utils
 
 import android.content.Context
@@ -18,11 +13,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/**
- * Timber tree that mirrors every log line into a file under cacheDir, so a
- * debug build's full history (including onPlayerError detail lines) is
- * shareable from the app without adb. File rotates once it exceeds [MAX_FILE_BYTES].
- */
 class FileLoggingTree(private val logFile: File) : Timber.Tree() {
 
     override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
@@ -50,7 +40,6 @@ class FileLoggingTree(private val logFile: File) : Timber.Tree() {
                 logFile.appendText(line)
             }
         } catch (e: IOException) {
-            // Logging must never break the app
         }
     }
 
@@ -67,15 +56,10 @@ class FileLoggingTree(private val logFile: File) : Timber.Tree() {
     companion object {
         private const val MAX_FILE_BYTES = 5 * 1024 * 1024
 
-        // Only touched inside the synchronized(log) block in log()
         private val timestampFormatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
     }
 }
 
-/**
- * Helpers for building a shareable log blob from the app itself: device header
- * + full Timber history + in-app playback event log, shipped via FileProvider.
- */
 object DebugLogs {
     const val FILE_NAME = "vivi_log.txt"
     private const val MAX_SHARE_CHARS = 400_000

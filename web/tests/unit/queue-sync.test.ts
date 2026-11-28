@@ -3,7 +3,6 @@ import type { Track } from '@/lib/types';
 
 const T = (id: string): Track => ({ kind: 'song', id, title: id, artists: [{ name: 'A' }] });
 
-// The module reads localStorage; give it an in-memory one.
 const mem = new Map<string, string>();
 (globalThis as unknown as { localStorage: Storage }).localStorage = {
   getItem: (k: string) => mem.get(k) ?? null,
@@ -26,14 +25,12 @@ describe('queue sync (continue listening)', () => {
     expect(m.useRemoteQueue.getState().q).toMatchObject({ device: 'android', index: 1, positionMs: 5000, at: 100 });
     m.dismissRemote();
     expect(m.useRemoteQueue.getState().q).toBeNull();
-    // the same (or an older) queue is not offered again after it was dismissed
     m.noteQueueRows([row({ tracks: [T('a')], index: 0, at: 100, dev: 'phone' })]);
     expect(m.useRemoteQueue.getState().q).toBeNull();
-    // a newer one is, but one written by this browser never is
     m.noteQueueRows([row({ tracks: [T('c')], index: 0, at: 200, dev: me })]);
     expect(m.useRemoteQueue.getState().q).toBeNull();
     m.noteQueueRows([row({ tracks: [T('c')], index: 9, at: 200, dev: 'phone' })]);
-    expect(m.useRemoteQueue.getState().q?.index).toBe(0); // clamped into range
+    expect(m.useRemoteQueue.getState().q?.index).toBe(0);
   });
 
   it('a tombstone clears the offer', async () => {

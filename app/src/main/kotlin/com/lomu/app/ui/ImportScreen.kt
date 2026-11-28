@@ -24,7 +24,6 @@ val LocalImporter = staticCompositionLocalOf<YtmImporter?> { null }
 
 private const val LOGIN_URL = "https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fmusic.youtube.com"
 
-/** Wipes every trace of the Google session from the embedded browser. */
 private fun forgetSession(web: WebView?) {
     CookieManager.getInstance().removeAllCookies(null)
     CookieManager.getInstance().flush()
@@ -33,10 +32,6 @@ private fun forgetSession(web: WebView?) {
     web?.clearHistory()
 }
 
-/**
- * One-time import: sign in to Google in a normal web page, the cookie is read once, used to copy
- * liked songs and playlists into LoMu, then thrown away.
- */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun ImportScreen() {
@@ -44,7 +39,7 @@ fun ImportScreen() {
     val nav = LocalNav.current
     val importer = LocalImporter.current
     val scope = rememberCoroutineScope()
-    var phase by remember { mutableStateOf("login") } // login -> working -> done | failed
+    var phase by remember { mutableStateOf("login") }
     var message by remember { mutableStateOf("") }
     var summary by remember { mutableStateOf<ImportSummary?>(null) }
     var web by remember { mutableStateOf<WebView?>(null) }
@@ -66,7 +61,6 @@ fun ImportScreen() {
                             forgetSession(null)
                             settings.javaScriptEnabled = true
                             settings.domStorageEnabled = true
-                            // Google refuses sign-in inside an embedded "wv" browser.
                             settings.userAgentString = settings.userAgentString.replace("; wv", "")
                             webViewClient = object : WebViewClient() {
                                 override fun onPageFinished(view: WebView, url: String) {

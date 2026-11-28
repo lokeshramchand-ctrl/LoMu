@@ -1,8 +1,3 @@
-/**
- * BeatWave Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
- */
-
 package com.lomu.app.playback
 
 import android.content.Context
@@ -45,16 +40,12 @@ class PlayerConnection(
 ) : Player.Listener {
     private companion object {
         private const val TAG = "PlayerConnection"
-        private const val PLAYER_INIT_TIMEOUT_MS = 5000L // 5 second timeout for player initialization
+        private const val PLAYER_INIT_TIMEOUT_MS = 5000L
     }
 
     val service = binder.service
     private val playerReadinessFlow = service.isPlayerReady
     
-    /**
-     * Safe player accessor checks readiness & handles errors.
-     * Should be used by all player access within this class.
-     */
     private var cachedForwardingPlayer: CrossfadeForwardingPlayer? = null
 
     private fun getPlayerSafe(): Player {
@@ -76,14 +67,9 @@ class PlayerConnection(
         return newForwarder
     }
 
-    /**
-     * Public accessor for player. Throws if player not ready.
-     * Callers should check [isPlayerInitialized] before calling, or handle exceptions.
-     */
     val player: Player
         get() = getPlayerSafe()
 
-    /** Tracks whether player initialization completed successfully */
     private val isPlayerInitialized = MutableStateFlow(service.isPlayerReady.value)
 
     val playbackState: MutableStateFlow<Int>
@@ -93,7 +79,6 @@ class PlayerConnection(
     init {
         Timber.tag(TAG).d("PlayerConnection init: playerReady=${playerReadinessFlow.value}")
         
-        // Initialize with player state or safe defaults if player not ready
         val initialState = try {
             val initialPlayer = getPlayerSafe()
             Triple(initialPlayer.playbackState, initialPlayer.playWhenReady, 
@@ -113,7 +98,6 @@ class PlayerConnection(
             initialState.third
         )
         
-        // Track service readiness changes in background.
         scope.launch {
             playerReadinessFlow.collect { ready ->
                 isPlayerInitialized.value = ready
@@ -126,7 +110,6 @@ class PlayerConnection(
         Timber.tag(TAG).d("PlayerConnection state flows initialized successfully")
     }
     
-    // Effective playing state, considers Cast when active
     val isEffectivelyPlaying = combine(
         isPlaying,
         service.castConnectionHandler?.isCasting ?: MutableStateFlow(false),
@@ -163,9 +146,6 @@ class PlayerConnection(
     val canSkipPrevious = MutableStateFlow(true)
     val canSkipNext = MutableStateFlow(true)
 
-    /** Set by the floating mini bar's lyrics/queue icons (which live outside
-     *  Player.kt's own composable scope) to ask the player to open already
-     *  showing lyrics/queue. Player.kt observes these and resets them. */
     val requestShowLyrics = MutableStateFlow(false)
     val requestShowQueue = MutableStateFlow(false)
 
@@ -177,10 +157,8 @@ class PlayerConnection(
 
     val waitingForNetworkConnection = service.waitingForNetworkConnection
     
-    // Callback to check if playback changes should be blocked (e.g., Listen Together guest)
     var shouldBlockPlaybackChanges: (() -> Boolean)? = null
     
-    // Flag to allow internal sync operations to bypass blocking (set by ListenTogetherManager)
     @Volatile
     var allowInternalSync: Boolean = false
 
@@ -192,7 +170,6 @@ class PlayerConnection(
 
     init {
         try {
-            // Observe player changes (e.g. crossfade swap)
             scope.launch {
                 service.playerFlow.collect { newPlayer ->
                     if (newPlayer != null && newPlayer != attachedPlayer) {
@@ -201,7 +178,6 @@ class PlayerConnection(
                 }
             }
             
-            // Initial setup if flow hasn't emitted yet but service is ready
             if (attachedPlayer == null && service.isPlayerReady.value) {
                  updateAttachedPlayer(player)
             }
@@ -209,7 +185,6 @@ class PlayerConnection(
             Timber.tag(TAG).d("PlayerConnection flow observer registered")
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Failed to initialize PlayerConnection listener or state")
-            // Propagate the error so MainActivity can retry
             throw e
         }
     }
@@ -219,7 +194,6 @@ class PlayerConnection(
         attachedPlayer = newPlayer
         newPlayer.addListener(this)
         
-        // Refresh all state from new player
         playbackState.value = newPlayer.playbackState
         playWhenReady.value = newPlayer.playWhenReady
         mediaMetadata.value = newPlayer.currentMetadata
@@ -233,22 +207,12 @@ class PlayerConnection(
         Timber.tag(TAG).d("Attached to new player instance: $newPlayer")
     }
 
-    /**
-     * Set when a playback change was refused because this device is a Listen
-     * Together guest without control. The UI observes it to say so and resets it;
-     * blocking silently reads as the app being broken.
-     */
     val playbackBlockedByRoom = MutableStateFlow(false)
 
-    /** True while playback controls must be inert: in a room, without control. */
     val playbackLockedByRoom: Boolean
         get() = !allowInternalSync && shouldBlockPlaybackChanges?.invoke() == true
 
     fun playQueue(queue: Queue) {
-        // Every "play this" in the app funnels through here — song rows, album and
-        // playlist headers, search results, Home tiles, radio. It was the one entry
-        // point with no room gate, so an owner-only room still let a guest start its
-        // own local or online playback and desync the whole session.
         if (playbackLockedByRoom) {
             Timber.tag(TAG).d("playQueue blocked - Listen Together guest without control")
             playbackBlockedByRoom.value = true
@@ -266,7 +230,6 @@ class PlayerConnection(
     }
 
     fun startRadioSeamlessly() {
-        // Block if Listen Together guest
         if (shouldBlockPlaybackChanges?.invoke() == true) {
             Timber.tag("PlayerConnection").d("startRadioSeamlessly blocked - Listen Together guest")
             return
@@ -285,7 +248,6 @@ class PlayerConnection(
     fun playNext(item: MediaItem) = playNext(listOf(item))
 
     fun playNext(items: List<MediaItem>) {
-        // Block if Listen Together guest (unless internal sync)
         if (playbackLockedByRoom) {
             Timber.tag("PlayerConnection").d("playNext blocked - Listen Together guest")
             playbackBlockedByRoom.value = true
@@ -302,7 +264,6 @@ class PlayerConnection(
     fun addToQueue(item: MediaItem) = addToQueue(listOf(item))
 
     fun addToQueue(items: List<MediaItem>) {
-        // Block if Listen Together guest (unless internal sync)
         if (playbackLockedByRoom) {
             Timber.tag("PlayerConnection").d("addToQueue blocked - Listen Together guest")
             playbackBlockedByRoom.value = true
@@ -358,9 +319,6 @@ class PlayerConnection(
         }
     }
     
-    /**
-     * Start playback - handles Cast when active
-     */
     fun play() {
         try {
             val castHandler = service.castConnectionHandler
@@ -381,9 +339,6 @@ class PlayerConnection(
         }
     }
     
-    /**
-     * Pause playback - handles Cast when active
-     */
     fun pause() {
         try {
             val castHandler = service.castConnectionHandler
@@ -399,9 +354,6 @@ class PlayerConnection(
         }
     }
 
-    /**
-     * Seek to position - handles Cast when active
-     */
     fun seekTo(position: Long) {
         try {
             val castHandler = service.castConnectionHandler
@@ -417,7 +369,6 @@ class PlayerConnection(
 
     fun seekToNext() {
         try {
-            // When casting, use Cast skip instead of local player
             val castHandler = service.castConnectionHandler
             if (castHandler?.isCasting?.value == true) {
                 castHandler.skipToNext()
@@ -448,15 +399,12 @@ class PlayerConnection(
 
     fun seekToPrevious() {
         try {
-            // When casting, use Cast skip instead of local player
             val castHandler = service.castConnectionHandler
             if (castHandler?.isCasting?.value == true) {
                 castHandler.skipToPrevious()
                 return
             }
 
-            // Logic to mimic standard seekToPrevious behavior but with explicit callbacks
-            // If we are more than 3 seconds in, just restart the song
             if (player.currentPosition > 3000 || !player.hasPreviousMediaItem()) {
                 player.seekTo(0)
                 if (player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED) {
@@ -465,7 +413,6 @@ class PlayerConnection(
                 player.playWhenReady = true
                 onRestartSong?.invoke()
             } else {
-                // Otherwise go to previous media item
                 player.seekToPreviousMediaItem()
                 if (player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED) {
                     player.prepare()

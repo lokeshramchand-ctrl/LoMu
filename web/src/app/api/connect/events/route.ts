@@ -4,7 +4,6 @@ import { hubConfigured, hubConnect } from '@/server/hub';
 
 export const dynamic = 'force-dynamic';
 
-/** Server-sent events for one device: `devices` (who is online and what they play) and `command`s sent to it. */
 export async function GET(req: Request) {
   const user = await requireUser();
   if (user instanceof Response) return user;
@@ -14,7 +13,6 @@ export async function GET(req: Request) {
   const name = (q.get('name') ?? 'Device').slice(0, 60);
   const kind = q.get('kind') === 'android' ? 'android' : 'web';
 
-  // Desktop app with a hub: be a device on the hub, so the phone sees this PC (and can control it).
   const viaHub = await hubConnect(`events?${q.toString()}`, { signal: req.signal, headers: { accept: 'text/event-stream' } }, true);
   if (viaHub?.ok && viaHub.body) {
     return new Response(viaHub.body, {
@@ -32,7 +30,6 @@ export async function GET(req: Request) {
         try {
           c.enqueue(enc.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
         } catch {
-          /* closed */
         }
       };
       try {
@@ -49,17 +46,14 @@ export async function GET(req: Request) {
           try {
             c.close();
           } catch {
-            /* already closed */
           }
           return;
         }
         try {
           c.enqueue(enc.encode(': ping\n\n'));
         } catch {
-          /* closed */
         }
       }, Number(process.env.LOMU_PING_MS) || 20_000);
-      // Hub unreachable right now: end this stream soon so the client reconnects and tries the hub again.
       if (hubConfigured()) {
         retryHub = setTimeout(() => {
           off();
@@ -67,7 +61,6 @@ export async function GET(req: Request) {
           try {
             c.close();
           } catch {
-            /* already closed */
           }
         }, 15_000);
       }
@@ -78,7 +71,6 @@ export async function GET(req: Request) {
         try {
           c.close();
         } catch {
-          /* already closed */
         }
       });
     },

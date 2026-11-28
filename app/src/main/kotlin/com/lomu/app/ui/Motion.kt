@@ -57,28 +57,20 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/* The motion language of the app, modelled on iOS / Apple Music: the "iOS ease" curve for pushes and
-   sheets, springs for taps and toggles, light haptics on the controls you press most. */
-
-/** The curve iOS uses for navigation pushes and sheet presentations. */
 val IosEase = CubicBezierEasing(0.32f, 0.72f, 0f, 1f)
 
 enum class NavOp { Tab, Push, Pop }
 
-/** Light tick for toggles and taps; [strong] for opening menus and finishing gestures. */
 @Composable
 fun rememberHaptic(): (strong: Boolean) -> Unit {
     val h = LocalHapticFeedback.current
     return remember(h) { { strong -> h.performHapticFeedback(if (strong) HapticFeedbackType.LongPress else HapticFeedbackType.TextHandleMove) } }
 }
 
-// ---------------------------------------------------------------- sheets
-
 class SheetState internal constructor(private val scope: CoroutineScope, private val onClosed: () -> Unit) {
     var shown by mutableStateOf(false)
         internal set
 
-    /** Slides the sheet down, then reports it closed. */
     fun dismiss() {
         if (!shown) return
         shown = false
@@ -92,7 +84,6 @@ fun rememberSheetState(onClosed: () -> Unit): SheetState {
     return remember { SheetState(scope, onClosed) }
 }
 
-/** Bottom sheet with a fading scrim and an iOS-style slide up; [content] is the sheet body. */
 @Composable
 fun SheetHost(sheet: SheetState, content: @Composable ColumnScope.() -> Unit) {
     val lo = LocalLo.current
@@ -116,9 +107,6 @@ fun SheetHost(sheet: SheetState, content: @Composable ColumnScope.() -> Unit) {
     }
 }
 
-// ---------------------------------------------------------------- lists
-
-/** Rows rise and fade in the first time they appear, a little later each (up to the tenth), then stay put. */
 fun Modifier.appear(index: Int = 0): Modifier = composed {
     var seen by rememberSaveable { mutableStateOf(false) }
     val p = remember { Animatable(if (seen) 1f else 0f) }
@@ -135,9 +123,6 @@ fun Modifier.appear(index: Int = 0): Modifier = composed {
     }
 }
 
-// ---------------------------------------------------------------- controls
-
-/** Play / pause glyph that springs from one to the other. */
 @Composable
 fun PlayPauseIcon(playing: Boolean, size: Dp, tint: Color = LocalLo.current.ink) {
     AnimatedContent(
@@ -150,14 +135,12 @@ fun PlayPauseIcon(playing: Boolean, size: Dp, tint: Color = LocalLo.current.ink)
     ) { p -> IcV(if (p) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, size, tint) }
 }
 
-/** Round play / pause button with a haptic tick. */
 @Composable
 fun PlayPauseBtn(playing: Boolean, onClick: () -> Unit, size: Dp, iconSize: Dp, tint: Color = LocalLo.current.ink) {
     val haptic = rememberHaptic()
     Box(Modifier.size(size).a11y(if (playing) "Pause" else "Play").pressable(androidx.compose.foundation.shape.CircleShape) { haptic(false); onClick() }, Alignment.Center) { PlayPauseIcon(playing, iconSize, tint) }
 }
 
-/** Heart that pops (scales up, then settles) when it becomes liked. */
 @Composable
 fun HeartPop(liked: Boolean, size: Dp, on: Color, off: Color) {
     val scale = remember { Animatable(1f) }
@@ -175,9 +158,6 @@ fun HeartPop(liked: Boolean, size: Dp, on: Color, off: Color) {
     IcV(if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, size, if (liked) on else off, Modifier.graphicsLayer { scaleX = scale.value; scaleY = scale.value })
 }
 
-// ---------------------------------------------------------------- gestures
-
-/** Swipe in from the left edge to go back, like the iOS navigation controller. */
 fun Modifier.edgeSwipeBack(enabled: Boolean, onBack: () -> Unit): Modifier = if (!enabled) this else pointerInput(Unit) {
     var dx = 0f
     detectHorizontalDragGestures(
@@ -187,12 +167,6 @@ fun Modifier.edgeSwipeBack(enabled: Boolean, onBack: () -> Unit): Modifier = if 
     ) { _, delta -> dx += delta }
 }
 
-/**
- * Pull-down-to-dismiss for a full-screen sheet such as the player. The content follows the finger through
- * [offset]; letting go past a third of the way (or with a quick flick) slides it away and calls [onDismiss],
- * otherwise it springs back. Apply the returned modifier to the grab area and read [offset] in the sheet's
- * graphicsLayer.
- */
 @Composable
 fun rememberDismissDrag(onDismiss: () -> Unit): Pair<Animatable<Float, androidx.compose.animation.core.AnimationVector1D>, Modifier> {
     val offset = remember { Animatable(0f) }

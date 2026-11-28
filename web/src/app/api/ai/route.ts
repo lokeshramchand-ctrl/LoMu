@@ -7,7 +7,6 @@ import { userAffinity } from '@/server/recs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
-/** Status of the daily AI mix (never includes the key), and the two Settings actions: test the connection, build now. */
 export const GET = () => json(async (u) => aiStatus(u.id));
 
 export const POST = (req: Request) =>

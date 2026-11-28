@@ -88,7 +88,6 @@ describe('dailyMix', () => {
 });
 
 describe('dailyMixes', () => {
-  // Three tastes: A-ish and B-ish share radios inside their group, C is separate. 12 artists, 2 songs each.
   const seeds = Array.from({ length: 12 }, (_, i) => T('s' + i, 'Art' + i));
   const group = (i: number) => (i < 4 ? 'g0' : i < 8 ? 'g1' : 'g2');
   const cands = new Map(
@@ -124,7 +123,7 @@ describe('dailyMixes', () => {
 });
 
 describe('time-of-day mixes', () => {
-  const at = (h: number, i = 0) => Date.UTC(2026, 10, 10 + (i % 5), h, 0) - 0; // UTC hours, read back with tz 0
+  const at = (h: number, i = 0) => Date.UTC(2026, 10, 10 + (i % 5), h, 0) - 0;
   const songs = (prefix: string, artist: string, n: number) => Array.from({ length: n }, (_, i) => T(`${prefix}${i}`, `${artist}`));
   const doneAt = (t: Track, hour: number, i: number): PlayDoc => ({ track: t, at: at(hour, i) + i * 60_000, playedMs: 180000, completed: true, skipped: false });
   const now = Date.UTC(2026, 10, 20, 12);
@@ -135,7 +134,7 @@ describe('time-of-day mixes', () => {
     expect(slotOf(21).id).toBe('evening');
     expect(slotOf(23).id).toBe('night');
     expect(slotOf(2).id).toBe('night');
-    expect(hourOf(Date.UTC(2026, 0, 1, 20, 30), -330)).toBe(2); // IST viewer, server elsewhere
+    expect(hourOf(Date.UTC(2026, 0, 1, 20, 30), -330)).toBe(2);
   });
 
   it('builds a mix only for parts of the day with enough listening, led by what is played then', () => {
@@ -143,7 +142,7 @@ describe('time-of-day mixes', () => {
     const pm = songs('pm', 'Dusk', 30);
     const plays = [...am.map((t, i) => doneAt(t, 7, i)), ...pm.map((t, i) => doneAt(t, 23, i)), ...am.slice(0, 3).map((t, i) => doneAt(t, 12, i))];
     const slots = slotAffinities(plays, now, 0);
-    expect(slots.map((s) => s.slot.id).sort()).toEqual(['morning', 'night']); // afternoon has 3 plays: too few
+    expect(slots.map((s) => s.slot.id).sort()).toEqual(['morning', 'night']);
     const aff = affinity(plays, [], now);
     const cands = new Map<string, Track[]>();
     for (const s of slots) for (const seed of s.aff.topTracks.slice(0, 4)) cands.set(seed.id, songs(`r${seed.id}_`, 'Other', 12).map((t, i) => ({ ...t, artists: [{ name: `New${seed.id}${i}` }] })));
@@ -152,7 +151,6 @@ describe('time-of-day mixes', () => {
     expect(morning.title).toBe('Morning Mix');
     expect(morning.items.filter((t) => t.id.startsWith('am')).length).toBeGreaterThan(morning.items.filter((t) => t.id.startsWith('pm')).length);
     expect(new Set(morning.items.map((t) => t.id)).size).toBe(morning.items.length);
-    // "right now" goes first and is labelled
     const ordered = orderByNow(mixes, 23);
     expect(ordered[0].title).toBe('Late Night Mix');
     expect(ordered[0].subtitle).toMatch(/^Right now/);
@@ -178,9 +176,9 @@ describe('discover weekly', () => {
     expect(discoverWeekly(aff, new Map([['f1', fresh.slice(0, 5)]]), week)).toEqual([]);
   });
   it('weekKey is the Monday of that week', () => {
-    expect(weekKey(new Date(2026, 10, 18, 15).getTime())).toBe('2026-11-16'); // Wed 18 Nov 2026
-    expect(weekKey(new Date(2026, 10, 22, 9).getTime())).toBe('2026-11-16'); // Sunday
-    expect(weekKey(new Date(2026, 10, 23, 9).getTime())).toBe('2026-11-23'); // next Monday
+    expect(weekKey(new Date(2026, 10, 18, 15).getTime())).toBe('2026-11-16');
+    expect(weekKey(new Date(2026, 10, 22, 9).getTime())).toBe('2026-11-16');
+    expect(weekKey(new Date(2026, 10, 23, 9).getTime())).toBe('2026-11-23');
   });
 });
 

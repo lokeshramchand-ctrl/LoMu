@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Installs LoMu inside a fresh Debian/Ubuntu LXC. Run as root:
-#   REPO=<git url or path> bash install.sh
-# Re-run it to update: it pulls, rebuilds and restarts.
 set -euo pipefail
 
 REPO="${REPO:?set REPO to the LoMu git url or a local path}"
@@ -30,7 +27,6 @@ chown -R lomu:lomu "$APP"
 
 install -m 644 "$APP/deploy/lomu.service" /etc/systemd/system/lomu.service
 if [ ! -f /etc/lomu.env ]; then
-  # First-run guard: only someone who knows this code can create the owner account.
   echo "LOMU_SETUP_CODE=$(head -c 12 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 12)" > /etc/lomu.env
   chmod 600 /etc/lomu.env
   echo "Setup code written to /etc/lomu.env (needed once, when you create your account)."

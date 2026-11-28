@@ -80,22 +80,17 @@ import com.music.innertube.models.PlaylistItem
 import com.music.innertube.models.SongItem
 import com.music.innertube.models.YTItem
 
-// ---------- primitives ----------
-
 @Composable
 fun Ic(icon: Ph, size: Dp = 22.dp, tint: Color = LocalLo.current.ink, modifier: Modifier = Modifier) {
     Icon(icon.vector, contentDescription = null, tint = tint, modifier = modifier.size(size))
 }
 
-/** Material vector flavour of [Ic]; the filled and rounded glyphs read closest to SF Symbols. */
 @Composable
 fun IcV(icon: ImageVector, size: Dp = 22.dp, tint: Color = LocalLo.current.ink, modifier: Modifier = Modifier) {
     Icon(icon, contentDescription = null, tint = tint, modifier = modifier.size(size))
 }
 
-/** Clickable with a soft spring "press" so every tap has feedback. */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-/** Full-screen overlays use this so touches that hit no control do not fall through to the screen underneath. */
 fun Modifier.blockTouches(): Modifier = pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent() } }
 
 fun Modifier.pressable(shape: Shape = RoundedCornerShape(10.dp), enabled: Boolean = true, role: Role = Role.Button, onClickLabel: String? = null, onLongClick: (() -> Unit)? = null, onClick: () -> Unit): Modifier = composed {
@@ -109,13 +104,11 @@ fun Modifier.pressable(shape: Shape = RoundedCornerShape(10.dp), enabled: Boolea
         .combinedClickable(interactionSource = source, indication = null, enabled = enabled, onClickLabel = onClickLabel, role = role, onLongClick = onLongClick, onClick = onClick)
 }
 
-/** What a screen reader says for a control that only shows an icon (and, optionally, its current state: "On", "Selected"). */
 fun Modifier.a11y(label: String, state: String? = null): Modifier = semantics {
     contentDescription = label
     if (state != null) stateDescription = state
 }
 
-/** A spoken name for an icon, from its name: "FastForward" is "Next", anything else is split into words ("RepeatOne" is "Repeat one"). */
 fun iconLabel(name: String): String = when (val key = name.substringAfterLast('.')) {
     "FastForward" -> "Next"
     "FastRewind" -> "Previous"
@@ -128,9 +121,7 @@ fun iconLabel(name: String): String = when (val key = name.substringAfterLast('.
     else -> key.replace(Regex("([a-z0-9])([A-Z])"), "$1 $2").lowercase().replaceFirstChar { it.uppercase() }
 }
 
-/** A round glyph button. [filled] gives the solid accent button, [bordered] a translucent chip for floating over art. */
 @Composable
-/** Grows the area that reacts to a finger to at least [min] without changing how big the control looks. Put it after `pressable` and before `size`. */
 fun Modifier.minTouch(min: Dp = 44.dp): Modifier = layout { measurable, constraints ->
     val p = measurable.measure(constraints)
     val w = maxOf(p.width, min.roundToPx())
@@ -158,7 +149,6 @@ fun IconBtnV(icon: ImageVector, onClick: () -> Unit, size: Dp = 40.dp, iconSize:
     Box(modifier.a11y(label).pressable(CircleShape, onClick = onClick).minTouch().size(size), Alignment.Center) { IcV(icon, iconSize, tint) }
 }
 
-/** Artwork: a hairline-edged rounded square with the placeholder grey behind it, like an Apple Music album cover. */
 @Composable
 fun Cover(url: String?, size: Dp, round: Boolean = false, modifier: Modifier = Modifier, radius: Dp = 12.dp, placeholderUrl: String? = null) {
     val lo = LocalLo.current
@@ -172,11 +162,9 @@ fun Cover(url: String?, size: Dp, round: Boolean = false, modifier: Modifier = M
     )
 }
 
-/** Soft drop shadow under artwork, the way album pages float the cover. */
 fun Modifier.coverShadow(radius: Dp, elevation: Dp = 18.dp): Modifier =
     shadow(elevation, RoundedCornerShape(radius), clip = false, ambientColor = Color.Black.copy(alpha = 0.5f), spotColor = Color.Black.copy(alpha = 0.5f))
 
-/** Blurred artwork that fades into the page background; sits behind a detail header. */
 @Composable
 fun Ambient(url: String?, modifier: Modifier = Modifier, height: Dp = 380.dp, strength: Float? = null) {
     val lo = LocalLo.current
@@ -190,10 +178,6 @@ fun Ambient(url: String?, modifier: Modifier = Modifier, height: Dp = 380.dp, st
     }
 }
 
-/**
- * The vivid colour of an artwork (Palette), used to wash a detail page behind its cover as Apple Music does.
- * Null until the image has been read, or when it cannot be.
- */
 private val tintCache = java.util.concurrent.ConcurrentHashMap<String, Color>()
 
 @Composable
@@ -202,7 +186,6 @@ fun rememberTint(url: String?): Color? {
     val tint by produceState<Color?>(url?.let { tintCache[it] }, url) {
         if (url == null) { value = null; return@produceState }
         tintCache[url]?.let { value = it; return@produceState }
-        // The previous colour stays until the new one is ready, so a song change fades instead of flashing.
         value = withContext(Dispatchers.IO) {
             runCatching {
                 val req = ImageRequest.Builder(ctx).data(url).size(96).allowHardware(false).build()
@@ -215,15 +198,11 @@ fun rememberTint(url: String?): Color? {
     return tint
 }
 
-/** 0.5dp separator, inset from the left so it starts under the text, as in Apple Music lists. */
 @Composable
 fun Hairline(inset: Dp = 0.dp, modifier: Modifier = Modifier) {
     Box(modifier.fillMaxWidth().padding(start = inset).height(0.5.dp).background(LocalLo.current.line))
 }
 
-// ---------- text blocks ----------
-
-/** Shelf heading: bold title with a trailing chevron, or an accent action link. */
 @Composable
 fun SectionTitle(text: String, modifier: Modifier = Modifier, action: String? = null, chevron: Boolean = true, onAction: (() -> Unit)? = null) {
     val lo = LocalLo.current
@@ -238,7 +217,6 @@ fun SectionTitle(text: String, modifier: Modifier = Modifier, action: String? = 
     }
 }
 
-/** Small grey kicker line above a title (a date, a section name). */
 @Composable
 fun Eyebrow(text: String, modifier: Modifier = Modifier, accent: Boolean = false) =
     Text(text.uppercase(), style = LoType.eyebrow, color = if (accent) LocalLo.current.signal else LocalLo.current.grey, modifier = modifier)
@@ -248,9 +226,6 @@ fun Loading() = Box(Modifier.fillMaxWidth().padding(48.dp), Alignment.Center) {
     CircularProgressIndicator(color = LocalLo.current.grey, strokeWidth = 2.dp, modifier = Modifier.size(26.dp))
 }
 
-// ---------- skeleton loading ----------
-
-/** Pulsing placeholder block: the base of every skeleton. */
 @Composable
 fun SkeletonBox(modifier: Modifier, shape: Shape = RoundedCornerShape(6.dp)) {
     val lo = LocalLo.current
@@ -262,7 +237,6 @@ fun SkeletonBox(modifier: Modifier, shape: Shape = RoundedCornerShape(6.dp)) {
     Box(modifier.graphicsLayer { alpha = a }.background(lo.surface2, shape))
 }
 
-/** Placeholder song rows (cover + two lines), matching TrackRow / ResultRow. */
 @Composable
 fun SkeletonRows(count: Int = 8, round: Boolean = false) {
     Column {
@@ -279,7 +253,6 @@ fun SkeletonRows(count: Int = 8, round: Boolean = false) {
     }
 }
 
-/** Placeholder horizontal shelves of square cards, for Home / New. */
 @Composable
 fun SkeletonShelves(shelves: Int = 2) {
     Column {
@@ -298,7 +271,6 @@ fun SkeletonShelves(shelves: Int = 2) {
     }
 }
 
-/** Placeholder album / playlist / artist page: centred cover, title, buttons, rows. */
 @Composable
 fun SkeletonDetail() {
     Column(Modifier.fillMaxSize().statusBarsPadding().padding(top = 64.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -335,7 +307,6 @@ fun ErrorBox(message: String, onRetry: (() -> Unit)? = null) =
 
 fun artistLine(s: SongItem) = s.artists.joinToString(", ") { it.name }
 
-/** The line under a card: artists, year or author depending on the type. */
 fun subtitle(item: YTItem): String = when (item) {
     is SongItem -> artistLine(item)
     is AlbumItem -> listOfNotNull(item.artists?.joinToString(", ") { it.name }, item.year?.toString()).joinToString(" · ")
@@ -343,16 +314,9 @@ fun subtitle(item: YTItem): String = when (item) {
     is ArtistItem -> "Artist"
 }
 
-// ---------- rows and cards ----------
-
-/** Little animated-looking level bars shown on the song that is playing. */
 @Composable
 private fun NowPlayingBars(tint: Color, modifier: Modifier = Modifier) = Ic(Ph.Waveform, 16.dp, tint, modifier)
 
-/**
- * One song line. Cover, two lines of text, a quiet trailing value and an inset hairline underneath.
- * [active] marks the song that is playing now.
- */
 @Composable
 fun MediaRow(
     title: String, line: String, thumb: String?, trailing: String? = null, index: Int? = null, active: Boolean = false,
@@ -397,7 +361,6 @@ fun TrackRow(song: SongItem, index: Int? = null, flat: Boolean = false, modifier
     MediaRow(song.title, artistLine(song), song.thumbnail, song.duration?.let { formatTime(it * 1000L) }, index, playingId() == song.id, menu = MenuTarget(song.toMediaMetadata()), flat = flat, modifier = modifier, onClick = onClick)
 }
 
-/** Shelf card: square art with a soft edge, one line of title, one of grey detail. */
 @Composable
 fun ItemCard(item: YTItem, onClick: () -> Unit) {
     val lo = LocalLo.current
@@ -410,7 +373,6 @@ fun ItemCard(item: YTItem, onClick: () -> Unit) {
     }
 }
 
-/** Opens an item: songs play, everything else navigates. */
 @Composable
 fun rememberOpen(): (YTItem) -> Unit {
     val nav = LocalNav.current
@@ -436,12 +398,6 @@ fun Shelf(title: String, items: List<YTItem>) {
     }
 }
 
-// ---------- buttons, segmented control, bars ----------
-
-/**
- * Apple Music capsule button. [filled] is the solid ink Play button (black on light, white on dark),
- * otherwise a quiet grey capsule with ink text; [accent] gives the solid blue call to action.
- */
 @Composable
 fun Pill(text: String, onClick: () -> Unit, filled: Boolean = true, icon: Ph? = null, modifier: Modifier = Modifier, iconV: ImageVector? = null, accent: Boolean = false) {
     val lo = LocalLo.current
@@ -460,7 +416,6 @@ fun Pill(text: String, onClick: () -> Unit, filled: Boolean = true, icon: Ph? = 
     }
 }
 
-/** Frosted round control (back, add, more) that floats over artwork. */
 @Composable
 fun GlassCircle(icon: ImageVector, onClick: () -> Unit, size: Dp = 42.dp, tint: Color = LocalLo.current.ink, modifier: Modifier = Modifier, label: String = iconLabel(icon.name)) {
     val lo = LocalLo.current
@@ -471,7 +426,6 @@ fun GlassCircle(icon: ImageVector, onClick: () -> Unit, size: Dp = 42.dp, tint: 
     ) { IcV(icon, size * 0.5f, tint) }
 }
 
-/** Account avatar shown top-right on the main pages. */
 @Composable
 fun Avatar(initial: String, onClick: () -> Unit, size: Dp = 36.dp) {
     Box(
@@ -480,11 +434,9 @@ fun Avatar(initial: String, onClick: () -> Unit, size: Dp = 36.dp) {
     ) { Text(initial.take(2).uppercase(), style = LoType.body.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold), color = LocalLo.current.ink) }
 }
 
-/** Floating glass surface used by the mini player and the tab bar. */
 fun Modifier.glass(shape: Shape, lo: Lo): Modifier = composed {
     val haze = LocalHaze.current
     val base = shadow(14.dp, shape, clip = false, ambientColor = Color.Black.copy(alpha = 0.25f), spotColor = Color.Black.copy(alpha = 0.25f))
-    // Real material: the page behind is blurred and tinted with the card colour. Without a haze state (or before Android 12) it is the plain card.
     (if (haze != null) base.clip(shape).hazeEffect(haze) {
         blurRadius = 28.dp
         backgroundColor = lo.card
@@ -493,10 +445,8 @@ fun Modifier.glass(shape: Shape, lo: Lo): Modifier = composed {
         .border(0.5.dp, lo.line.copy(alpha = 0.8f), shape)
 }
 
-/** The blurred-page state shared by the screens (source) and the floating bars (effect). */
 val LocalHaze = staticCompositionLocalOf<HazeState?> { null }
 
-/** Horizontally scrolling scope pills (search filters). */
 @Composable
 fun Chips(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier, center: Boolean = false) {
     val lo = LocalLo.current
@@ -519,7 +469,6 @@ fun Chips(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifie
     }
 }
 
-/** Floating glass back control over detail art. */
 @Composable
 fun TopBar(title: String, onBack: (() -> Unit)?, modifier: Modifier = Modifier) {
     val lo = LocalLo.current
@@ -555,17 +504,14 @@ fun SearchField(value: String, onChange: (String) -> Unit, hint: String, onSearc
     }
 }
 
-/** Space the floating mini player and tab bar take at the bottom, so lists can scroll clear of them. */
 val LocalBottomInset = compositionLocalOf { 0.dp }
 
 @Composable
 fun bottomPad(): Dp = LocalBottomInset.current + 24.dp
 
-/** Small UI switches kept in SharedPreferences, readable from composables. */
 object UiPrefs {
     private var newTab by androidx.compose.runtime.mutableStateOf<Boolean?>(null)
 
-    /** The New tab is hidden by default; Settings → Tabs turns it on. */
     @Composable
     fun showNew(ctx: android.content.Context): Boolean =
         newTab ?: ctx.getSharedPreferences("lomu", android.content.Context.MODE_PRIVATE).getBoolean("showNewTab", false)

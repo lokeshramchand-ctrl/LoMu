@@ -35,13 +35,11 @@ import org.json.JSONObject
 
 val LocalConnect = staticCompositionLocalOf<ConnectClient?> { null }
 
-/** Opens the device list (provided by the root so any screen can offer it). */
 val LocalOpenDevices = staticCompositionLocalOf<() -> Unit> { {} }
 
 private fun Dev.artistLine() = track?.artists?.joinToString(", ") { it.name }.orEmpty()
 private fun deviceIcon(d: Dev) = if (d.kind == "android") Icons.Rounded.PhoneAndroid else Icons.Rounded.Computer
 
-/** The device this phone is steering, or null while music plays here. */
 @Composable
 fun rememberRemote(): Dev? {
     val c = LocalConnect.current ?: return null
@@ -49,7 +47,6 @@ fun rememberRemote(): Dev? {
     return d
 }
 
-/** Position of [d] in seconds, advancing on its own while it plays. */
 @Composable
 private fun rememberRemotePosition(d: Dev): Double {
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
@@ -59,7 +56,6 @@ private fun rememberRemotePosition(d: Dev): Double {
     return (d.position + extra).coerceAtMost(dur)
 }
 
-/** Capsule that replaces the mini player while another device plays. */
 @Composable
 fun RemoteMiniPlayer(d: Dev, onOpen: () -> Unit, modifier: Modifier = Modifier) {
     val lo = LocalLo.current
@@ -85,7 +81,6 @@ fun RemoteMiniPlayer(d: Dev, onOpen: () -> Unit, modifier: Modifier = Modifier) 
     }
 }
 
-/** Full-screen controller for another device. Same layout as the phone's own player; the controls steer [d]. */
 @Composable
 fun RemotePlayer(d: Dev, onClose: () -> Unit) = CompositionLocalProvider(LocalLo provides LegacyDarkLo.copy(grey = Color.White.copy(alpha = 0.72f))) {
     val lo = LocalLo.current
@@ -96,7 +91,7 @@ fun RemotePlayer(d: Dev, onClose: () -> Unit) = CompositionLocalProvider(LocalLo
     val m = d.track
     val pos = rememberRemotePosition(d)
     var drag by remember { mutableStateOf<Float?>(null) }
-    var mode by remember { mutableStateOf(0) } // 0 artwork, 2 playing next
+    var mode by remember { mutableStateOf(0) }
     val dur = d.duration
     val frac = drag ?: if (dur > 0) (pos / dur).toFloat().coerceIn(0f, 1f) else 0f
     val art by produceState<String?>(HiResArt.fallback(m?.thumbnailUrl), m?.id) {
@@ -164,7 +159,6 @@ fun RemotePlayer(d: Dev, onClose: () -> Unit) = CompositionLocalProvider(LocalLo
             }
             Spacer(Modifier.height(10.dp))
 
-            // Seek
             val dragging = drag != null
             val knob by animateDpAsState(if (dragging) 18.dp else 10.dp, spring(dampingRatio = 0.6f, stiffness = 500f), label = "rknob")
             val thick by animateDpAsState(if (dragging) 8.dp else 4.dp, spring(stiffness = 600f), label = "rthick")
@@ -195,7 +189,6 @@ fun RemotePlayer(d: Dev, onClose: () -> Unit) = CompositionLocalProvider(LocalLo
                 IconBtnV(Icons.Rounded.FastForward, { c.send(d.id, "next") }, size = 72.dp, iconSize = 52.dp)
             }
 
-            // Volume of the remote device
             var vol by remember(d.id) { mutableStateOf(d.volume.toFloat()) }
             LaunchedEffect(d.volume) { vol = d.volume.toFloat() }
             fun setVol(x: Float, w: Int, send: Boolean) {
@@ -216,7 +209,6 @@ fun RemotePlayer(d: Dev, onClose: () -> Unit) = CompositionLocalProvider(LocalLo
                 }
                 IcV(Icons.Rounded.VolumeUp, 16.dp, lo.grey)
             }
-            // Same two buttons as the phone's own player; the device button shows where it is playing.
             Row(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 14.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
                 Row(Modifier.a11y("Playing on ${d.name}").pressable(RoundedCornerShape(24.dp), onClick = openDevices).minTouch().padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     IcV(Icons.Rounded.Devices, 24.dp, lo.signal)
@@ -229,7 +221,6 @@ fun RemotePlayer(d: Dev, onClose: () -> Unit) = CompositionLocalProvider(LocalLo
     }
 }
 
-/** Bottom sheet: "This phone" and every other device on the account. Tapping one moves the music there. */
 @Composable
 fun DevicesSheet(onDismiss: () -> Unit) {
     val lo = LocalLo.current

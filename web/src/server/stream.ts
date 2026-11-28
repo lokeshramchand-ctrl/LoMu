@@ -14,18 +14,13 @@ export type Resolved = {
   expiresAt: number;
 };
 
-// VISIONOS serves the whole Opus file without extra tokens (measured 2026-11-18). ANDROID_VR
-// is similar but currently 403s from this network; IOS / YTMUSIC / MWEB only serve the first
-// MiB without a proof-of-origin token, so they are last-resort fallbacks. YouTube bot-flags
-// clients per IP from time to time, hence the ordering plus the deep probe below.
 const CLIENTS = ['VISIONOS', 'ANDROID_VR', 'IOS', 'YTMUSIC', 'MWEB'] as const;
 
-// googlevideo rejects open-ended / large ranges for most clients; ≤1 MiB pieces are accepted.
 const CHUNK = 1024 * 1024;
 
 const cache: Map<string, Resolved> = ((globalThis as any).__lomuStreams ??= new Map());
 const inflight: Map<string, Promise<Resolved>> = ((globalThis as any).__lomuStreamsInflight ??= new Map());
-const flagged: Map<string, number> = ((globalThis as any).__lomuFlagged ??= new Map()); // client -> until
+const flagged: Map<string, number> = ((globalThis as any).__lomuFlagged ??= new Map());
 
 export function invalidate(id: string, codec: Codec) {
   cache.delete(`${id}:${codec}`);
@@ -87,8 +82,6 @@ async function tryClient(id: string, codec: Codec, client: string, itag?: number
   })[0];
   const url: string = await f.decipher(it.session.player);
   if (!url) throw new Error('decipher failed');
-  // Verify the URL serves the start AND the tail of the file: some clients answer the first
-  // MiB and then 403 everything after it, which would cut playback off after ~50 s.
   const len = Number(f.content_length);
   await Promise.all(
     ['bytes=0-1', `bytes=${Math.max(0, len - 2)}-${len - 1}`].map(async (range) => {
@@ -109,7 +102,6 @@ async function tryClient(id: string, codec: Codec, client: string, itag?: number
   };
 }
 
-/** Resolves a stream ahead of time so pressing play only has to start downloading. */
 export async function warmAudio(id: string, codec: Codec): Promise<void> {
   await resolveAudio(id, codec);
 }
@@ -121,7 +113,6 @@ export function parseRange(h: string | null, len: number): { start: number; end:
   let start = m[1] ? Number(m[1]) : NaN;
   let end = m[2] ? Number(m[2]) : len - 1;
   if (Number.isNaN(start)) {
-    // suffix range: last N bytes
     start = Math.max(0, len - end);
     end = len - 1;
   }
@@ -134,11 +125,6 @@ async function fetchChunk(r: Resolved, a: number, b: number, signal: AbortSignal
   return fetch(r.url, { headers: { range: `bytes=${a}-${b}`, accept: '*/*' }, signal });
 }
 
-/**
- * Serves the audio with proper 200/206 semantics while pulling it from googlevideo in
- * ≤1 MiB pieces. If a piece fails (expired URL, client blocked) it transparently
- * re-resolves the same itag on another client and continues from the same byte.
- */
 export async function proxyAudio(id: string, codec: Codec, rangeHeader: string | null, signal: AbortSignal): Promise<Response> {
   let r = await resolveAudio(id, codec);
   const len = r.length;
@@ -154,7 +140,6 @@ export async function proxyAudio(id: string, codec: Codec, rangeHeader: string |
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
   let chunkEnd = -1;
 
-  /** Opens the next upstream piece, failing over to another client (same itag) when it is refused. */
   async function openChunk(): Promise<ReadableStreamDefaultReader<Uint8Array> | Uint8Array | null> {
     const b = Math.min(offset + CHUNK - 1, end);
     for (let attempt = 0; attempt < 4; attempt++) {
@@ -171,7 +156,6 @@ export async function proxyAudio(id: string, codec: Codec, rangeHeader: string |
         return res.body.getReader();
       }
       if (res.status === 200) {
-        // The server ignored the range; slice what we asked for.
         const buf = new Uint8Array(await res.arrayBuffer());
         chunkEnd = b;
         return buf.subarray(offset, b + 1);
@@ -185,8 +169,6 @@ export async function proxyAudio(id: string, codec: Codec, rangeHeader: string |
   }
 
   const body = new ReadableStream<Uint8Array>({
-    // Bytes are forwarded as they arrive instead of waiting for a whole 1 MiB piece, so
-    // playback starts after one network round trip.
     async pull(controller) {
       try {
         if (offset > end) return controller.close();
@@ -226,7 +208,7 @@ export async function proxyAudio(id: string, codec: Codec, rangeHeader: string |
     'cache-control': 'private, max-age=3600, no-transform',
     'x-lomu-client': r.client,
     'x-lomu-itag': String(r.itag),
-    'x-lomu-length': String(len), // total file size; Next drops content-length on streamed bodies
+    'x-lomu-length': String(len),
   });
   if (range) headers.set('content-range', `bytes ${start}-${end}/${len}`);
   return new Response(body, { status: range ? 206 : 200, headers });

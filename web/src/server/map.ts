@@ -11,7 +11,6 @@ export const txt = (x: any): string => {
   return typeof s === 'string' && s !== '[object Object]' ? s : '';
 };
 
-/** Rewrites Google image URLs to a crisp square size. */
 export function sizedThumb(url: string | undefined, size = 544): string | undefined {
   if (!url) return undefined;
   if (url.startsWith('//')) url = 'https:' + url;
@@ -20,7 +19,6 @@ export function sizedThumb(url: string | undefined, size = 544): string | undefi
     return `${base}=w${size}-h${size}-l90-rj`;
   }
   if (url.includes('i.ytimg.com')) {
-    // Video thumbnails are 16:9; hq720/maxres are the sharpest, cropped to a square by CSS.
     return url.replace(/\/(default|mqdefault|hqdefault|sddefault|hq720)\.jpg.*$/, '/hq720.jpg');
   }
   return url;
@@ -44,7 +42,6 @@ export function bestThumb(node: any, size = 544): string | undefined {
 
 const isChannel = (id?: string) => !!id && (id.startsWith('UC') || id.startsWith('FEmusic_library_privately_owned_artist'));
 
-/** Artist refs from the item, falling back to the subtitle/flex-column runs. */
 function artistsOf(node: any): ArtistRef[] {
   const direct: ArtistRef[] = (node?.artists ?? [])
     .map((a: any) => ({ id: a.channel_id || a.endpoint?.payload?.browseId, name: txt(a.name) }))

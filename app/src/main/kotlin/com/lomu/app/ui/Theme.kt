@@ -19,33 +19,25 @@ import androidx.compose.ui.platform.LocalContext
 import com.lomu.app.R
 import androidx.compose.ui.unit.sp
 
-/**
- * LoMu design tokens, modelled on Apple Music: pure white / true black canvas, iOS system greys,
- * hairline separators, grouped inset cells and one red accent.
- */
 data class Lo(
-    val bg: Color,          // page canvas
-    val card: Color,        // elevated surface (bars, mini player, sheets)
-    val surface2: Color,    // fills: search field, art placeholder, segmented track
-    val grouped: Color,     // background of grouped (Settings style) pages
-    val cell: Color,        // grouped cell background
-    val ink: Color,         // primary label
-    val grey: Color,        // secondary label
-    val line: Color,        // hairline separator
-    val border2: Color,     // stronger outline
-    val signal: Color,      // accent (system blue)
-    val signalSoft: Color,  // accent tint for fills
-    val red: Color,         // destructive / error
+    val bg: Color,
+    val card: Color,
+    val surface2: Color,
+    val grouped: Color,
+    val cell: Color,
+    val ink: Color,
+    val grey: Color,
+    val line: Color,
+    val border2: Color,
+    val signal: Color,
+    val signalSoft: Color,
+    val red: Color,
     val dark: Boolean,
-    val onSignal: Color = Color.White, // label or icon drawn on a filled accent surface
-    val feature: Color = Color(0xFF0B0B0B), // the black feature card on Home
-    val tiles: List<Color> = listOf(Color(0xFFF6EBE1), Color(0xFFE9EAF7), Color(0xFFE4F1EA), Color(0xFFF3EDDD)), // pastel card fills: peach, lavender, mint, sand
+    val onSignal: Color = Color.White,
+    val feature: Color = Color(0xFF0B0B0B),
+    val tiles: List<Color> = listOf(Color(0xFFF6EBE1), Color(0xFFE9EAF7), Color(0xFFE4F1EA), Color(0xFFF3EDDD)),
 )
 
-/**
- * White page, black ink and accent, soft pastel cards (peach, lavender, mint, sand) and one black feature card. Every pair is checked for 4.5:1 or better:
- * text on the page, grey text, and the label on a filled accent surface.
- */
 val LightLo = Lo(
     bg = Color(0xFFFFFFFF), card = Color(0xFFFFFFFF), surface2 = Color(0xFFF3F3F4),
     grouped = Color(0xFFF5F5F6), cell = Color(0xFFFFFFFF),
@@ -61,7 +53,6 @@ val DarkLo = Lo(
     tiles = listOf(Color(0xFF2A2420), Color(0xFF23242F), Color(0xFF1F2924), Color(0xFF29261E)),
 )
 
-/** The previous Apple-style palette. The player screens keep it so their look does not change. */
 val LegacyLightLo = Lo(
     bg = Color(0xFFFFFFFF), card = Color(0xFFFAFAFA), surface2 = Color(0xFFEEEEF0),
     grouped = Color(0xFFF2F2F7), cell = Color(0xFFFFFFFF),
@@ -77,12 +68,10 @@ val LegacyDarkLo = Lo(
 
 val LocalLo = staticCompositionLocalOf { LightLo }
 
-/** Holds the asset manager so the type scale can look for SF Pro files shipped on the device. */
 object LoFonts {
     @Volatile var assets: AssetManager? = null
 }
 
-/** Inter (SIL OFL) is the open stand-in used whenever the SF Pro files are not bundled. */
 @OptIn(ExperimentalTextApi::class)
 private val InterFamily = FontFamily(
     listOf(400, 500, 600, 700).map { w ->
@@ -90,7 +79,6 @@ private val InterFamily = FontFamily(
     },
 )
 
-/** SF Pro from assets/fonts when present; [display] picks the Display cut for titles. */
 private fun sfFamily(display: Boolean): FontFamily? {
     val am = LoFonts.assets ?: return null
     val have = runCatching { am.list("fonts")?.toSet() }.getOrNull() ?: return null
@@ -100,16 +88,10 @@ private fun sfFamily(display: Boolean): FontFamily? {
     return if (cuts.isEmpty()) null else FontFamily(cuts)
 }
 
-/**
- * Which typeface the app uses. The first Apple Music design shipped with the phone's own system font (Roboto),
- * and that is what stays the default. Set to [AppFont.SfPro] to switch to SF Pro (needs the files in assets/fonts,
- * falls back to Inter without them) or [AppFont.Inter].
- */
 enum class AppFont { System, SfPro, Inter }
-const val APP_FONT_CHOICE = 1 // 0 = System, 1 = SF Pro, 2 = Inter
+const val APP_FONT_CHOICE = 1
 private val appFont get() = AppFont.entries[APP_FONT_CHOICE]
 
-/** Body / label family. */
 val LoFont: FontFamily by lazy {
     when (appFont) {
         AppFont.System -> FontFamily.Default
@@ -118,21 +100,18 @@ val LoFont: FontFamily by lazy {
     }
 }
 
-/** Title family (Large Title, Title 2): SF Pro Display when SF Pro is chosen, otherwise the same as the body. */
 val LoDisplay: FontFamily by lazy { if (appFont == AppFont.SfPro) sfFamily(true) ?: LoFont else LoFont }
 
-/** Type scale after the iOS text styles: Large Title, Title 2, Headline, Body, Subhead, Footnote. */
 object LoType {
-    val hero = TextStyle(fontFamily = LoDisplay, fontWeight = FontWeight.Bold, fontSize = 32.sp, lineHeight = 38.sp, letterSpacing = (-0.6).sp)       // Large Title
+    val hero = TextStyle(fontFamily = LoDisplay, fontWeight = FontWeight.Bold, fontSize = 32.sp, lineHeight = 38.sp, letterSpacing = (-0.6).sp)
     val title = TextStyle(fontFamily = LoDisplay, fontWeight = FontWeight.SemiBold, fontSize = 24.sp, lineHeight = 30.sp, letterSpacing = (-0.2).sp)
-    /** The player's own title style: the former Apple-style Title 2, so the player is unchanged. */
-    val playerTitle = TextStyle(fontFamily = LoFont, fontWeight = FontWeight.Bold, fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = 0.35.sp)       // Title 2
+    val playerTitle = TextStyle(fontFamily = LoFont, fontWeight = FontWeight.Bold, fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = 0.35.sp)
     val section = TextStyle(fontFamily = LoDisplay, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = (-0.2).sp)
-    val body = TextStyle(fontFamily = LoFont, fontWeight = FontWeight.Normal, fontSize = 17.sp, lineHeight = 22.sp, letterSpacing = (-0.41).sp)  // Body
-    val small = TextStyle(fontFamily = LoFont, fontWeight = FontWeight.Normal, fontSize = 13.sp, lineHeight = 16.sp, letterSpacing = (-0.08).sp) // Footnote
+    val body = TextStyle(fontFamily = LoFont, fontWeight = FontWeight.Normal, fontSize = 17.sp, lineHeight = 22.sp, letterSpacing = (-0.41).sp)
+    val small = TextStyle(fontFamily = LoFont, fontWeight = FontWeight.Normal, fontSize = 13.sp, lineHeight = 16.sp, letterSpacing = (-0.08).sp)
     val eyebrow = TextStyle(fontFamily = LoFont, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, lineHeight = 16.sp, letterSpacing = (-0.08).sp)
-    val sub = TextStyle(fontFamily = LoFont, fontWeight = FontWeight.Normal, fontSize = 15.sp, lineHeight = 20.sp, letterSpacing = (-0.24).sp)    // Subheadline
-    val caption = TextStyle(fontFamily = LoFont, fontWeight = FontWeight.Medium, fontSize = 12.sp, lineHeight = 14.sp, letterSpacing = 0.07.sp)   // Caption 3 (tab labels)
+    val sub = TextStyle(fontFamily = LoFont, fontWeight = FontWeight.Normal, fontSize = 15.sp, lineHeight = 20.sp, letterSpacing = (-0.24).sp)
+    val caption = TextStyle(fontFamily = LoFont, fontWeight = FontWeight.Medium, fontSize = 12.sp, lineHeight = 14.sp, letterSpacing = 0.07.sp)
 }
 
 @Composable

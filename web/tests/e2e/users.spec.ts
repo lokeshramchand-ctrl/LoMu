@@ -1,8 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
 
-/* Several accounts on one server and one browser: the admin adds a guest in Settings, and the two take turns on the same
-   browser without ever seeing (or uploading) each other's library. Runs after the other specs, so the owner may exist. */
-
 const OWNER = 'owner';
 const OWNER_PW = 'e2e-correct-horse';
 const GUEST = 'guest1';
@@ -52,7 +49,6 @@ test('admin adds a guest account from Settings', async ({ page }) => {
   await page.getByRole('button', { name: 'Add account' }).click();
   await expect(page.getByText(`${GUEST}`, { exact: false }).first()).toBeVisible();
   await expect(page.getByText('Account added')).toBeVisible();
-  // a duplicate (other letter case) is refused with a message
   await page.getByLabel('Username', { exact: true }).fill('GUEST1');
   await page.getByLabel('Password, at least 8 characters', { exact: true }).fill(GUEST_PW);
   await page.getByRole('button', { name: 'Add account' }).click();
@@ -68,20 +64,17 @@ test('two accounts on one browser never see each other’s library', async ({ pa
   await expect.poll(() => localLibrary(page), { timeout: 15_000 }).toContain('owner-only-song');
   await signOut(page);
 
-  // the guest signs in on the same browser: the page reloads clean, nothing of the owner's is there
   await signIn(page, GUEST, GUEST_PW);
   await page.goto('/');
   expect(await localLibrary(page)).not.toContain('owner-only-song');
   expect(await serverLikes(page)).not.toContain('owner-only-song');
   expect(await pushLike(page, 'guest-only-song')).toBe(200);
   expect(await serverLikes(page)).toEqual(['guest-only-song']);
-  // a guest has no Accounts card, and the API refuses them
   await page.goto('/settings');
   await expect(page.getByText(/accounts\. Everyone gets/)).toHaveCount(0);
   expect(await page.evaluate(async () => (await fetch('/api/users')).status)).toBe(403);
   await signOut(page);
 
-  // back to the owner: their library is intact and the guest's song never arrived
   await signIn(page, OWNER, OWNER_PW);
   await page.goto('/');
   await expect.poll(() => localLibrary(page), { timeout: 15_000 }).toContain('owner-only-song');

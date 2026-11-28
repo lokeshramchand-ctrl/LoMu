@@ -56,7 +56,6 @@ import kotlinx.coroutines.launch
 import com.lomu.app.utils.HiResArt
 import androidx.compose.animation.core.Animatable
 
-/** Pushes an artwork colour to a rich, saturated mid-dark tone so the player wash is strong but white text stays readable. */
 internal fun playerTint(c: Color?): Color? {
     c ?: return null
     val hsv = FloatArray(3)
@@ -66,10 +65,6 @@ internal fun playerTint(c: Color?): Color? {
     return Color(android.graphics.Color.HSVToColor(hsv))
 }
 
-/**
- * The colour wash behind the player and the Home page: one layer stack, one image, one fade, so the two always match.
- * Returns the current (animated) tint for anything drawn on top.
- */
 @Composable
 internal fun CoverWash(thumb: String?): Color {
     val lo = LocalLo.current
@@ -81,7 +76,6 @@ internal fun CoverWash(thumb: String?): Color {
 
 private fun MediaMetadata.artistLine() = artists.joinToString(", ") { it.name }
 
-/** Floating glass capsule above the tab bar: 32dp cover, two lines of text, play / pause and skip. */
 @Composable
 fun MiniPlayer(onOpen: () -> Unit, modifier: Modifier = Modifier) {
     val lo = LocalLo.current
@@ -113,9 +107,7 @@ fun MiniPlayer(onOpen: () -> Unit, modifier: Modifier = Modifier) {
     }
 }
 
-/** The player is always dark with white controls over the tinted artwork, in both themes. */
 @Composable
-// Secondary text is translucent white rather than grey, so it stays readable on a bright artwork wash too.
 fun FullPlayer(onClose: () -> Unit) = CompositionLocalProvider(LocalLo provides LegacyDarkLo.copy(grey = Color.White.copy(alpha = 0.72f))) { FullPlayerContent(onClose) }
 
 @Composable
@@ -128,27 +120,22 @@ private fun FullPlayerContent(onClose: () -> Unit) {
     val repeat by pc.repeatMode.collectAsState()
     val song by pc.currentSong.collectAsState(null)
     val m = meta
-    var mode by remember { mutableStateOf(0) } // 0 artwork, 2 playing next
+    var mode by remember { mutableStateOf(0) }
     val liked = song?.song?.liked == true
     val openMenu = LocalTrackMenu.current
     val haptic = rememberHaptic()
     val sub = lo.grey
 
     val (dragY, dragMod) = rememberDismissDrag(onClose)
-    // Best artwork available: official 3000px album art when found, else the 4K YouTube image. Shows the fallback until it resolves.
     val art by produceState<String?>(HiResArt.fallback(m?.thumbnailUrl), m?.id) {
         value = HiResArt.fallback(m?.thumbnailUrl)
         m?.let { value = HiResArt.best(it.title, it.artists.map { a -> a.name }, it.thumbnailUrl) }
     }
-    // Swipe the artwork sideways: left = next song, right = previous. The cover follows the finger and springs back.
     val skipX = remember { Animatable(0f) }
     val skipScope = rememberCoroutineScope()
     Box(Modifier.fillMaxSize().graphicsLayer { translationY = dragY.value; alpha = 1f - (dragY.value / (size.height * 2f)).coerceIn(0f, 0.4f) }.background(lo.bg).blockTouches()) {
-        // Strong colour wash taken from the artwork; it cross-fades slowly when the song changes.
         val tint = CoverWash(m?.thumbnailUrl)
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp)) {
-            // grabber
-            // The bar at the top: tap or pull down to close. The hit area is much taller than the bar itself.
             Box(Modifier.fillMaxWidth().height(52.dp).then(dragMod).a11y("Close player").pressable(RoundedCornerShape(4.dp), onClick = onClose), Alignment.Center) {
                 Box(Modifier.width(36.dp).height(5.dp).background(sub.copy(alpha = 0.6f), RoundedCornerShape(3.dp)))
             }
@@ -235,17 +222,12 @@ internal fun ToggleChip(icon: ImageVector, on: Boolean, label: String, onClick: 
     }
 }
 
-/** Big square artwork that gently shrinks while paused, with a soft drop shadow. */
 @Composable
 internal fun Artwork(url: String?, playing: Boolean, glow: Color, thumb: String? = null) {
     val scale by animateFloatAsState(if (playing) 1f else 0.86f, spring(dampingRatio = 0.7f, stiffness = 300f), label = "art")
     BoxWithConstraints(Modifier.fillMaxSize(), Alignment.Center) {
         val side = minOf(maxWidth, maxHeight)
-        // Coloured glow behind the cover, then the cover itself.
         Box(Modifier.size(side * 0.86f).graphicsLayer { scaleX = scale; scaleY = scale; translationY = 24f }.blur(48.dp).background(glow.copy(alpha = 1f), RoundedCornerShape(40.dp)))
-        // The 4K YouTube cover sits underneath and is never swapped, and the official album art (when one is found) fades in
-        // on top only once it has loaded. Swapping the one image's address instead sent it back to the blurry thumbnail
-        // placeholder each time, so the cover went blurry, sharp, then blurry again.
         val base = HiResArt.fallback(thumb) ?: url
         Box(Modifier.size(side).graphicsLayer { scaleX = scale; scaleY = scale }.coverShadow(14.dp, 24.dp)) {
             Cover(base, side, radius = 14.dp, placeholderUrl = thumb)
@@ -259,7 +241,6 @@ internal fun Artwork(url: String?, playing: Boolean, glow: Color, thumb: String?
     }
 }
 
-/** Thin progress line with a small knob and elapsed / remaining times. */
 @Composable
 private fun SeekBar(pc: PlayerConnection) {
     val lo = LocalLo.current
@@ -306,7 +287,6 @@ private fun SeekBar(pc: PlayerConnection) {
     }
 }
 
-/** The phone's media volume (0..1), kept current while the hardware buttons or the system slider change it. */
 @Composable
 fun rememberSystemVolume(audio: AudioManager, max: Int): State<Float> {
     val ctx = LocalContext.current
@@ -330,14 +310,12 @@ fun rememberSystemVolume(audio: AudioManager, max: Int): State<Float> {
     return vol
 }
 
-/** System media volume with speaker glyphs at each end. */
 @Composable
 private fun VolumeBar() {
     val lo = LocalLo.current
     val ctx = LocalContext.current
     val audio = remember { ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     val max = remember { audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1) }
-    // The slider is the phone's media volume: it moves with the hardware buttons and moves them back.
     val system by rememberSystemVolume(audio, max)
     var touched by remember { mutableStateOf<Float?>(null) }
     LaunchedEffect(system) { touched?.let { if (kotlin.math.abs(system - it) < 0.08f) touched = null } }

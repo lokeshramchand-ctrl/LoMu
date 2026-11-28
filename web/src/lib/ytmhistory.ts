@@ -1,18 +1,11 @@
 import type { Track } from './types';
 
-/* Google Takeout "My Activity" watch history -> LoMu plays. Only entries whose product is "YouTube Music" are used:
-   plain YouTube watching says nothing reliable about music taste.
-
-   Takeout records when a song started, never how long it was heard, so listening is inferred from the gap to the
-   next song: a song replaced within seconds was skipped, one followed by a long gap (or the end of a session) was
-   heard to the end. */
-
 export type ImportedPlay = { track: Track; at: number; playedMs: number; completed: boolean; skipped: boolean };
 
-const SKIP_BELOW_MS = 35_000; // the next song began within this long: skipped
-const PARTIAL_BELOW_MS = 100_000; // heard a good part, but not to the end
-const SESSION_GAP_MS = 20 * 60_000; // a longer silence ends a session; the last song of one counts as finished
-const FULL_PLAY_MS = 180_000; // stand-in length of a finished song (the real length is not in the export)
+const SKIP_BELOW_MS = 35_000;
+const PARTIAL_BELOW_MS = 100_000;
+const SESSION_GAP_MS = 20 * 60_000;
+const FULL_PLAY_MS = 180_000;
 
 const OFFSETS: Record<string, number> = {
   UTC: 0, GMT: 0, IST: 330, PST: -480, PDT: -420, MST: -420, MDT: -360, CST: -360, CDT: -300, EST: -300, EDT: -240,
@@ -20,7 +13,6 @@ const OFFSETS: Record<string, number> = {
 };
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 
-/** "Nov 19, 2026, 8:32:41 AM IST" (the space before AM is a narrow no-break space) -> epoch ms, or null. */
 export function parseWhen(s: string): number | null {
   const m = s.replace(/[  ]/g, ' ').trim().match(/^([A-Za-z]{3})[a-z]* (\d{1,2}), (\d{4}),? (\d{1,2}):(\d{2})(?::(\d{2}))? ?([AP]M)? ?([A-Za-z]{2,5}|[+-]\d{2}:?\d{2})?$/i);
   if (!m) return null;
@@ -30,7 +22,7 @@ export function parseWhen(s: string): number | null {
   if (/pm/i.test(m[7] ?? '')) h += 12;
   else if (!m[7]) h = Number(m[4]);
   const zone = m[8];
-  if (!zone) return new Date(Number(m[3]), mon, Number(m[2]), h, Number(m[5]), Number(m[6] ?? 0)).getTime(); // browser's own zone
+  if (!zone) return new Date(Number(m[3]), mon, Number(m[2]), h, Number(m[5]), Number(m[6] ?? 0)).getTime();
   let off = OFFSETS[zone.toUpperCase()];
   if (off === undefined) {
     const z = zone.match(/^([+-])(\d{2}):?(\d{2})$/);
@@ -45,7 +37,6 @@ const decode = (s: string) =>
 
 const ENTRY = /<p class="mdl-typography--title">([^<]*)<br><\/p>[\s\S]*?Watched\s<a href="([^"]*)">([^<]*)<\/a><br>(?:<a href="[^"]*">([^<]*)<\/a><br>)?([^<]*)<br>/;
 
-/** Every YouTube Music play in a watch-history.html, oldest first, with inferred listening. Bad or unavailable entries are dropped. */
 export function parseWatchHistory(html: string): ImportedPlay[] {
   const raw: { id: string; title: string; artist: string; at: number }[] = [];
   const seen = new Set<string>();

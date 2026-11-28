@@ -4,9 +4,6 @@ import { revokeDevices } from '@/server/connect';
 
 export const dynamic = 'force-dynamic';
 
-/* Account management, admin only. The first account is the admin; guests get their own library, history,
-   recommendations and devices. */
-
 export async function GET() {
   const me = await requireAdmin();
   if (me instanceof Response) return me;
@@ -25,7 +22,6 @@ export async function POST(req: Request) {
   }
 }
 
-/** { id, password? , disabled? } */
 export async function PATCH(req: Request) {
   const me = await requireAdmin();
   if (me instanceof Response) return me;

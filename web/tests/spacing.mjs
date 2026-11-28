@@ -1,9 +1,3 @@
-// Spacing audit for the bento layout. Opens each page at several widths and measures the real layout:
-//  - every gap between neighbouring tiles equals the grid gap (12px, 8px on phones)
-//  - tiles never overlap and never leave the grid
-//  - tile padding sits on the 4px scale
-//  - the page never scrolls sideways
-// Run against a dev server:  BASE=http://localhost:4177 node tests/spacing.mjs
 import { chromium } from '@playwright/test';
 
 const BASE = process.env.BASE ?? 'http://localhost:4177';
@@ -50,10 +44,8 @@ for (const w of WIDTHS) {
         const kids = [...grid.children].map((el) => ({ el, r: el.getBoundingClientRect() })).filter((k) => k.r.width > 0 && k.r.height > 0 && getComputedStyle(k.el).position !== 'absolute');
         const label = (t) => t.el.getAttribute('aria-label') || t.el.className.toString().slice(0, 30);
         for (const t of tiles) {
-          // nothing inside a tile may poke out of its right edge (shelves that scroll on purpose are exempt)
           for (const el of t.el.querySelectorAll('*')) {
             if (el.closest('.hscroll') || el.closest('.chips') || getComputedStyle(el).position === 'absolute') continue;
-            // clipped by an ancestor inside the tile (text-overflow: ellipsis and the like) is not visible overflow
             let clipped = false;
             for (let q = el.parentElement; q && q !== t.el; q = q.parentElement) {
               const ox = getComputedStyle(q).overflowX;
@@ -76,12 +68,10 @@ for (const w of WIDTHS) {
             const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
             const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
             if (ox > 0.5 && oy > 0.5) out.push(`"${label(kids[i])}" overlaps "${label(kids[j])}"`);
-            // neighbours in the same row: horizontal gap must equal the grid gap
             if (oy > 1) {
               const d = a.right <= b.left ? b.left - a.right : b.right <= a.left ? a.left - b.right : null;
               if (d !== null && d < 40 && Math.abs(d - gap) > 0.75) out.push(`horizontal gap ${d.toFixed(1)}px between "${label(kids[i])}" and "${label(kids[j])}" (expected ${gap})`);
             }
-            // stacked in the same column: vertical gap must equal the grid gap
             if (ox > 1) {
               const d = a.bottom <= b.top ? b.top - a.bottom : b.bottom <= a.top ? a.top - b.bottom : null;
               if (d !== null && d < 40 && Math.abs(d - gap) > 0.75) out.push(`vertical gap ${d.toFixed(1)}px between "${label(kids[i])}" and "${label(kids[j])}" (expected ${gap})`);

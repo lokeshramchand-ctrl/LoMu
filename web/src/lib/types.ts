@@ -2,20 +2,20 @@ export type ArtistRef = { id?: string; name: string };
 
 export type Track = {
   kind: 'song';
-  id: string; // YouTube videoId
+  id: string;
   title: string;
   artists: ArtistRef[];
   album?: { id?: string; name: string };
-  duration?: number; // seconds
+  duration?: number;
   thumb?: string;
   explicit?: boolean;
-  video?: boolean; // music video rather than an audio track
-  why?: string; // set on mix tracks: "Because you play Anirudh"
+  video?: boolean;
+  why?: string;
 };
 
 export type AlbumCard = {
   kind: 'album';
-  id: string; // browseId
+  id: string;
   title: string;
   subtitle?: string;
   artists: ArtistRef[];
@@ -25,7 +25,7 @@ export type AlbumCard = {
 
 export type PlaylistCard = {
   kind: 'playlist';
-  id: string; // playlist id (without the VL prefix)
+  id: string;
   title: string;
   subtitle?: string;
   thumb?: string;
@@ -33,7 +33,7 @@ export type PlaylistCard = {
 
 export type ArtistCard = {
   kind: 'artist';
-  id: string; // channel/browse id
+  id: string;
   title: string;
   subtitle?: string;
   thumb?: string;
@@ -73,7 +73,7 @@ export type ArtistData = {
   thumb?: string;
   description?: string;
   subscribers?: string;
-  image?: string; // square, high-res (enrichment)
+  image?: string;
   banner?: string;
   genre?: string;
   origin?: string;
@@ -93,5 +93,5 @@ export type PlaylistData = {
   tracks: Track[];
 };
 
-export type LyricsLine = { t: number; text: string }; // t in ms; -1 for unsynced
+export type LyricsLine = { t: number; text: string };
 export type LyricsData = { synced: boolean; lines: LyricsLine[]; source: string } | null;

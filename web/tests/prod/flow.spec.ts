@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 const USER = process.env.LOMU_USER ?? 'admin';
-const PASS = process.env.LOMU_PASS ?? ''; // set LOMU_PASS; never commit it
+const PASS = process.env.LOMU_PASS ?? '';
 const SHOTS = process.env.LOMU_SHOTS ?? 'test-results/prod';
 test.describe.configure({ mode: 'serial' });
 
@@ -19,7 +19,6 @@ async function login(page: Page) {
   await page.getByLabel('Password', { exact: true }).fill(PASS);
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.getByLabel('Username', { exact: true })).toBeHidden({ timeout: 20_000 });
-  // Never steer the owner's other devices from a test run.
   await page.waitForTimeout(2500);
   await page.getByRole('button', { name: 'Devices' }).first().click();
   await page.getByRole('button', { name: /This device/ }).click();
@@ -63,7 +62,6 @@ test('playback, controls, like, lyrics, queue, playlist, pages', async ({ page }
   await page.waitForTimeout(2500);
   await page.screenshot({ path: `${SHOTS}/13-library.png` });
 
-  // Create a playlist, add the current song through the menu.
   await page.goto('/search?q=tum hi ho');
   await page.waitForTimeout(2500);
   await page.getByRole('button', { name: /More|options|menu/i }).first().click().catch(() => page.locator('button:has-text("…")').first().click());

@@ -1,7 +1,4 @@
-﻿/**
- * BeatWave Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
- */
+﻿
 
 package com.lomu.app.viewmodels
 
@@ -43,7 +40,7 @@ data class CachedPlaylistData(
 
 object PlaylistMemoryCache {
     private const val MAX_ENTRIES = 30
-    private const val TTL_MILLIS = 30 * 60 * 1000L // 30 minutes in RAM
+    private const val TTL_MILLIS = 30 * 60 * 1000L
 
     private val cache = LruCache<String, CachedPlaylistData>(MAX_ENTRIES)
 
@@ -113,7 +110,6 @@ class OnlinePlaylistViewModel @Inject constructor(
     private var proactiveLoadJob: Job? = null
 
     init {
-        // Fast sync restore from memory cache
         val cached = PlaylistMemoryCache.get(playlistId)
         if (cached != null) {
             playlist.value = cached.playlist
@@ -131,7 +127,7 @@ class OnlinePlaylistViewModel @Inject constructor(
                 _isLoading.value = true
             }
             _error.value = null
-            proactiveLoadJob?.cancel() // Cancel any ongoing proactive load
+            proactiveLoadJob?.cancel()
 
             YouTube.playlist(playlistId)
                 .onSuccess { playlistPage ->
@@ -165,11 +161,10 @@ class OnlinePlaylistViewModel @Inject constructor(
     }
 
     private fun startProactiveBackgroundLoading() {
-        proactiveLoadJob?.cancel() // Cancel previous job if any
+        proactiveLoadJob?.cancel()
         proactiveLoadJob = viewModelScope.launch(Dispatchers.IO) {
             var currentProactiveToken = continuation
             while (currentProactiveToken != null && isActive) {
-                // If a manual loadMore is happening, pause proactive loading
                 if (_isLoadingMore.value) {
                     break 
                 }
@@ -194,18 +189,18 @@ class OnlinePlaylistViewModel @Inject constructor(
                         }
                     }.onFailure { throwable ->
                         reportException(throwable)
-                        currentProactiveToken = null // Stop proactive loading on error
+                        currentProactiveToken = null
                     }
             }
         }
     }
 
     fun loadMoreSongs() {
-        if (_isLoadingMore.value) return // Already loading more (manually)
+        if (_isLoadingMore.value) return
         
-        val tokenForManualLoad = continuation ?: return // No more songs to load
+        val tokenForManualLoad = continuation ?: return
 
-        proactiveLoadJob?.cancel() // Cancel proactive loading to prioritize manual scroll
+        proactiveLoadJob?.cancel()
         _isLoadingMore.value = true
 
         viewModelScope.launch(Dispatchers.IO) {
@@ -230,7 +225,6 @@ class OnlinePlaylistViewModel @Inject constructor(
                     reportException(throwable)
                 }.also {
                     _isLoadingMore.value = false
-                    // Resume proactive loading if there's still a continuation
                     if (continuation != null && isActive) {
                         startProactiveBackgroundLoading()
                     }
@@ -240,7 +234,7 @@ class OnlinePlaylistViewModel @Inject constructor(
 
     fun retry() {
         proactiveLoadJob?.cancel()
-        fetchInitialPlaylistData() // This will also restart proactive loading if applicable
+        fetchInitialPlaylistData()
     }
 
     private fun applySongFilters(songs: List<SongItem>): List<SongItem> {

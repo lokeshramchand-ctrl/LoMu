@@ -2,28 +2,8 @@ package com.lomu.app.eq.data
 
 import java.io.File
 
-/**
- * Parser for AutoEq ParametricEQ.txt files.
- * These files contain parametric EQ settings that can be applied to audio devices.
- *
- * File format:
- *   Preamp: -5.2 dB
- *   Filter 1: ON LSC Fc 105 Hz Gain 8.8 dB Q 0.70
- *   Filter 2: ON PK Fc 70 Hz Gain -6.7 dB Q 0.29
- *   ...
- *
- * Where:
- *   - LSC = Low Shelf
- *   - HSC = High Shelf
- *   - PK = Peaking filter
- *   - LPQ = Low Pass
- *   - HPQ = High Pass
- */
 object ParametricEQParser {
 
-    /**
-     * Parse a ParametricEQ file
-     */
     fun parseFile(file: File): ParametricEQ {
         if (!file.exists()) {
             throw IllegalArgumentException("File does not exist: ${file.absolutePath}")
@@ -32,16 +12,10 @@ object ParametricEQParser {
         return parseText(file.readText())
     }
 
-    /**
-     * Parse a ParametricEQ file from a path string
-     */
     fun parseFile(filePath: String): ParametricEQ {
         return parseFile(File(filePath))
     }
 
-    /**
-     * Parse ParametricEQ text content
-     */
     fun parseText(content: String): ParametricEQ {
         val lines = content.lines()
         var preamp = 0.0
@@ -53,12 +27,10 @@ object ParametricEQParser {
             if (trimmedLine.isEmpty()) continue
 
             when {
-                // Parse preamp line: "Preamp: -5.2 dB"
                 trimmedLine.startsWith("Preamp:", ignoreCase = true) -> {
                     preamp = parsePreamp(trimmedLine)
                 }
 
-                // Parse filter line: "Filter 1: ON LSC Fc 105 Hz Gain 8.8 dB Q 0.70"
                 trimmedLine.startsWith("Filter", ignoreCase = true) -> {
                     val band = parseFilterLine(trimmedLine)
                     if (band != null) {
@@ -66,7 +38,6 @@ object ParametricEQParser {
                     }
                 }
 
-                // Store other lines as metadata
                 else -> {
                     val parts = trimmedLine.split(":", limit = 2)
                     if (parts.size == 2) {
@@ -83,37 +54,24 @@ object ParametricEQParser {
         )
     }
 
-    /**
-     * Parse the preamp line
-     * Example: "Preamp: -5.2 dB"
-     */
     private fun parsePreamp(line: String): Double {
         val regex = Regex("""Preamp:\s*([-+]?\d+\.?\d*)\s*dB""", RegexOption.IGNORE_CASE)
         val match = regex.find(line)
         return match?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
     }
 
-    /**
-     * Parse a filter line
-     * Example: "Filter 1: ON LSC Fc 105 Hz Gain 8.8 dB Q 0.70"
-     */
     private fun parseFilterLine(line: String): ParametricEQBand? {
         try {
-            // Check if filter is ON
             if (!line.contains("ON", ignoreCase = true)) {
                 return null
             }
 
-            // Extract filter type (LSC, HSC, PK, LPQ, HPQ)
             val filterType = parseFilterType(line) ?: return null
 
-            // Extract frequency: "Fc 105 Hz"
             val frequency = parseValue(line, "Fc", "Hz") ?: return null
 
-            // Extract gain: "Gain 8.8 dB"
             val gain = parseValue(line, "Gain", "dB") ?: return null
 
-            // Extract Q factor: "Q 0.70"
             val q = parseValue(line, "Q", null) ?: return null
 
             return ParametricEQBand(
@@ -129,9 +87,6 @@ object ParametricEQParser {
         }
     }
 
-    /**
-     * Parse filter type from line
-     */
     private fun parseFilterType(line: String): FilterType? {
         return when {
             line.contains("LSC", ignoreCase = true) -> FilterType.LSC
@@ -143,10 +98,6 @@ object ParametricEQParser {
         }
     }
 
-    /**
-     * Parse a numeric value from the line
-     * Example: parseValue("... Fc 105 Hz ...", "Fc", "Hz") -> 105.0
-     */
     private fun parseValue(line: String, keyword: String, unit: String?): Double? {
         val unitPattern = if (unit != null) "\\s*$unit" else ""
         val regex = Regex("""$keyword\s+([-+]?\d+\.?\d*)$unitPattern""", RegexOption.IGNORE_CASE)
@@ -154,9 +105,6 @@ object ParametricEQParser {
         return match?.groupValues?.get(1)?.toDoubleOrNull()
     }
 
-    /**
-     * Convert ParametricEQ to a human-readable string
-     */
     fun toString(eq: ParametricEQ): String {
         val sb = StringBuilder()
         sb.appendLine("Preamp: ${eq.preamp} dB")
@@ -169,9 +117,6 @@ object ParametricEQParser {
         return sb.toString()
     }
 
-    /**
-     * Format ParametricEQ for export to file
-     */
     fun toFileFormat(eq: ParametricEQ): String {
         val sb = StringBuilder()
         sb.appendLine("Preamp: ${eq.preamp} dB")
@@ -186,41 +131,30 @@ object ParametricEQParser {
         return sb.toString()
     }
 
-    /**
-     * Validate a ParametricEQ profile
-     * Returns a list of validation error messages (empty list if valid)
-     */
     fun validate(eq: ParametricEQ): List<String> {
         val errors = mutableListOf<String>()
 
-        // Validate preamp
         if (eq.preamp < -50.0 || eq.preamp > 50.0) {
             errors.add("Preamp value ${eq.preamp} dB is out of range (-50 to +50 dB)")
         }
 
-        // Validate bands exist
         if (eq.bands.isEmpty()) {
             errors.add("EQ profile must have at least one band")
         }
 
-        // Validate number of bands
         if (eq.bands.size > ParametricEQ.MAX_BANDS) {
             errors.add("EQ profile has ${eq.bands.size} bands, maximum is ${ParametricEQ.MAX_BANDS}")
         }
 
-        // Validate each band
         eq.bands.forEachIndexed { index, band ->
-            // Validate frequency
             if (band.frequency <= 0.0 || band.frequency > 100000.0) {
                 errors.add("Band ${index + 1}: Frequency ${band.frequency} Hz is out of range (1 to 100000 Hz)")
             }
 
-            // Validate gain
             if (band.gain < -30.0 || band.gain > 30.0) {
                 errors.add("Band ${index + 1}: Gain ${band.gain} dB is out of range (-30 to +30 dB)")
             }
 
-            // Validate Q factor
             if (band.q <= 0.0 || band.q > 20.0) {
                 errors.add("Band ${index + 1}: Q factor ${band.q} is out of range (0.01 to 20)")
             }

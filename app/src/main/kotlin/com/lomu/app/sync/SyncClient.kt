@@ -40,26 +40,12 @@ data class SyncState(
     val lan: String = "",
 )
 
-/**
- * Talks to the LoMu server (the web app): sign-in with rotating tokens and incremental
- * document sync of likes and listening history. The wire format is shared with the web player
- * (see web/src/server/sync.ts).
- */
 @Singleton
 class SyncClient @Inject constructor(
     @ApplicationContext context: Context,
     private val database: MusicDatabase,
 ) {
     private val prefs = context.getSharedPreferences("lomu_sync", Context.MODE_PRIVATE)
-    /**
-     * The server's public name does not work from inside the home network: many routers cannot loop a connection back in,
-     * and with Cloudflare WARP on, the connection is tunnelled out and has to come back in from the internet. The server is
-     * reachable on private addresses though (a list, e.g. 10.10.10.136 and 192.168.1.17; set by hand in Settings or learned
-     * from the server), and its certificate is for the public name. So for the server's own host this resolver offers those
-     * addresses too: the ones that answer a quick TCP probe go first, then the public name, then the rest. TLS still uses the
-     * public name, so nothing about certificate checking is relaxed. Away from home the probes fail in ~0.5 s (in parallel,
-     * and remembered for 30 s) and the public name is used as before.
-     */
     val lanAwareDns: Dns = object : Dns {
         override fun lookup(hostname: String): List<InetAddress> {
             val system = runCatching { Dns.SYSTEM.lookup(hostname) }.getOrDefault(emptyList())
@@ -81,7 +67,6 @@ class SyncClient @Inject constructor(
 
     private val probeCache = java.util.concurrent.ConcurrentHashMap<String, Pair<Boolean, Long>>()
 
-    /** Which of [addresses] accept a TCP connection on [port] right now. Parallel, 500 ms each, cached for 30 s. */
     private fun probeAll(addresses: List<String>, port: Int): Set<String> {
         val now = System.currentTimeMillis()
         val result = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
@@ -100,12 +85,10 @@ class SyncClient @Inject constructor(
         return result
     }
 
-    /** The saved home addresses, validated (private ranges only), at most 4. */
     private fun homeAddresses(): List<String> = parseHomeAddresses(prefs.getString("lan", null))
 
     private fun parseHomeAddresses(v: String?): List<String> = parseHomeEntries(v).map { it.substringBefore(':') }.distinct()
 
-    /** Valid entries: a private IPv4 address, optionally with ":port" (the server container's own published port). At most 4. */
     private fun parseHomeEntries(v: String?): List<String> =
         (v ?: "").split(Regex("[\\s,;]+")).map { it.trim() }.filter { validEntry(it) }.distinct().take(4)
 
@@ -116,11 +99,6 @@ class SyncClient @Inject constructor(
         return isPrivateIpv4(e.substringBefore(':'))
     }
 
-    /**
-     * "http://10.10.10.136:4100" when a home entry has a port and answers a quick TCP probe: the phone then talks to the server
-     * directly, with no proxy and no certificate involved (cleartext is allowed only for the home addresses in the network
-     * security config). Null otherwise, and the public https address is used.
-     */
     private fun directBase(): String? {
         val entries = parseHomeEntries(prefs.getString("lan", null)).filter { it.contains(':') }
         for (e in entries) {
@@ -147,7 +125,6 @@ class SyncClient @Inject constructor(
 
     val signedIn get() = prefs.getString("refresh", null) != null
 
-    /** A queue another device (web, desktop) was playing more recently than this phone; Home offers to continue it. */
     data class RemoteQueue(val device: String, val tracks: List<MediaMetadata>, val index: Int, val positionMs: Long, val at: Long)
 
     private val _remoteQueue = MutableStateFlow<RemoteQueue?>(null)
@@ -177,7 +154,6 @@ class SyncClient @Inject constructor(
         return http.newCall(b.build()).execute().use { r -> r.code to JSONObject(r.body?.string().orEmpty().ifBlank { "{}" }) }
     }
 
-    /** True for the LoMu server's own host name (the only one the LAN address applies to). */
     fun isServerHost(hostname: String): Boolean = runCatching { java.net.URI(publicBase()).host == hostname }.getOrDefault(false)
 
     private fun isPrivateIpv4(v: String): Boolean {
@@ -187,7 +163,6 @@ class SyncClient @Inject constructor(
         return a == 10 || (a == 172 && b in 16..31) || (a == 192 && b == 168) || (a == 100 && b in 64..127)
     }
 
-    /** Asks the server for its address on the home network (it advertises it to signed-in accounts) and remembers it. */
     private fun learnLan() {
         prefs.edit().putLong("lanTried", System.currentTimeMillis()).apply()
         runCatching {
@@ -200,10 +175,6 @@ class SyncClient @Inject constructor(
         }
     }
 
-    /**
-     * Sets the home network addresses by hand (comma separated, e.g. "10.10.10.136, 192.168.1.17"); an empty string clears them
-     * and lets the app learn them from the server again. Returns an error message, or null when saved.
-     */
     fun setLan(value: String): String? {
         val parts = value.split(Regex("[\\s,;]+")).map { it.trim() }.filter { it.isNotEmpty() }
         val bad = parts.filter { !validEntry(it) }
@@ -231,14 +202,12 @@ class SyncClient @Inject constructor(
         return true
     }
 
-    /** GET/POST with one transparent token refresh on 401. */
     private fun call(block: () -> Pair<Int, JSONObject>): Pair<Int, JSONObject> {
         var r = block()
         if (r.first == 401 && refresh()) r = block()
         return r
     }
 
-    /** Streaming GET for server-sent events (no timeouts, caller closes it). Renews the token once on 401. */
     fun openStream(path: String): okhttp3.Response {
         val c = http.newBuilder().callTimeout(0, TimeUnit.SECONDS).readTimeout(0, TimeUnit.SECONDS).build()
         fun req() = Request.Builder().url(base() + path).header("x-lomu-device", "android").header("Accept", "text/event-stream")
@@ -248,12 +217,6 @@ class SyncClient @Inject constructor(
         return r
     }
 
-    /**
-     * The server's own stream proxy for [id], with a bearer token that is good for at least a minute.
-     * Playback falls back to it when this phone cannot resolve a YouTube stream itself (bot checks, cipher
-     * changes, flaky mobile networks): the server does the resolving and the phone only plays the bytes.
-     * Blocking; call from an IO thread. Null when not signed in or the token cannot be renewed.
-     */
     fun streamFallback(id: String): Pair<String, String>? {
         if (!signedIn) return null
         val exp = runCatching {
@@ -265,10 +228,8 @@ class SyncClient @Inject constructor(
         return (base() + "/api/stream/" + id) to token
     }
 
-    /** Authenticated JSON POST that returns the HTTP status. */
     fun postAuthed(path: String, body: JSONObject): Int = call { post(path, body, auth = true) }.first
 
-    /** Quick reachability check for the sign-in screen: asks the server who it is. */
     suspend fun ping(url: String): Pair<Boolean, String> = withContext(Dispatchers.IO) {
         val u = url.trim().trimEnd('/')
         if (!u.startsWith("https://") && !u.startsWith("http://")) return@withContext false to "Start the address with https://"
@@ -298,8 +259,6 @@ class SyncClient @Inject constructor(
                 _state.value = _state.value.copy(busy = false, error = o.optString("error", "Sign-in failed ($code)"))
                 return@withContext
             }
-            // Another person's account signing in on this phone: what is stored here belongs to the previous one, and
-            // would be uploaded into the new account. That data is safe on the server under its own account.
             val previous = prefs.getString("dataOwner", null)
             if (previous != null && !previous.equals(user.trim(), ignoreCase = true)) {
                 database.delegate.clearAllTables()
@@ -322,21 +281,18 @@ class SyncClient @Inject constructor(
         _state.value = _state.value.copy(user = null, status = "Not signed in", error = null)
     }
 
-    /** Pull what other devices changed, then push our own changes. Safe to call often. */
     suspend fun sync() = lock.withLock {
         if (!signedIn) return@withLock
         withContext(Dispatchers.IO) {
             try {
                 _state.value = _state.value.copy(status = "Syncing…", busy = true, error = null)
-                if (prefs.getString("dataOwner", null) == null) prefs.getString("user", null)?.let { prefs.edit().putString("dataOwner", it).apply() } // installs from before accounts were separate
+                if (prefs.getString("dataOwner", null) == null) prefs.getString("user", null)?.let { prefs.edit().putString("dataOwner", it).apply() }
                 if (prefs.getString("lan", null) == null && System.currentTimeMillis() - prefs.getLong("lanTried", 0) > 6 * 3600_000L) learnLan()
-                // One-time repair of plays that earlier versions inserted twice (they inflated this phone's totals).
                 if (!prefs.getBoolean("evDedupe1", false)) {
                     database.deleteDuplicateEvents()
                     prefs.edit().putBoolean("evDedupe1", true).apply()
                 }
                 pull()
-                // Drain a large play backlog in batches.
                 for (i in 0 until 10) {
                     val before = prefs.getLong("lastEvent", 0)
                     push()
@@ -389,8 +345,6 @@ class SyncClient @Inject constructor(
                     if (song(id).first() == null) trackToMetadata(track)?.let { insert(it) }
                     if (song(id).first() != null) {
                         val at = LocalDateTime.ofInstant(Instant.ofEpochMilli(v.getLong("at")), ZoneId.systemDefault())
-                        // The play log is append-only and every play has a global id (instant + song), so applying
-                        // the same play twice (own writes echoed back, a re-pull after reinstall) must be a no-op.
                         if (eventExists(id, at) == 0) insert(Event(songId = id, timestamp = at, playTime = v.optLong("playedMs")))
                     }
                 }
@@ -398,16 +352,11 @@ class SyncClient @Inject constructor(
         }
     }
 
-    // ---- Playlists. Only the user's own (local, editable) playlists sync; the phone's database stays the
-    // source of truth, so everything works offline and a change made while the server is away is
-    // simply pushed on the next successful sync. `plSnap` remembers what the server last agreed on.
-
     private fun playlistSnapshot() = runCatching { JSONObject(prefs.getString("plSnap", null) ?: "{}") }.getOrDefault(JSONObject())
 
     private fun playlistSig(p: com.lomu.app.db.entities.PlaylistEntity, songs: List<com.lomu.app.db.entities.Song>) =
         p.name + "|" + songs.joinToString(",") { it.song.id }
 
-    /** id -> (playlist, its songs in order) for every playlist that takes part in sync. */
     private suspend fun syncedPlaylists(): List<Pair<String, Pair<com.lomu.app.db.entities.PlaylistEntity, List<com.lomu.app.db.entities.Song>>>> =
         database.playlists(com.lomu.app.constants.PlaylistSortType.CREATE_DATE, true).first()
             .filter { it.playlist.isLocal && it.playlist.isEditable && it.playlist.bookmarkedAt != null }
@@ -418,7 +367,6 @@ class SyncClient @Inject constructor(
         val snap = playlistSnapshot()
         val local = database.playlist(id).first()?.playlist
         val localSongs = if (local != null) database.playlistSongs(id).first().map { it.song } else emptyList()
-        // Edited on this phone since the last sync: keep ours, the push below sends it.
         if (local != null && snap.optString(id) != playlistSig(local, localSongs)) return
         if (d.optBoolean("deleted")) {
             if (local != null) database.withTransaction { delete(local) }
@@ -450,10 +398,6 @@ class SyncClient @Inject constructor(
         }
         prefs.edit().putString("plSnap", snap.toString()).apply()
     }
-
-    // ---- Saved albums, artists and YouTube playlists (the web's "Save" button). The phone's database
-    // stays the source of truth: a save or un-save made here while the server is away is pushed on the next
-    // successful sync, and `savedSnap` remembers what the server last agreed on (id -> kind).
 
     private class SavedNow(val kind: String, val item: JSONObject, val at: Long)
 
@@ -495,7 +439,6 @@ class SyncClient @Inject constructor(
         val id = d.getString("key")
         val snap = savedSnapshot()
         val ids = savedIdsCache ?: savedNow().keys.toMutableSet().also { savedIdsCache = it }
-        // Saved or removed on this phone since the last sync: keep ours, the push below sends it.
         if ((id in ids) != snap.has(id)) return
         if (d.optBoolean("deleted")) {
             database.withTransaction {
@@ -547,15 +490,9 @@ class SyncClient @Inject constructor(
         }
     }
 
-    // ---- Queue: one document ("current") holding what the most recent device was playing, so any other
-    // device can offer "continue where you left off". It is never applied automatically (that would cut
-    // off whatever is playing); Home shows it and the user taps to take it over.
-
-    /** Called by the player service whenever it saves its queue. Cheap; the next sync uploads it. */
     fun noteQueue(items: List<MediaMetadata>, index: Int, positionMs: Long, playing: Boolean) {
         if (!signedIn || items.isEmpty()) return
         val sig = index.toString() + ":" + items.joinToString(",") { it.id }
-        // A restored queue at app start has the same content as last time: do not call it fresh activity.
         if (sig == prefs.getString("queueSig", null) && !playing) return
         val from = if (items.size <= 100) 0 else (index - 10).coerceIn(0, items.size - 100)
         val tracks = JSONArray().also { a -> items.subList(from, minOf(items.size, from + 100)).forEach { a.put(metadataToTrack(it)) } }
@@ -582,12 +519,11 @@ class SyncClient @Inject constructor(
         val v = d.optJSONObject("value") ?: return
         if (v.optString("dev") == deviceId()) return
         val at = v.optLong("at")
-        if (at <= maxOf(prefs.getLong("queueAt", 0), prefs.getLong("queueSeenAt", 0))) return // ours, or already handled, is newer
+        if (at <= maxOf(prefs.getLong("queueAt", 0), prefs.getLong("queueSeenAt", 0))) return
         prefs.edit().putString("remoteQueue", v.toString()).apply()
         _remoteQueue.value = parseRemoteQueue(v)
     }
 
-    /** The user took the other device's queue over (or dismissed it): stop offering it. */
     fun dismissRemoteQueue() {
         val at = _remoteQueue.value?.at ?: return
         prefs.edit().remove("remoteQueue").putLong("queueSeenAt", at).apply()
@@ -598,7 +534,6 @@ class SyncClient @Inject constructor(
         val docs = JSONArray()
         val now = System.currentTimeMillis()
 
-        // Likes: diff against what the server last heard from us.
         val liked = database.likedSongs(SongSortType.CREATE_DATE, true).first()
         val likedIds = liked.map { it.song.id }.toSet()
         val before = prefs.getStringSet("liked", null)
@@ -610,21 +545,16 @@ class SyncClient @Inject constructor(
             before?.filter { it !in likedIds }?.forEach { docs.put(doc("like", it, null, now, true)) }
         }
 
-        // Plays: events newer than the last one pushed.
         val lastEvent = prefs.getLong("lastEvent", 0)
-        // Oldest first, in batches: the cursor only moves past what was sent, so a big backlog drains over a few
-        // syncs instead of the older plays being silently skipped (they never reached the web before).
         val events = database.events().first().filter { it.event.id > lastEvent }.sortedBy { it.event.id }.take(2000)
         events.forEach { e ->
             val at = e.event.timestamp.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
             val dur = e.song.song.duration * 1000L
-            // Plays imported from a Takeout history carry no song length: two minutes heard counts as finished.
             val completed = if (dur > 0) e.event.playTime >= dur * 0.85 else e.event.playTime >= 100_000
             val v = JSONObject().put("track", songToTrack(e.song)).put("at", at).put("playedMs", e.event.playTime)
                 .put("completed", completed).put("skipped", !completed && e.event.playTime < 30_000)
             docs.put(doc("play", "$at:${e.song.song.id}", v, at, false))
         }
-        // Blocked artists: diff against what the server last heard from us.
         val blockedNow = JSONObject(prefs.getString("blocked", null) ?: "{}")
         val blockBefore = prefs.getStringSet("blockSnap", null)
         blockedNow.keys().forEach { k ->
@@ -646,7 +576,6 @@ class SyncClient @Inject constructor(
         }
         plSnap.keys().forEach { id -> if (id !in plNow) docs.put(doc("playlist", id, null, now, true)) }
 
-        // Saved albums / artists / playlists: diff against what the server last heard from us.
         val savedSnap = savedSnapshot()
         val savedCur = savedNow()
         savedCur.forEach { (id, sv) ->
@@ -655,7 +584,6 @@ class SyncClient @Inject constructor(
         savedSnap.keys().forEach { id -> if (id !in savedCur) docs.put(doc("saved", id, null, now, true)) }
         val savedSigs = JSONObject().also { o -> savedCur.forEach { (id, sv) -> o.put(id, sv.kind) } }
 
-        // The queue this phone is playing (see noteQueue).
         val queueAt = prefs.getLong("queueAt", 0)
         val queueJson = prefs.getString("queueJson", null)
         val queueDue = queueJson != null && queueAt > prefs.getLong("queuePushedAt", 0)
@@ -666,19 +594,14 @@ class SyncClient @Inject constructor(
         if (code != 200) error("push failed ($code)")
         prefs.edit().putString("plSnap", plSigs.toString()).putString("savedSnap", savedSigs.toString())
             .apply { if (queueDue) putLong("queuePushedAt", queueAt) }.apply()
-        // Our own writes are the next seq numbers; skip them so they are not pulled back.
         val seq = prefs.getLong("seq", 0)
         val edit = prefs.edit().putStringSet("liked", likedIds).putStringSet("blockSnap", blockKeys).putLong("lastEvent", events.lastOrNull()?.event?.id ?: lastEvent)
         if (o.optLong("seq") - seq == o.optLong("applied")) edit.putLong("seq", o.getLong("seq"))
         edit.apply()
     }
 
-    /** [why] maps a track id to its "why this song?" line (mixes only). */
     data class RecShelf(val title: String, val subtitle: String?, val tracks: List<MediaMetadata>, val why: Map<String, String> = emptyMap())
 
-    // ---- Artists the user never wants recommended: lower-case name -> {name, at}, kept in prefs and synced as 'block' docs.
-
-    /** The blocked artists (lower-case names). Home watches this, so blocking takes effect on screen at once. */
     val blocked = kotlinx.coroutines.flow.MutableStateFlow<Set<String>>(blockedArtists().keys)
 
     fun blockedArtists(): Map<String, String> = runCatching {
@@ -711,22 +634,15 @@ class SyncClient @Inject constructor(
         writeBlocked(o)
     }
 
-    /** Short fingerprint of the block list: part of every cache key, so blocking an artist rebuilds the day's mixes. */
     private fun blockSig(b: Set<String>): String {
         var h = 5381
         for (c in b.sorted().joinToString("|")) h = (h shl 5) + h + c.code
         return if (b.isEmpty()) "0" else Integer.toUnsignedString(h, 36)
     }
 
-    /** Nothing by a blocked artist is ever shown, whatever an older cached shelf holds. */
     fun hideBlocked(shelves: List<RecShelf>, blocked: Set<String>): List<RecShelf> =
         if (blocked.isEmpty()) shelves else shelves.map { sh -> sh.copy(tracks = sh.tracks.filter { !blockedTrack(blocked, it) }) }.filter { it.tracks.isNotEmpty() }
 
-    /**
-     * Personalised shelves, computed on the phone from its own play log and likes (which sync keeps
-     * merged with the web player's). Candidates come from YouTube radio, so nothing here needs the
-     * homelab. The last good result is cached, so with no connection at all Home still shows it.
-     */
     suspend fun recs(): List<RecShelf> = withContext(Dispatchers.IO) {
         val cached = loadRecsCache()
         val built = runCatching { buildRecs() }.getOrNull()
@@ -742,12 +658,9 @@ class SyncClient @Inject constructor(
             val m = trackToMetadata(songToTrack(s)) ?: return@mapNotNull null
             LikeDoc(m, s.song.likedDate?.atZone(ZoneId.systemDefault())?.toInstant()?.toEpochMilli() ?: System.currentTimeMillis())
         }
-        // Newest plays first by their own time, not by row order: rows are inserted in the order sync delivers them, so an
-        // imported archive (inserted last) used to crowd the recent plays out of the first 12,000, leaving On Repeat empty.
         val plays = database.events().first().sortedByDescending { it.event.timestamp }.take(40000).mapNotNull { e ->
             val m = trackToMetadata(songToTrack(e.song)) ?: return@mapNotNull null
             val dur = e.song.song.duration * 1000L
-            // Plays imported from a Takeout history carry no song length: two minutes heard counts as finished.
             val completed = if (dur > 0) e.event.playTime >= dur * 0.85 else e.event.playTime >= 100_000
             PlayDoc(m, e.event.timestamp.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(), e.event.playTime,
                 completed, !completed && e.event.playTime < 30_000)
@@ -757,7 +670,6 @@ class SyncClient @Inject constructor(
 
     private var autoplayAff: Triple<Long, Affinity, List<Pair<Slot, Affinity>>>? = null
 
-    /** Overall taste plus the taste of the current part of the day, for ranking autoplay. Rebuilt at most every 10 minutes: it reads the whole play log. */
     suspend fun autoplayAffinity(): Pair<Affinity, Affinity?>? {
         val now = System.currentTimeMillis()
         val cached = autoplayAff?.takeIf { now - it.first < 600_000 } ?: run {
@@ -793,7 +705,7 @@ class SyncClient @Inject constructor(
             val fresh = ranked.filter { t -> t.artists.all { it.name.lowercase() !in aff.knownArtists } }
             val discover = diversify(fresh, 1).take(20)
             if (discover.size >= 5) shelves.add(RecShelf("Discover", "Artists you have not played yet", discover))
-        } // else: offline, so return nothing and let recs() fall back to the cached full set
+        }
         return hideBlocked(shelves, aff.blocked)
     }
 
@@ -823,7 +735,6 @@ class SyncClient @Inject constructor(
 
     private fun shelvesJson(l: List<RecShelf>) = JSONArray().also { a -> l.forEach { a.put(shelfJson(it)) } }.toString()
 
-    /** Discover Weekly: one playlist a week of artists never played, kept until Monday (or a big history import, or a new block). */
     private suspend fun discoverWeeklyShelf(aff: Affinity): RecShelf? {
         val week = weekKey(System.currentTimeMillis())
         val key = "$week/${aff.playCount / 1000}/${blockSig(aff.blocked)}"
@@ -837,7 +748,6 @@ class SyncClient @Inject constructor(
         return shelf
     }
 
-    /** Repeat Rewind (history only) and the mood mixes (YouTube radios, built once a day). */
     private suspend fun momentsAndRewind(aff: Affinity): List<RecShelf> {
         val now = System.currentTimeMillis()
         val out = ArrayList<RecShelf>()
@@ -859,7 +769,6 @@ class SyncClient @Inject constructor(
         return out
     }
 
-    /** Morning / Afternoon / Evening / Late Night mixes from what is played in each part of the day; built once a day, ordered by "right now" when read. */
     private suspend fun timeOfDay(aff: Affinity, plays: List<PlayDoc>): List<RecShelf> {
         val now = System.currentTimeMillis()
         val key = dayKey(now) + "/" + (aff.playCount / 1000) + "/" + blockSig(aff.blocked)
@@ -889,18 +798,15 @@ class SyncClient @Inject constructor(
         return orderByNow(built, java.time.LocalTime.now().hour).map { RecShelf(it.title, it.subtitle, it.items, it.why) }
     }
 
-    /** Five themed mixes, built once per calendar day and kept. Each one is a taste cluster of the top tracks. */
     private suspend fun dailyPlaylists(aff: Affinity): List<RecShelf> {
-        // The day plus a history-size bucket and the block list: a big import or a new block rebuilds today's mixes.
         val day = dayKey(System.currentTimeMillis()) + "/" + (aff.playCount / 1000) + "/" + blockSig(aff.blocked)
         fun read() = shelvesFrom(prefs.getString("dailyMixes6", "[]"))
-        // A full set is kept for the day; a short one (radio failed for some seeds) is retried, at most every 10 minutes.
         val have = read()
         if (prefs.getString("dailyDay6", null) == day && have.size >= 5) return have
         if (have.isNotEmpty() && prefs.getString("dailyTryDay6", null) == day && System.currentTimeMillis() - prefs.getLong("dailyTryAt6", 0) < 600_000) return have
         prefs.edit().putString("dailyTryDay6", day).putLong("dailyTryAt6", System.currentTimeMillis()).apply()
         val cands = radios(aff.topTracks.take(20))
-        if (cands.values.all { it.isEmpty() }) return read() // offline: yesterday's set stays
+        if (cands.values.all { it.isEmpty() }) return read()
         val shelves = dailyMixes(aff, cands, day).map { RecShelf(it.title, it.subtitle, it.items, it.why) }
         if (shelves.isNotEmpty()) {
             prefs.edit().putString("dailyDay6", if (shelves.size >= 5) day else "").putString("dailyMixes6", shelvesJson(shelves)).apply()
@@ -954,7 +860,6 @@ class SyncClient @Inject constructor(
 }
 
 
-/** A message a person can act on, instead of the raw exception text (HTML error pages, TLS internals, stack-style messages). */
 fun friendlyError(e: Throwable?): String {
     val raw = e?.message.orEmpty()
     return when {

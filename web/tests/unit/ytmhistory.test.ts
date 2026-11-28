@@ -5,7 +5,6 @@ const cell = (product: string, id: string, title: string, channel: string, when:
   `<div class="outer-cell mdl-cell"><div class="mdl-grid"><div class="header-cell"><p class="mdl-typography--title">${product}<br></p></div>` +
   `<div class="content-cell">Watched <a href="https://music.youtube.com/watch?v=${id}">${title}</a><br>` +
   `<a href="https://www.youtube.com/channel/UC1">${channel}</a><br>${when}<br></div></div></div>`;
-// Takeout lists newest first.
 const page = (...cells: string[]) => `<html><body>${cells.join('')}</body></html>`;
 const T = (min: number, sec = 0) => `Nov 19, 2026, 8:${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')} AM IST`;
 
@@ -22,13 +21,13 @@ describe('parseWatchHistory', () => {
   it('keeps only YouTube Music, drops Unknown titles, cleans the artist, and infers listening from gaps', () => {
     const plays = parseWatchHistory(
       page(
-        cell('YouTube Music', 'dddddddddd4', 'Last &amp; Found', 'Artist D - Topic', T(40)), // newest, end of session: finished
-        cell('YouTube', 'xxxxxxxxxx0', 'A video', 'Some Channel', T(30)), // plain YouTube: ignored
+        cell('YouTube Music', 'dddddddddd4', 'Last &amp; Found', 'Artist D - Topic', T(40)),
+        cell('YouTube', 'xxxxxxxxxx0', 'A video', 'Some Channel', T(30)),
         cell('YouTube Music', 'cccccccccc3', 'Gone', 'Artist C - Topic', T(19)),
-        cell('YouTube Music', 'uuuuuuuuuu9', 'Unknown', 'Nobody - Topic', T(15)), // unavailable: dropped
-        cell('YouTube Music', 'bbbbbbbbbb2', 'Half', 'Artist B', T(18, 10)), // next song 50s later: partial
-        cell('YouTube Music', 'aaaaaaaaaa1', 'Skipped', 'Artist A - Topic', T(18, 0)), // next song 10s later: skipped
-        cell('YouTube Music', 'aaaaaaaaaa1', 'Skipped', 'Artist A - Topic', T(18, 0)), // exact duplicate
+        cell('YouTube Music', 'uuuuuuuuuu9', 'Unknown', 'Nobody - Topic', T(15)),
+        cell('YouTube Music', 'bbbbbbbbbb2', 'Half', 'Artist B', T(18, 10)),
+        cell('YouTube Music', 'aaaaaaaaaa1', 'Skipped', 'Artist A - Topic', T(18, 0)),
+        cell('YouTube Music', 'aaaaaaaaaa1', 'Skipped', 'Artist A - Topic', T(18, 0)),
       ),
     );
     expect(plays.map((p) => p.track.id)).toEqual(['aaaaaaaaaa1', 'bbbbbbbbbb2', 'cccccccccc3', 'dddddddddd4']);

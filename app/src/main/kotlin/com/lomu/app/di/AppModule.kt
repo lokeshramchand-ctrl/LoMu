@@ -1,8 +1,3 @@
-/**
- * BeatWave Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
- */
-
 package com.lomu.app.di
 
 import android.content.Context
@@ -44,13 +39,6 @@ object AppModule {
         database: InternalDatabase,
     ) = database.dao
 
-    // Both of these come from InternalDatabase.newInstance, which is the ONLY
-    // place the builder is configured. This provider used to run its own bare
-    // Room.databaseBuilder(...).build() on the same DB_NAME — no addMigrations,
-    // no destructive fallback. Whichever builder opened song.db first won, so on
-    // a schema upgrade the app crashed with "A migration from 35 to 36 was
-    // required but not found" whenever this one got there first, and migrated
-    // fine when the configured one did. That race is why it looked intermittent.
     @Singleton
     @Provides
     fun provideDatabase(

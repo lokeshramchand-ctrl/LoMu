@@ -1,6 +1,3 @@
-// Auto-update end to end on the INSTALLED app: starts the installed (older) version, lets it find the newest GitHub
-// release, download it, accept "Restart now", and checks that the installed program became the new version.
-// Run it after a new release was published while an older version is installed.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -13,7 +10,6 @@ const c = await launch('profile-update', { fresh: true });
 const { app, ud } = c;
 
 await step('installed app finds the newer release and downloads it', async () => {
-  // From here a "restart now" answer is given to the update dialog (the app itself then calls quitAndInstall).
   await app.evaluate(({ dialog }) => {
     dialog.showMessageBox = async (...a) => { globalThis.__dialogs.push(a.map((x) => x && x.message).filter(Boolean).join(' | ')); return { response: 0 }; };
   });
@@ -23,7 +19,6 @@ await step('installed app finds the newer release and downloads it', async () =>
     try {
       dialogs = await app.evaluate(() => globalThis.__dialogs);
     } catch {
-      // The app closed itself: that is what "Restart now" does (quitAndInstall), so the prompt had been answered.
       return dialogs.find((d) => /is ready/.test(d)) || 'app quit to install the update';
     }
     if (dialogs.some((d) => /is ready/.test(d))) { await sleep(2000); continue; }
@@ -44,7 +39,6 @@ await step('after "Restart now" the installed program is the new version', async
   return `${before} -> ${now}`;
 });
 
-// The installer starts the new version again (with the normal data folder): stop it, this was only a test.
 await sleep(6000);
 execFileSync('powershell', ['-NoProfile', '-Command', "Get-Process LoMu -ErrorAction SilentlyContinue | Stop-Process -Force"]);
 await sleep(2000);

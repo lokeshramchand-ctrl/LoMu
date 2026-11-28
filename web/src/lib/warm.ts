@@ -1,8 +1,5 @@
 'use client';
 
-/* Pre-resolves a song's audio stream on the server (YouTube lookup, signature, checks) so that
-   pressing play only has to start downloading. Hovering, touching or focusing a song warms it. */
-
 const done = new Map<string, number>();
 const TTL = 20 * 60_000;
 
@@ -15,7 +12,6 @@ export function warm(id: string | undefined) {
   fetch(`/api/stream/${encodeURIComponent(id)}?warm=1`).catch(() => done.delete(id));
 }
 
-/** Spread onto any element that plays a song. Waits a beat so a mouse passing over does not warm everything. */
 export function warmProps(id: string | undefined) {
   let t: ReturnType<typeof setTimeout> | undefined;
   return {

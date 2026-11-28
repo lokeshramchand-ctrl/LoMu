@@ -1,8 +1,3 @@
-/**
- * BeatWave Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
- */
-
 package com.lomu.app.playback.queues
 
 import androidx.media3.common.MediaItem
@@ -25,8 +20,6 @@ class YouTubeQueue(
         return withContext(IO) {
             var lastException: Throwable? = null
             
-            // If playing a single track without an explicit playlist, attach the automix radio playlist ID
-            // so YouTube automatically generates a personalized queue of similar genre tracks
             if (endpoint.playlistId == null && endpoint.videoId != null) {
                 endpoint = WatchEndpoint(
                     videoId = endpoint.videoId,
@@ -43,7 +36,6 @@ class YouTubeQueue(
 
                     val items = nextResult.items.map { it.toMediaItem() }.toMutableList()
 
-                    // If YouTube only returned the single requested song, supplement with related tracks of the same genre
                     if (items.size <= 1) {
                         nextResult.relatedEndpoint?.let { relatedEndpoint ->
                             try {
@@ -53,7 +45,6 @@ class YouTubeQueue(
                                     items.addAll(relatedItems.filter { it.mediaId !in existingIds })
                                 }
                             } catch (_: Exception) {
-                                // Non-fatal fallback
                             }
                         }
                     }
@@ -94,7 +85,7 @@ class YouTubeQueue(
                     lastException = e
                     retryCount++
                     if (retryCount >= maxRetries) {
-                        continuation = null // Stop trying to load more
+                        continuation = null
                     }
                 }
             }
@@ -103,10 +94,6 @@ class YouTubeQueue(
     }
 
     companion object {
-        /**
-         * Creates a radio queue based on a song.
-         * Uses RDAMVM playlistId so YouTube generates an infinite automix of songs of the same type and genre.
-         */
         fun radio(song: MediaMetadata): YouTubeQueue {
             return YouTubeQueue(
                 WatchEndpoint(

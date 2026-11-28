@@ -2,7 +2,6 @@ export type ImportRef = { id?: string; title?: string; artist?: string };
 
 export type TakeoutList = { name: string; liked: boolean; refs: ImportRef[] };
 
-/** Minimal RFC 4180 CSV parser (quoted fields, escaped quotes, CRLF). */
 export function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -29,13 +28,12 @@ export function parseCsv(text: string): string[][] {
   return rows;
 }
 
-/** Turns one Takeout CSV into a list of songs, or null when it holds none (e.g. playlists.csv). */
 export function parseTakeoutFile(fileName: string, text: string): TakeoutList | null {
   const rows = parseCsv(text);
   if (rows.length < 2) return null;
   const head = rows[0].map((h) => h.trim().toLowerCase());
   const col = (re: RegExp) => head.findIndex((h) => re.test(h));
-  if (col(/^playlist id$/) >= 0) return null; // the playlist index, not a list of songs
+  if (col(/^playlist id$/) >= 0) return null;
   const idCol = col(/^video id$/);
   const titleCol = col(/^song title$|^title$/);
   const artistCol = col(/^artist name 1$|^artist$/);

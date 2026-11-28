@@ -3,11 +3,6 @@ import { userCount } from '@/server/auth';
 
 export const dynamic = 'force-dynamic';
 
-/**
- * Liveness for Uptime Kuma and the container health check. Anonymous on purpose, so it reveals only what a monitor needs:
- * that the process is up, that the database answers, which build is running and how many accounts exist.
- * 200 when healthy, 503 when the database does not answer.
- */
 export async function GET() {
   let dbOk = true;
   let accounts = 0;

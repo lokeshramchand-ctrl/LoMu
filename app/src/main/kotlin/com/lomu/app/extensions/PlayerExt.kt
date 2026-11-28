@@ -1,8 +1,3 @@
-/**
- * BeatWave Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
- */
-
 package com.lomu.app.extensions
 
 import androidx.media3.common.C
@@ -23,8 +18,6 @@ fun Player.togglePlayPause() {
     if (!playWhenReady) {
         when (playbackState) {
             Player.STATE_IDLE -> prepare()
-            // Queue ran out: playWhenReady=true alone won't restart playback from
-            // STATE_ENDED, so the play button would silently do nothing.
             Player.STATE_ENDED -> seekTo(currentMediaItemIndex, 0)
             else -> {}
         }

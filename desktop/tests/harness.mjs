@@ -1,4 +1,3 @@
-// Shared helpers for the desktop end-to-end tests. Drives the real (installed or unpacked) app with Playwright's Electron support.
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -12,11 +11,10 @@ export const { _electron } = require('@playwright/test');
 export const EXE = process.env.LOMU_EXE || path.join(process.env.LOCALAPPDATA, 'Programs', 'LoMu', 'LoMu.exe');
 export const OUT = process.env.LOMU_TEST_DIR || path.join(os.tmpdir(), 'lomu-desktop-tests');
 export const DNSMAP = path.join(here, 'dnsmap.cjs');
-// Simulates "no internet" for the app's own server: its outgoing requests go to a dead proxy.
 export const OFFLINE = { HTTPS_PROXY: 'http://127.0.0.1:9', HTTP_PROXY: 'http://127.0.0.1:9', NODE_USE_ENV_PROXY: '1', NO_PROXY: '127.0.0.1,localhost' };
 export const HUB_URL = 'https://lomu.deploy-ui.lokeshrc.me';
 export const HUB_USER = process.env.LOMU_HUB_USER || 'admin';
-export const HUB_PASS = process.env.LOMU_HUB_PASS || ''; // set LOMU_HUB_PASS to the test account's password; never commit it
+export const HUB_PASS = process.env.LOMU_HUB_PASS || '';
 fs.mkdirSync(OUT, { recursive: true });
 
 export const results = [];
@@ -42,12 +40,10 @@ export function summary() {
   return bad.length;
 }
 
-/** Launches the app on its own data folder. Returns { app, page, problems, ud, api }. */
 export async function launch(name, { env = {}, fresh = false } = {}) {
   const ud = path.join(OUT, name);
   if (fresh) fs.rmSync(ud, { recursive: true, force: true });
   const app = await _electron.launch({ executablePath: EXE, args: ['--user-data-dir=' + ud], env: { ...process.env, ...env } });
-  // Never let a native dialog (update ready, errors) block a test; keep what they said.
   await app.evaluate(({ dialog }) => {
     globalThis.__dialogs = [];
     dialog.showMessageBox = async (...a) => { globalThis.__dialogs.push(a.map((x) => x && (x.message || x.detail)).filter(Boolean).join(' | ')); return { response: 1 }; };
@@ -77,7 +73,6 @@ export async function quit(app) {
   await sleep(1500);
 }
 
-/** Hub (home server) helpers, talking to it directly with the temporary admin login. */
 export async function hubLogin() {
   const r = await fetch(HUB_URL + '/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json', 'x-lomu-device': 'desktop-e2e' }, body: JSON.stringify({ username: HUB_USER, password: HUB_PASS }) });
   if (!r.ok) throw new Error('hub login ' + r.status);

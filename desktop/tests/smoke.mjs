@@ -1,7 +1,3 @@
-// Packaging smoke test, run by CI on the freshly built app before anything is published: the app must start, its local
-// server must load its dependencies (a missing node_modules once shipped a build where every catalogue request failed),
-// and the main pages must render. Does not need YouTube to be reachable.
-//   LOMU_EXE=desktop/dist/win-unpacked/LoMu.exe node desktop/tests/smoke.mjs
 import fs from 'node:fs';
 import path from 'node:path';
 import { expect, launch, quit, results, sleep, step, summary } from './harness.mjs';
@@ -24,7 +20,6 @@ for (const p of ['/', '/search', '/explore', '/library', '/settings']) {
 }
 
 await step('API routes load their dependencies (youtubei.js, sqlite, canvas)', async () => {
-  // Whatever YouTube answers, the server must not fail to load code.
   await api('/api/search?q=test');
   await api('/api/home');
   await api('/api/stream/dQw4w9WgXcQ?warm=1');

@@ -5,8 +5,6 @@ import os from 'node:os';
 import path from 'node:path';
 import type { AddressInfo } from 'node:net';
 
-/* The desktop app's Connect calls must land on the hub (where the phone is), and fall back to the local relay when the hub is away. */
-
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lomu-hubconnect-test-'));
 let srv: http.Server;
 let up = true;

@@ -1,8 +1,3 @@
-/**
- * BeatWave Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
- */
-
 package com.lomu.app.playback
 
 import android.app.Notification
@@ -77,9 +72,6 @@ class ExoDownloadService : DownloadService(
         ).build()
 
 
-    /**
-     * This helper will outlive the lifespan of a single instance of [ExoDownloadService]
-     */
     class TerminalStateNotificationHelper(
         private val context: Context,
         private val notificationHelper: DownloadNotificationHelper,
@@ -91,10 +83,6 @@ class ExoDownloadService : DownloadService(
             finalException: Exception?,
         ) {
             if (download.state == Download.STATE_FAILED) {
-                // Name the reason, not just the song. "Download failed" on its own is
-                // what made the "half my songs don't download" reports impossible to act
-                // on — a region block, a dead stream URL and a dropped connection all
-                // looked identical.
                 val title = Util.fromUtf8Bytes(download.request.data)
                 val reason = finalException?.message?.takeIf { it.isNotBlank() }
                 val notification = notificationHelper.buildDownloadFailedNotification(

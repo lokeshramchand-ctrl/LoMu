@@ -1,41 +1,25 @@
 import type { PlayLike } from './insights';
 import type { Track } from './types';
 
-/* Sleep detection from the play log (pure, unit-tested).
-
-   Falling asleep with the queue running leaves a clear trace: a long run of songs that each played to the end,
-   back to back, with no skip, pause or search in between. The run starts at the last thing you did on purpose
-   and ends at the next one. So the log alone tells us (roughly) when you dropped off and for how long the
-   queue kept going, with no extra tracking and no microphone or motion sensor. It is an estimate, and the UI says so:
-   people take a few minutes to fall asleep, and a run can also be a long work session. */
-
 export type SleepPlay = PlayLike & { skipped?: boolean };
 
 export type SleepSession = {
-  /** When the run began: the last time you started a song yourself. */
   start: number;
-  /** When the music stopped or you took over again. */
   end: number;
   plays: SleepPlay[];
-  /** Estimated moment you fell asleep (start + typical time to nod off, or your own correction). */
   asleepFrom: number;
-  /** The song you were most likely still hearing when you dozed off. */
   lastAwake: Track;
-  /** Index into `plays` of that song. */
   lastAwakeIndex: number;
-  /** Estimated time asleep, in ms. */
   asleepMs: number;
   confidence: 'high' | 'medium' | 'low';
-  /** True when you set the last remembered song yourself. */
   corrected: boolean;
 };
 
 const MIN = 60_000;
-export const MIN_RUN_MS = 75 * MIN; // shorter than this is just a long listen
+export const MIN_RUN_MS = 75 * MIN;
 export const MIN_RUN_SONGS = 10;
-const NODDING_OFF_MS = 15 * MIN; // typical time between the last deliberate action and sleep
+const NODDING_OFF_MS = 15 * MIN;
 
-/** Is `b` the song that followed `a` on its own? Allows for buffering, and for logs stamped at the start or the end of a song. */
 export function followsOn(a: SleepPlay, b: SleepPlay): boolean {
   if (!a.completed || b.skipped) return false;
   const delta = b.at - a.at;
@@ -48,10 +32,6 @@ const isNight = (t: number) => {
   return h >= 21 || h < 9;
 };
 
-/**
- * Finds the runs that look like sleeping, newest first. `anchors` maps a run's start time to the `at` of the play the
- * user said was the last one they remembered; that replaces the guess.
- */
 export function detectSleep(history: SleepPlay[], anchors: Record<string, number> = {}): SleepSession[] {
   const plays = [...history].sort((a, b) => a.at - b.at);
   const out: SleepSession[] = [];
@@ -102,7 +82,6 @@ function session(run: SleepPlay[], start: number, end: number, anchor?: number):
   return { start, end, plays: run, asleepFrom, lastAwake: run[lastAwakeIndex].track, lastAwakeIndex, asleepMs: Math.max(0, end - asleepFrom), confidence, corrected };
 }
 
-/** Human duration: "7h 20m", "45m". */
 export function formatSpan(ms: number): string {
   const m = Math.round(ms / MIN);
   if (m < 60) return `${m}m`;

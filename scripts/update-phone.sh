@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Builds the debug APK and updates the app already on the connected phone in place
-# (adb install -r keeps its data and sign-in). Safe to run by hand: scripts/update-phone.sh
-# Log: .git/phone-update.log when started from the pre-push hook.
 set -u
 cd "$(dirname "$0")/.."
 

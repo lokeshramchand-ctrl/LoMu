@@ -37,16 +37,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
 
-/** A song the "…" menu was opened for. [onRemove] adds a "Remove from …" entry (playlist rows, queue rows). */
 data class MenuTarget(val song: MediaMetadata, val removeLabel: String? = null, val onRemove: (() -> Unit)? = null)
 
-/** Opens the song menu. Provided by the root so any row can offer it. */
 val LocalTrackMenu = staticCompositionLocalOf<(MenuTarget) -> Unit> { {} }
 
-/**
- * The song menu, as in Apple Music / Spotify: Play Next, Add to Queue, Start Radio, Like, Add to Playlist,
- * Go to Album / Artist, Share. While this phone steers another device the queue actions go to that device.
- */
 @Composable
 fun TrackMenuSheet(target: MenuTarget, onDismiss: () -> Unit, onNavigate: (Screen) -> Unit) {
     val lo = LocalLo.current
@@ -63,7 +57,6 @@ fun TrackMenuSheet(target: MenuTarget, onDismiss: () -> Unit, onNavigate: (Scree
     val playlistsFlow = remember(db) { db?.playlists(PlaylistSortType.CREATE_DATE, true) ?: flowOf(emptyList()) }
     val playlists by playlistsFlow.collectAsState(emptyList())
     val liked = songRow?.song?.liked == true
-    // Search results carry no album, so look it up for "Go to Album".
     var album by remember(m.id) { mutableStateOf(m.album?.takeIf { it.id.isNotBlank() }?.let { it.id to it.title }) }
     LaunchedEffect(m.id) {
         if (album == null) {
@@ -73,7 +66,7 @@ fun TrackMenuSheet(target: MenuTarget, onDismiss: () -> Unit, onNavigate: (Scree
             if (found != null) album = found.id to found.name
         }
     }
-    var page by remember { mutableStateOf(0) } // 0 menu, 1 pick a playlist, 2 name a new playlist
+    var page by remember { mutableStateOf(0) }
     var name by remember { mutableStateOf("") }
 
     fun say(s: String) = Toast.makeText(ctx, s, Toast.LENGTH_SHORT).show()
@@ -103,7 +96,7 @@ fun TrackMenuSheet(target: MenuTarget, onDismiss: () -> Unit, onNavigate: (Scree
                     update(if (n.liked) n.copy(inLibrary = n.inLibrary ?: LocalDateTime.now()) else n)
                 }
             }
-            sync?.sync() // likes reach the other devices right away
+            sync?.sync()
         }
         done(if (liked) "Removed from Liked Songs" else "Added to Liked Songs")
     }
@@ -120,7 +113,7 @@ fun TrackMenuSheet(target: MenuTarget, onDismiss: () -> Unit, onNavigate: (Scree
                     dup = exists
                 }
             }
-            runCatching { sync?.sync() } // a failed sync (server off) is retried every minute
+            runCatching { sync?.sync() }
             done(if (dup) "Already in ${pl.playlist.name}" else "Added to ${pl.playlist.name}")
         }
     }
@@ -216,11 +209,10 @@ private fun MenuRow(icon: Ph, label: String, tint: Color? = null, sub: String? =
     }
 }
 
-/** Save / un-save an album as a bookmark (the web's "Save"): shows up in Library > Albums and syncs to the other devices. */
 suspend fun setAlbumSaved(db: com.lomu.app.db.MusicDatabase, page: com.music.innertube.pages.AlbumPage, saved: Boolean, sync: com.lomu.app.sync.SyncClient?) {
     withContext(Dispatchers.IO) {
         db.withTransaction {
-            insert(page) // adds the album row and its songs when missing
+            insert(page)
             album(page.album.browseId).first()?.album?.let { update(it.copy(bookmarkedAt = if (saved) LocalDateTime.now() else null)) }
         }
     }
@@ -240,7 +232,6 @@ suspend fun setArtistSaved(db: com.lomu.app.db.MusicDatabase, page: com.music.in
     runCatching { sync?.sync() }
 }
 
-/** A YouTube playlist kept as a link (not copied): it is opened from YouTube each time. */
 suspend fun setPlaylistSaved(db: com.lomu.app.db.MusicDatabase, rawId: String, name: String, thumb: String?, saved: Boolean, sync: com.lomu.app.sync.SyncClient?) {
     val id = rawId.removePrefix("VL")
     withContext(Dispatchers.IO) {
@@ -254,7 +245,6 @@ suspend fun setPlaylistSaved(db: com.lomu.app.db.MusicDatabase, rawId: String, n
     runCatching { sync?.sync() }
 }
 
-/** "Add to Library" for an album or playlist: keeps its songs as a playlist of your own. */
 suspend fun saveAsPlaylist(db: com.lomu.app.db.MusicDatabase, name: String, songs: List<MediaMetadata>) = withContext(Dispatchers.IO) {
     db.withTransaction {
         val pl = PlaylistEntity(name = name, bookmarkedAt = LocalDateTime.now(), isLocal = true, thumbnailUrl = songs.firstOrNull()?.thumbnailUrl)

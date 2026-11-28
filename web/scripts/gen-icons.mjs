@@ -1,5 +1,3 @@
-// Generates src/components/icons.ts from Phosphor (MIT). Run: node scripts/gen-icons.mjs
-// The paths are inlined so there is no runtime dependency; @phosphor-icons/core is a dev dependency only.
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -7,7 +5,6 @@ import { fileURLToPath } from 'node:url';
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const base = path.join(root, 'node_modules', '@phosphor-icons', 'core', 'assets');
 
-// key -> [weight, file]
 const MAP = {
   home: ['regular', 'house'],
   search: ['regular', 'magnifying-glass'],
@@ -74,7 +71,6 @@ const MAP = {
   bell: ['regular', 'bell'],
   cloud: ['regular', 'cloud-arrow-up'],
   pulse: ['regular', 'chart-line-up'],
-  // Spotify-style navigation: filled when active, bolder search, round add / saved marks, nav arrows
   homeFill: ['fill', 'house-fill'],
   searchBold: ['bold', 'magnifying-glass-bold'],
   libraryFill: ['fill', 'books-fill'],

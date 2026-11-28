@@ -1,20 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Production: the LoMu server is only reached over HTTPS. -->
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
     </base-config>
-    <!-- The server's own container on the home network (published port, plain HTTP). Only these two addresses; everything else stays HTTPS. -->
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="false">10.10.10.136</domain>
         <domain includeSubdomains="false">192.168.1.17</domain>
     </domain-config>
-    <!-- Debug-only: lets a debug build be MITM-inspected (PCAPdroid, mitmproxy) for
-         diagnosing network issues. Never applies to release builds regardless of
-         this block's presence — debug-overrides is only honored when the APK is
-         built with android:debuggable="true". -->
     <debug-overrides>
         <trust-anchors>
             <certificates src="user" />

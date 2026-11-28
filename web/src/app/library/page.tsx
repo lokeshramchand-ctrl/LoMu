@@ -25,7 +25,6 @@ const TABS: { id: Tab; label: string }[] = [
 export default function Library() {
   const params = useSearchParams();
   const [tab, setTab] = useState<Tab>('all');
-  // the sidebar links here with ?tab=liked
   useEffect(() => {
     const t = params.get('tab') as Tab | null;
     if (t && TABS.some((x) => x.id === t)) setTab(t);

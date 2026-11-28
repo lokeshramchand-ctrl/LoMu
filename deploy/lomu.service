@@ -12,18 +12,13 @@ Environment=NODE_ENV=production
 Environment=PORT=4100
 Environment=LOMU_DATA_DIR=/var/lib/lomu
 Environment=LOMU_CACHE_DIR=/var/cache/lomu
-# Cookies are only sent over HTTPS (nginx terminates TLS).
 Environment=LOMU_SECURE_COOKIES=1
-# Region used for YouTube's catalogue.
 Environment=LOMU_REGION=IN
-# Optional: require this code when creating the owner account the first time.
-# Put the real value in /etc/lomu.env instead of here.
 EnvironmentFile=-/etc/lomu.env
 ExecStart=/usr/bin/node node_modules/next/dist/bin/next start -p 4100 -H 127.0.0.1
 Restart=on-failure
 RestartSec=3
 
-# Hardening: the service only needs to write its own data and cache directories.
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true

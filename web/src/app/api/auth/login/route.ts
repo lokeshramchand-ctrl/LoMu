@@ -2,8 +2,7 @@ import { readJson } from '@/server/body';
 import { checkPassword, hasOwner, issueTokens, setAuthCookies } from '@/server/auth';
 import { clientIp, limiter } from '@/server/ratelimit';
 
-// Slow down guessing: per address and per account name, so neither one address nor many addresses can grind a password.
-const byIp = limiter(40, 10 * 60_000); // generous: behind a proxy chain several clients can share one address
+const byIp = limiter(40, 10 * 60_000);
 const byName = limiter(10, 10 * 60_000);
 
 export async function POST(req: Request) {

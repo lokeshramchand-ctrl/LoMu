@@ -18,18 +18,11 @@ import timber.log.Timber
 import java.io.File
 import java.util.concurrent.TimeUnit
 
-/**
- * Self-update from GitHub Releases (the repo is public). Every push builds an APK and publishes release `android-v<run>`;
- * this build knows its own run number (BuildConfig.BUILD_NUMBER) and installs a newer one. Builds made on a dev machine
- * have number 0 and never update themselves. The first install of an update asks once ("allow from this source");
- * after that, Android 12+ installs without a prompt where it can.
- */
 object AppUpdater {
     private const val RELEASES = "https://api.github.com/repos/lokeshramchand-ctrl/LoMu/releases?per_page=20"
     private const val EVERY_MS = 30 * 60_000L
     private val http = OkHttpClient.Builder().callTimeout(5, TimeUnit.MINUTES).build()
 
-    /** Looks for a newer build at most every 30 minutes and installs it; never while music is playing. */
     suspend fun check(context: Context, playing: () -> Boolean) = withContext(Dispatchers.IO) {
         if (BuildConfig.BUILD_NUMBER == 0 || playing()) return@withContext
         val prefs = context.getSharedPreferences("lomu_update", Context.MODE_PRIVATE)
@@ -49,7 +42,6 @@ object AppUpdater {
                 }
                 return@withContext
             }
-            // One attempt an hour per release, so a failing install does not loop.
             if (prefs.getString("tried", null) == tag && now - prefs.getLong("triedAt", 0) < 60 * 60_000L) return@withContext
             prefs.edit().putString("tried", tag).putLong("triedAt", now).apply()
             Timber.i("update: $tag found (this build ${BuildConfig.BUILD_NUMBER}), downloading")
@@ -103,7 +95,6 @@ object AppUpdater {
     }
 }
 
-/** Receives the installer's result: shows the system's confirm screen when it needs one, logs the rest. */
 class UpdateReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, -1)

@@ -1,8 +1,3 @@
-/**
- * BeatWave Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
- */
-
 package com.lomu.app.constants
 
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -17,26 +12,16 @@ import java.time.ZoneOffset
 import com.music.innertube.models.IpVersion
 
 val IsFirstRunKey = booleanPreferencesKey("isFirstRun")
-/** Set once, the first time the app ever runs — gates the donation prompt on "used for
- *  a while" rather than showing it to a brand new install. */
 val FirstLaunchTimestampKey = longPreferencesKey("firstLaunchTimestamp")
 val DonationPromptLastShownKey = longPreferencesKey("donationPromptLastShown")
 val DonationPromptDismissedKey = booleanPreferencesKey("donationPromptDismissed")
 val LastSeenChangelogVersionKey = stringPreferencesKey("lastSeenChangelogVersion")
 val AppIconKey = stringPreferencesKey("appIcon")
 
-/** JSON map of player-control slot -> user-supplied glyph. See ui/player/customize/PlayerIcons.kt. */
-/**
- * Long-press menus as a full-screen overlay (true) rather than a bottom sheet (false).
- * One switch for the whole app -- see OverlayMenu, which shares MenuState with
- * BottomSheetMenu so no call site knows which is in use.
- */
 val OverlayMenuStyleKey = booleanPreferencesKey("overlayMenuStyle")
 val PlayerIconsKey = stringPreferencesKey("playerIcons")
-/** JSON map of V2 player-control slot -> user-supplied glyph. Separate from [PlayerIconsKey]. */
 val V2PlayerIconsKey = stringPreferencesKey("v2PlayerIcons")
 
-/** JSON sticker arrangement drawn over the player. See ui/player/customize/DiyLayout.kt. */
 val DiyLayoutKey = stringPreferencesKey("diyLayout")
 val EnableHighRefreshRateKey = booleanPreferencesKey("enableHighRefreshRate")
 val DynamicThemeKey = booleanPreferencesKey("dynamicTheme")
@@ -88,15 +73,10 @@ enum class DensityScale(val value: Float, val label: String) {
 val DefaultOpenTabKey = stringPreferencesKey("defaultOpenTab")
 val SlimNavBarKey = booleanPreferencesKey("slimNavBar")
 val GridItemsSizeKey = stringPreferencesKey("gridItemSize")
-/** 0 = auto (GridColumnMinWidth-driven), else a fixed column count for every adaptive grid. */
 val GridColumnsOverrideKey = intPreferencesKey("gridColumnsOverride")
-/** Spacing between grid tiles, in dp. Drives GridItem's per-tile padding in Items.kt. */
 val GridSpacingKey = intPreferencesKey("gridSpacingDp")
-/** 0 = use the Big/Small toggle (GridItemsSizeKey), else an explicit card height in dp. */
 val GridCardHeightOverrideKey = intPreferencesKey("gridCardHeightOverrideDp")
-/** 0 = auto (width-tiered), else a fixed column count for the Home Speed Dial grid. */
 val SpeedDialColumnsOverrideKey = intPreferencesKey("speedDialColumnsOverride")
-/** Forces a flat black background (no blurred artwork) on Artist/Album/Playlist/Search hero screens. */
 val PureBlackHeroBackgroundKey = booleanPreferencesKey("pureBlackHeroBackground")
 val SliderStyleKey = stringPreferencesKey("sliderStyle")
 val SquigglySliderKey = booleanPreferencesKey("squigglySlider")
@@ -105,11 +85,7 @@ val SwipeToRemoveSongKey = booleanPreferencesKey("SwipeToRemoveSong")
 val UseNewPlayerDesignKey= booleanPreferencesKey("useNewPlayerDesign")
 val UseNewMiniPlayerDesignKey = booleanPreferencesKey("useNewMiniPlayerDesign")
 val ShowUpNextKey = booleanPreferencesKey("showUpNext")
-/** Tab view only: caps the expanded player to a phone-like width instead of stretching
- *  it across the wide screen. The mini player stays full-width either way. */
 val CompactPlayerInTabViewKey = booleanPreferencesKey("compactPlayerInTabView")
-/** Hides the heart/favorite badge on Home's song and album rows specifically —
- *  other screens (Library, search, playlists) are unaffected. */
 val HideHomeFavoriteIconKey = booleanPreferencesKey("hideHomeFavoriteIcon")
 val HidePlayerThumbnailKey = booleanPreferencesKey("hidePlayerThumbnail")
 val ThumbnailCornerRadiusKey = floatPreferencesKey("thumbnailCornerRadius")
@@ -144,18 +120,9 @@ val HideExplicitKey = booleanPreferencesKey("hideExplicit")
 val HideVideoSongsKey = booleanPreferencesKey("hideVideoSongs")
 val DataSaverEnabledKey = booleanPreferencesKey("dataSaverEnabled")
 
-// Local-only mode: one switch that rewires Home, Library and Search to the
-// on-device library. The screens and routes stay exactly where they are — only
-// what they read changes — so turning it off restores the normal app instantly.
-/**
- * Home's local Albums shelf ordered by release year (true) rather than A-Z.
- *
- * Year comes from the file's own tag via MediaStore; untagged albums sort last.
- */
 val LocalAlbumsByYearKey = booleanPreferencesKey("localAlbumsByYear")
 val LocalOnlyModeKey = booleanPreferencesKey("localOnlyMode")
-/** Folder paths (LocalFolderIndex.Folder.path) excluded from local scanning, joined by "". Empty = nothing excluded. */
-val LocalExcludedFoldersKey = stringPreferencesKey("localExcludedFolders") // delimiter-joined paths; see LocalFolderExclusion.kt
+val LocalExcludedFoldersKey = stringPreferencesKey("localExcludedFolders")
 val ListenBrainzEnabledKey = booleanPreferencesKey("listenbrainz_enabled")
 val ListenBrainzTokenKey = stringPreferencesKey("listenbrainz_token")
 val HideYoutubeShortsKey = booleanPreferencesKey("hideYoutubeShorts")
@@ -183,26 +150,18 @@ enum class AudioQuality {
 
 val AudioOffload = booleanPreferencesKey("enableOffload")
 
-// JioSaavn streaming
 val EnableSaavnStreamingKey = booleanPreferencesKey("enableSaavnStreaming")
 val SaavnAudioQualityKey    = stringPreferencesKey("saavnAudioQuality")
-/** On (default): a JioSaavn miss (no match, no stream URL) falls through to a normal
- *  YouTube fetch, so playback never just fails. Off: a miss fails the playback attempt
- *  instead, for a user who wants Saavn-or-nothing rather than a silent audio swap. */
 val SaavnFallbackToYouTubeKey = booleanPreferencesKey("saavnFallbackToYouTube")
-/** Circuit breaker: on forces the quality picked above no matter what — a lossless-capable
- *  Spine module or Tidal will never silently upgrade the stream to FLAC. Off (default) lets
- *  those sources win when enabled, same as before this switch existed. */
 val ForceSelectedQualityKey = booleanPreferencesKey("forceSelectedQuality")
 
-// Lossless (TIDAL via hifi-api). Opt-in, off by default. Streaming only for now.
 val EnableTidalStreamingKey = booleanPreferencesKey("enableTidalStreaming")
 val TidalQualityKey         = stringPreferencesKey("tidalQuality")
 val TidalInstanceUrlKey     = stringPreferencesKey("tidalInstanceUrl")
 
 enum class TidalQuality {
-    LOSSLESS,   // 16-bit/44.1kHz FLAC — direct URL, ships now
-    HI_RES;     // 24-bit — DASH, not wired yet (inert)
+    LOSSLESS,
+    HI_RES;
 
     fun toApiValue() = when (this) {
         LOSSLESS -> "LOSSLESS"
@@ -240,13 +199,10 @@ val ShuffleModeKey = booleanPreferencesKey("shuffleMode")
 val SkipSilenceKey = booleanPreferencesKey("skipSilence")
 val SkipSilenceInstantKey = booleanPreferencesKey("skipSilenceInstant")
 
-/** 8D audio: rotates the stereo image around the listener. Headphones only. */
 val EightDEnabledKey = booleanPreferencesKey("eightDEnabled")
 
-/** Orbits per second, see EightDAudioProcessor.MIN/MAX_ROTATION_HZ. */
 val EightDRotationHzKey = floatPreferencesKey("eightDRotationHz")
 
-/** How far toward each ear the image travels, 0..1. */
 val EightDDepthKey = floatPreferencesKey("eightDDepth")
 val AudioNormalizationKey = booleanPreferencesKey("audioNormalization")
 val AutoLoadMoreKey = booleanPreferencesKey("autoLoadMore")
@@ -296,21 +252,17 @@ val DiscordActivityTypeKey = stringPreferencesKey("discordActivityType")
 val DiscordActivityNameKey = stringPreferencesKey("discordActivityName")
 val DiscordAdvancedModeKey = booleanPreferencesKey("discordAdvancedMode")
 
-// Google Cast
 val EnableGoogleCastKey = booleanPreferencesKey("enableGoogleCast")
 
-// Listen Together
 val ListenTogetherServerUrlKey = stringPreferencesKey("listenTogetherServerUrl")
 val ListenTogetherUsernameKey = stringPreferencesKey("listenTogetherUsername")
 val EnableListenTogetherKey = booleanPreferencesKey("enableListenTogether")
 val ListenTogetherAutoApprovalKey = booleanPreferencesKey("listenTogetherAutoApproval")
-/** Host-side: land guests' track suggestions in the queue without asking. */
 val ListenTogetherAutoAddSuggestionsKey = booleanPreferencesKey("listenTogetherAutoAddSuggestions")
 val ListenTogetherSyncVolumeKey = booleanPreferencesKey("listenTogetherSyncVolume")
 val ListenTogetherSmartResyncKey = booleanPreferencesKey("listenTogetherSmartResync")
 val ListenTogetherBlockedUsersKey = stringPreferencesKey("listenTogetherBlockedUsers")
 val ListenTogetherInTopBarKey = booleanPreferencesKey("listenTogetherInTopBar")
-// Session persistence for reconnection
 val ListenTogetherSessionTokenKey = stringPreferencesKey("listenTogetherSessionToken")
 val ListenTogetherRoomCodeKey = stringPreferencesKey("listenTogetherRoomCode")
 val ListenTogetherUserIdKey = stringPreferencesKey("listenTogetherUserId")
@@ -363,14 +315,8 @@ val LastArtistSyncKey = longPreferencesKey("last_artist_sync")
 val LastPlaylistSyncKey = longPreferencesKey("last_playlist_sync")
 val LastFullSyncKey = longPreferencesKey("last_full_sync")
 
-/** browseIds the user deleted locally whose remote YouTube delete hasn't been
- *  confirmed gone yet — the playlist sync consults this so it doesn't
- *  resurrect a playlist the user just deleted while the remote delete is
- *  still in flight (or retried after a failure), and clears an id once the
- *  remote library listing no longer includes it. */
 val PendingPlaylistDeletesKey = stringSetPreferencesKey("pending_playlist_deletes")
 
-// Sync cooldown in seconds (30 minutes)
 const val SYNC_COOLDOWN = 30 * 60L
 
 val ArtistViewTypeKey = stringPreferencesKey("artistViewType")
@@ -576,7 +522,6 @@ enum class PlayerBackgroundStyle {
     CUSTOM_GRADIENT,
 }
 
-/** Shape + motion applied to the player artwork. */
 enum class PlayerArtworkStyle {
     CARD,
     VINYL,
@@ -586,7 +531,6 @@ enum class PlayerArtworkStyle {
 val PlayerArtworkStyleKey = stringPreferencesKey("playerArtworkStyle")
 val PlayerStaticColorKey = intPreferencesKey("playerStaticColor")
 
-/** Comma-separated ARGB ints; see ui/theme/PlayerGradient.kt for the codec. */
 val PlayerGradientStopsKey = stringPreferencesKey("playerGradientStops")
 val PlayerGradientAngleKey = floatPreferencesKey("playerGradientAngle")
 
@@ -630,11 +574,9 @@ val LyricsGlowEffectKey = booleanPreferencesKey("lyricsGlowEffect")
 val AppleMusicLyricsBlurKey = booleanPreferencesKey("appleMusicLyricsBlur")
 val LyricsStandardBlurKey = booleanPreferencesKey("lyricsStandardBlur")
 
-// Ambient Edge Glow (Fluid Glow V2)
 val AmbientEdgeGlowEnabledKey = booleanPreferencesKey("ambientEdgeGlowEnabled")
 val AmbientEdgeGlowIntensityKey = floatPreferencesKey("ambientEdgeGlowIntensity")
 
-// Always-On Display (AOD Mode)
 val AodModeEnabledKey = booleanPreferencesKey("aodModeEnabled")
 val AodAutoStartChargingKey = booleanPreferencesKey("aodAutoStartCharging")
 val AodPixelShiftEnabledKey = booleanPreferencesKey("aodPixelShiftEnabled")
@@ -646,19 +588,14 @@ val LiquidGlassTextColorKey = intPreferencesKey("liquidGlassTextColor")
 val LiquidGlassSurfaceTintColorKey = intPreferencesKey("liquidGlassSurfaceTintColor")
 val LiquidGlassSurfaceOpacityKey = floatPreferencesKey("liquidGlassSurfaceOpacity")
 
-/** Specular rim colour as an ARGB int. 0 = default white. */
-/** Which [com.lomu.app.ui.component.GlassStyle] every glass surface uses. */
 val LiquidGlassStyleKey = stringPreferencesKey("liquidGlassStyle")
 
-/** Selection puck wash colour as an ARGB int. 0 = adaptive to the theme. */
 val LiquidGlassPuckColorKey = intPreferencesKey("liquidGlassPuckColor")
 
-/** Selection puck wash opacity at rest, 0..1. */
 val LiquidGlassPuckOpacityKey = floatPreferencesKey("liquidGlassPuckOpacity")
 
 val LiquidGlassHighlightColorKey = intPreferencesKey("liquidGlassHighlightColor")
 
-/** Specular rim opacity, 0..1. */
 val LiquidGlassHighlightOpacityKey = floatPreferencesKey("liquidGlassHighlightOpacity")
 val LiquidGlassVibrancyKey = floatPreferencesKey("liquidGlassVibrancy")
 val LiquidGlassBlurRadiusKey = floatPreferencesKey("liquidGlassBlurRadius")
@@ -682,65 +619,28 @@ val PlayerLayoutOrderKey = stringPreferencesKey("playerLayoutOrder")
 val PlayerLayoutHiddenSlotsKey = stringPreferencesKey("playerLayoutHiddenSlots")
 val AutoDjMixingEnabledKey = booleanPreferencesKey("autoDjMixingEnabled")
 
-/** Off by default: Auto-DJ on its own means beatmatching and a transparent mix,
- *  which is what most listeners want. This adds loop rolls, echo tails and
- *  turntable brakes on transitions the engine judges would otherwise expose a
- *  seam. */
 val CreativeTransitionsEnabledKey = booleanPreferencesKey("creativeTransitionsEnabled")
-/** Off (default) = classic two-tap (open inline lyrics, then a separate tap to go fullscreen). On = one tap opens/closes fullscreen lyrics directly. */
 val OneTapFullscreenLyricsKey = booleanPreferencesKey("oneTapFullscreenLyrics")
-/** true (default) = player controls collapse upward (shrink toward the top) when entering full-screen lyrics; false = collapse downward. */
 val FullscreenLyricsCollapseTopKey = booleanPreferencesKey("fullscreenLyricsCollapseTop")
 val HideVolumeBarKey = booleanPreferencesKey("hideVolumeBar")
 val AppleMusicUiKey = booleanPreferencesKey("appleMusicUi")
-/** false (default) = simple iOS-style mini bar (thumbnail/title/seek bar/play/forward); true = multi-icon tab-style row. */
 val MiniBarTabStyleKey = booleanPreferencesKey("miniBarTabStyle")
 
-/** true (default) = Home's floating mic (sound search) + shuffle FAB pair shows; false = hidden. */
 val ShowHomeFabKey = booleanPreferencesKey("showHomeFab")
 
-/** 0 (default) = HomeHeroCard's normal 4:3 aspect-ratio height; else explicit dp height. */
 val HomeHeroCardHeightOverrideKey = intPreferencesKey("homeHeroCardHeightOverrideDp")
-/** 0 (default) = SpeedDialGridItem's normal square (height == tile width); else explicit dp height. */
 val SpeedDialCardHeightOverrideKey = intPreferencesKey("speedDialCardHeightOverrideDp")
-/** 0 (default) = each Home card's own default corner radius (12dp tiles, 28dp hero); else a shared dp radius applied to both. */
 val HomeCardCornerRadiusOverrideKey = intPreferencesKey("homeCardCornerRadiusOverrideDp")
 
-/**
- * The big hero card at the top of Home. Off by default: the vertical grid below
- * it shows the same content without spending a screen height on one track.
- */
 val HomeHeroCardEnabledKey = booleanPreferencesKey("homeHeroCardEnabled")
 
-/**
- * User's own Home section order: section ids, most-important first, newline separated.
- *
- * Stored as ids rather than indices so it survives sections being added, removed or
- * renamed between versions — an unknown id is ignored and a section missing from the
- * list falls back to its default weight, which means a release that adds a new section
- * does not scramble everyone's saved arrangement.
- *
- * Empty means "no custom order", which is distinct from "an order that happens to match
- * the default": clearing it re-enables the default weights for good.
- */
-/**
- * Newline-separated ids of Home sections the user switched off, same id space as
- * [HomeSectionOrderKey]. Absent means shown, so a section added by a later release
- * is visible by default rather than silently hidden.
- */
 val HomeSectionHiddenKey = stringPreferencesKey("homeSectionHidden")
 val HomeSectionOrderKey = stringPreferencesKey("homeSectionOrder")
 
-/** Show YouTube's mood/genre filter chips (Energize, Relax, Feel good) in Home's top bar. */
 val ShowHomeMoodFiltersKey = booleanPreferencesKey("showHomeMoodFilters")
 
-/** Columns in Home's vertical "Keep Listening" grid. 0 (default) = 2. */
 val HomeGridColumnsOverrideKey = intPreferencesKey("homeGridColumnsOverride")
 
-/**
- * Forces the tablet sidebar layout on a device that would otherwise get the
- * bottom bar, so the wide layout can be tried out on a phone.
- */
 val ForceTabletLayoutKey = booleanPreferencesKey("forceTabletLayout")
 
 val HomeBackgroundEnabledKey = booleanPreferencesKey("homeBackgroundEnabled")
@@ -749,31 +649,19 @@ val HomeBackgroundBlurKey = floatPreferencesKey("homeBackgroundBlur")
 val HomeBackgroundDimKey = floatPreferencesKey("homeBackgroundDim")
 val HomeBackgroundAnimateKey = booleanPreferencesKey("homeBackgroundAnimate")
 
-/** 0.3..1 scale of the device's own screen resolution used when storing a
- *  picked background image. 1 (default) = full screen resolution. */
 val HomeBackgroundQualityKey = floatPreferencesKey("homeBackgroundQuality")
 
-/**
- * App-wide background/text color, independent of Liquid Glass — applies to
- * Home's plain background (when no custom image is set) and the shared nav
- * chrome's fallback color when Liquid Glass is off. 0 (default) means
- * "unset": every call site keeps its exact current fallback color, so a user
- * who never touches this setting sees no change at all.
- */
 val AppBackgroundColorKey = intPreferencesKey("appBackgroundColor")
 val AppTextColorKey = intPreferencesKey("appTextColor")
 val LibraryBackgroundModeKey = stringPreferencesKey("libraryBackgroundMode")
-/** True when HomeBackgroundPathKey points at a video file instead of an image. */
 val HomeBackgroundIsVideoKey = booleanPreferencesKey("homeBackgroundIsVideo")
 val IosOverscrollKey = booleanPreferencesKey("iosOverscroll")
 
 val CustomFontEnabledKey = booleanPreferencesKey("customFontEnabled")
 val CustomFontPathKey = stringPreferencesKey("customFontPath")
 val CustomFontNameKey = stringPreferencesKey("customFontName")
-/** When on, the installed custom font renders only on artist names instead of app-wide. */
 val CustomFontArtistOnlyKey = booleanPreferencesKey("customFontArtistOnly")
 
-// 8spine Modules
 val ModuleSourcesKey = stringPreferencesKey("moduleSources")
 val EnabledModulesKey = stringPreferencesKey("enabledModules")
 val ModuleSettingsKey = stringPreferencesKey("moduleSettings")
@@ -834,7 +722,6 @@ val AccountEmailKey = stringPreferencesKey("accountEmail")
 val AccountChannelHandleKey = stringPreferencesKey("accountChannelHandle")
 val UseLoginForBrowse = booleanPreferencesKey("useLoginForBrowse")
 
-/** JSON array of SavedAccount (see SavedAccount.kt) — every channel seen at login, for instant tap-to-switch. */
 val SavedAccountsKey = stringPreferencesKey("savedAccounts")
 
 val LanguageCodeToName =

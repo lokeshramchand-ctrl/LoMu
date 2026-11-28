@@ -1,5 +1,3 @@
-// Offline run: the app's own server has no internet at all (run core.mjs first; it fills profile-a's caches).
-// What must keep working: everything that was seen before, the library, and songs that were listened to.
 import fs from 'node:fs';
 import path from 'node:path';
 import { OFFLINE, OUT, expect, launch, quit, results, sleep, step, summary } from './harness.mjs';

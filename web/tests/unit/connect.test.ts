@@ -18,7 +18,7 @@ describe('connect', () => {
     const snap = c.snapshot(1);
     expect(snap.devices.map((d) => d.id)).toEqual(expect.arrayContaining(['web-aaaaaaaa', 'and-bbbbbbbb']));
     expect(snap.active).toBe('web-aaaaaaaa');
-    expect(phone.got.at(-1)?.data.active).toBe('web-aaaaaaaa'); // controllers hear about it
+    expect(phone.got.at(-1)?.data.active).toBe('web-aaaaaaaa');
     web.off();
     phone.off();
   });

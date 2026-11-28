@@ -50,7 +50,6 @@ export default function Insights() {
   const anchors = useSleep((s) => s.anchors);
   const sessions = useMemo(() => detectSleep(history, anchors), [history, anchors]);
   const stats = useMemo(() => {
-    // Hours spent asleep with the queue running are not listening: keep them out of the charts and totals.
     const asleep = (p: { at: number }) => sessions.some((s) => p.at >= s.asleepFrom && p.at <= s.end);
     return deepStats(history, Date.now(), asleep);
   }, [history, sessions]);
@@ -130,8 +129,6 @@ export default function Insights() {
     </Bento>
   );
 }
-
-/* ---------------------------------------------------------------- sleep */
 
 function SleepTile({ sessions }: { sessions: SleepSession[] }) {
   const [open, setOpen] = useState<number | null>(0);

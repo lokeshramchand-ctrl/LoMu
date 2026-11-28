@@ -1,8 +1,3 @@
-/**
- * BeatWave Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
- */
-
 package com.lomu.app.db
 
 import android.annotation.SuppressLint
@@ -52,8 +47,6 @@ import java.time.ZoneOffset
 import java.util.Date
 
 class MusicDatabase(
-    // Not private: the Hilt module hands the same instance back out as
-    // InternalDatabase, so both bindings resolve to the one configured builder.
     val delegate: InternalDatabase,
 ) : DatabaseDao by delegate.dao {
     val speedDialDao: SpeedDialDao
@@ -78,9 +71,6 @@ class MusicDatabase(
             }
         }
 
-    // Room's own suspending transaction: queries made inside the block run on the transaction's thread. The
-    // old runInTransaction + runBlocking version held the main connection while waiting on a Flow query that
-    // needed that same connection, which wedged the whole database (sync stalled, no mixes could be built).
     suspend fun withTransaction(block: suspend MusicDatabase.() -> Unit) {
         delegate.roomTransaction { block(this@MusicDatabase) }
     }
@@ -194,8 +184,6 @@ abstract class InternalDatabase : RoomDatabase() {
             )
     }
 }
-
-// ===== Migrations =====
 
 val MIGRATION_1_2 =
     object : Migration(1, 2) {
@@ -406,9 +394,7 @@ val MIGRATION_1_2 =
 val MIGRATION_21_24 =
     object : Migration(21, 24) {
         override fun migrate(db: SupportSQLiteDatabase) {
-            // Combine all changes from 21→22→23→24
             
-            // From 21→22: Add columns
             try {
                 db.execSQL("ALTER TABLE song ADD COLUMN libraryAddToken TEXT DEFAULT ''")
             } catch (e: Exception) {
@@ -430,7 +416,6 @@ val MIGRATION_21_24 =
                 Timber.tag("Migration").w("Column isDownloaded may already exist")
             }
 
-            // From 23→24: Add isUploaded
             var hasIsUploaded = false
             db.query("PRAGMA table_info('song')").use { cursor ->
                 val nameIndex = cursor.getColumnIndex("name")
@@ -452,7 +437,6 @@ val MIGRATION_21_24 =
 val MIGRATION_22_24 =
     object : Migration(22, 24) {
         override fun migrate(db: SupportSQLiteDatabase) {
-            // From 23→24: Add isUploaded
             var hasIsUploaded = false
             db.query("PRAGMA table_info('song')").use { cursor ->
                 val nameIndex = cursor.getColumnIndex("name")
@@ -470,8 +454,6 @@ val MIGRATION_22_24 =
             }
         }
     }
-
-// ===== AutoMigration Specs =====
 
 @DeleteColumn.Entries(
     DeleteColumn(tableName = "song", columnName = "isTrash"),
@@ -637,7 +619,6 @@ class Migration21To22 : AutoMigrationSpec {
 
 class Migration22To23 : AutoMigrationSpec {
     override fun onPostMigrate(db: SupportSQLiteDatabase) {
-        // No changes needed for 22→23
     }
 }
 
@@ -664,7 +645,6 @@ class Migration23To24: AutoMigrationSpec {
 val MIGRATION_24_25 =
     object : Migration(24, 25) {
         override fun migrate(db: SupportSQLiteDatabase) {
-            // Add perceptualLoudnessDb column to format table for improved audio normalization
             var columnExists = false
             db.query("PRAGMA table_info(format)").use { cursor ->
                 val nameIndex = cursor.getColumnIndex("name")
@@ -677,15 +657,11 @@ val MIGRATION_24_25 =
             }
 
             if (!columnExists) {
-                // Add the column allowing NULL values (since existing rows won't have this data)
                 db.execSQL("ALTER TABLE format ADD COLUMN perceptualLoudnessDb REAL DEFAULT NULL")
             }
         }
     }
 
-// Adds the @ColumnInfo(index = true) on event.timestamp (stats/history queries filter
-// on timestamp ranges). Manual migration so existing installs keep their data —
-// the fallback would otherwise destroy the library.
 val MIGRATION_35_36 =
     object : Migration(35, 36) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -695,7 +671,6 @@ val MIGRATION_35_36 =
 
 class Migration29To30 : AutoMigrationSpec {
     override fun onPostMigrate(db: SupportSQLiteDatabase) {
-        // Ensure isVideo column exists (safeguard)
         var hasIsVideo = false
         db.query("PRAGMA table_info('song')").use { cursor ->
             val nameIndex = cursor.getColumnIndex("name")
@@ -711,7 +686,6 @@ class Migration29To30 : AutoMigrationSpec {
             db.execSQL("ALTER TABLE song ADD COLUMN isVideo INTEGER NOT NULL DEFAULT 0")
         }
 
-        // Ensure provider column exists in lyrics table
         var hasProvider = false
         db.query("PRAGMA table_info('lyrics')").use { cursor ->
             val nameIndex = cursor.getColumnIndex("name")

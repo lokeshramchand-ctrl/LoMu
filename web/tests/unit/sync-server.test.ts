@@ -40,7 +40,7 @@ describe('sync log', () => {
     expect(first.applied).toBe(1);
     expect(again.applied).toBe(0);
     expect(again.seq).toBe(first.seq);
-    expect(sync.push(1, [{ kind: 'saved', key: 's1', value: { a: 2 }, updated: 400 }]).applied).toBe(1); // same time, new content: kept
+    expect(sync.push(1, [{ kind: 'saved', key: 's1', value: { a: 2 }, updated: 400 }]).applied).toBe(1);
   });
 
   it('tombstones propagate and hide from live queries', () => {

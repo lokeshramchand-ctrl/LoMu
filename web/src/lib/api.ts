@@ -12,7 +12,7 @@ async function get<T>(url: string): Promise<T> {
     const body = await res.json().catch(() => ({}));
     throw new Error(body?.error || `Request failed (${res.status})`);
   }
-  return applyMode(await res.json()); // dev-only Demo / Worst case switch; a no-op in production
+  return applyMode(await res.json());
 }
 
 const enc = encodeURIComponent;
@@ -38,7 +38,6 @@ export const api = {
 };
 
 const long = { staleTime: 10 * 60_000 };
-/** Shelves without anything by an artist the user blocked: applies at once, before the server's own caches catch up. */
 export function hideBlocked(shelves: Shelf[], blocked: Record<string, unknown>): Shelf[] {
   if (!Object.keys(blocked).length) return shelves;
   return shelves.map((s) => ({ ...s, items: s.items.filter((i) => i.kind !== 'song' || !i.artists.some((a) => blocked[a.name.toLowerCase()])) }));

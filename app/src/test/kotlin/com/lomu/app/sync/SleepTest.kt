@@ -12,8 +12,7 @@ import java.time.ZonedDateTime
 private const val MIN = 60_000L
 private val T0 = ZonedDateTime.of(2026, 11, 21, 16, 0, 0, 0, ZoneId.systemDefault()).toInstant().toEpochMilli()
 
-/** [n] back-to-back songs of [len] ms. [endStamped] = the log stamps the moment a song finished, not when it began. */
-private fun lenOf(i: Int) = 180_000L + (i % 7) * 20_000L // real songs differ in length: 3:00 .. 5:00
+private fun lenOf(i: Int) = 180_000L + (i % 7) * 20_000L
 
 private fun queue(n: Int, startAt: Long = T0, endStamped: Boolean = false, idPrefix: String = "s"): List<SleepPlay> {
     var begin = startAt
@@ -24,19 +23,18 @@ private fun queue(n: Int, startAt: Long = T0, endStamped: Boolean = false, idPre
         p
     }
 }
-private fun total(from: Int, to: Int) = (from..to).sumOf { lenOf(it) } // songs from..to inclusive
+private fun total(from: Int, to: Int) = (from..to).sumOf { lenOf(it) }
 
 class SleepTest {
-    // ------------------------------------------------------------ manual nap
 
     @Test fun twoHourTripStartStamped() {
-        val q = queue(34) // 34 x 3.5 min = 119 min
+        val q = queue(34)
         val nap = napBetween(q, q[3].at, q[30].at)!!
         assertEquals(28, nap.songs.size)
         assertEquals(q[3].at, nap.from)
         assertEquals(q[30].at + lenOf(30), nap.to)
         assertEquals(total(3, 30), nap.wholeMs)
-        assertEquals(total(4, 29), nap.betweenMs) // minus the two end songs
+        assertEquals(total(4, 29), nap.betweenMs)
     }
 
     @Test fun sameResultWhenLogStampsTheEnd() {
@@ -79,7 +77,6 @@ class SleepTest {
     }
 
     @Test fun pausedMidTripCountsTheWholeWallClock() {
-        // 10 songs, a 20 minute pause (phone locked, no music), then 10 more: the wall clock includes the pause.
         val first = queue(10)
         val second = queue(10, startAt = T0 + total(0, 9) + 20 * MIN, idPrefix = "t")
         val all = first + second
@@ -89,7 +86,6 @@ class SleepTest {
     }
 
     @Test fun listenedTimeShorterThanSongIsRespected() {
-        // The last song was cut short when the user woke up and stopped it.
         val q = queue(10).toMutableList()
         q[9] = q[9].copy(playedMs = 60_000)
         val nap = napBetween(q, q[0].at, q[9].at)!!
@@ -97,7 +93,6 @@ class SleepTest {
     }
 
     @Test fun repeatedRowsForOneListenCollapse() {
-        // The phone's player may write several rows for one listen with the running total.
         val rows = listOf(
             SleepPlay("a", "A", "x", null, T0, 30_000, false, false),
             SleepPlay("a", "A", "x", null, T0 + 20_000, 50_000, false, false),
@@ -114,21 +109,19 @@ class SleepTest {
         assertEquals(5, collapseRepeats(loop).size)
     }
 
-    // ------------------------------------------------------------ auto detection (same rules as the web)
-
     @Test fun detectsALongUnattendedRun() {
         val s = detectSleep(queue(60))
         assertEquals(1, s.size)
         assertEquals(60, s[0].plays.size)
-        assertTrue(s[0].asleepMs in 200 * MIN..245 * MIN) // 60 songs of 3-5 minutes
+        assertTrue(s[0].asleepMs in 200 * MIN..245 * MIN)
     }
 
     @Test fun ignoresShortRuns() {
-        assertTrue(detectSleep(queue(12)).isEmpty()) // 42 minutes
+        assertTrue(detectSleep(queue(12)).isEmpty())
     }
 
     @Test fun aSkipBreaksTheRun() {
-        val q = queue(24).toMutableList() // a skip splits it into two runs of 12 songs, each too short
+        val q = queue(24).toMutableList()
         q[12] = q[12].copy(completed = false, playedMs = 8_000, skipped = true)
         assertTrue(detectSleep(q).isEmpty())
     }

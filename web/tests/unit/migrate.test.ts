@@ -5,8 +5,6 @@ import os from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
-/* A database written by the single-owner version must open, keep every document and session, and make the old
-   owner the admin (id 1). */
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lomu-migrate-test-'));
 afterAll(async () => {
   (await import('@/server/db')).closeDb();
@@ -37,12 +35,10 @@ describe('migration from the single-owner schema', () => {
     expect(auth.hasOwner()).toBe(true);
     expect(await auth.checkPassword('lokesh', 'old owner password')).toMatchObject({ id: 1, role: 'admin', username: 'Lokesh' });
     expect(sync.all(1, 'like')).toHaveLength(1);
-    expect(sync.pull(1, 0).docs.map((d) => d.seq)).toEqual([1, 2]); // seq preserved: phones keep their watermark
+    expect(sync.pull(1, 0).docs.map((d) => d.seq)).toEqual([1, 2]);
     expect(sync.currentSeq(2)).toBe(0);
     expect(auth.listUsers()[0].devices).toBe(1);
-    // a guest can now be added next to the migrated owner
     expect(auth.createUser('guest', 'a decent password').id).toBe(2);
-    // reopening the database is a no-op
     (await import('@/server/db')).closeDb();
     expect(auth.listUsers()).toHaveLength(2);
   });

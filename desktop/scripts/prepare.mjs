@@ -1,5 +1,3 @@
-// Builds the web app (Next "standalone" output) and copies it, with its static files, into desktop/build/server,
-// which the app starts as its local server. `--skip-build` reuses an existing web/.next.
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -9,8 +7,6 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const desktop = path.resolve(here, '..');
 const web = path.resolve(desktop, '..', 'web');
 const root = path.join(desktop, 'build', 'server');
-// electron-builder silently drops a top-level "node_modules" from extra resources, so the standalone server lives one
-// level down (server/app/node_modules), which it keeps. (NODE_PATH is no use here: ES modules ignore it.)
 const out = path.join(root, 'app');
 
 if (!process.argv.includes('--skip-build')) {
@@ -29,7 +25,6 @@ fs.rmSync(root, { recursive: true, force: true });
 fs.mkdirSync(out, { recursive: true });
 fs.cpSync(standalone, out, { recursive: true, dereference: true });
 
-// server.js sits at the root of the standalone folder, or one level down when Next traced from a parent folder.
 function findEntry(dir, depth = 0) {
   if (fs.existsSync(path.join(dir, 'server.js'))) return dir;
   if (depth >= 2) return null;
@@ -46,7 +41,6 @@ if (!entryDir) {
   console.error('no server.js in the standalone output');
   process.exit(1);
 }
-// Next's file tracing drags the project's own sources and test files along; the running server needs none of them.
 for (const junk of ['src', 'tests', 'scripts', 'test-results', 'Dockerfile', '.dockerignore', 'package-lock.json', 'next.config.ts', 'playwright.config.ts', 'playwright.prod.config.ts', 'vitest.config.ts', 'tsconfig.json', 'tsconfig.tsbuildinfo', 'next-env.d.ts']) {
   fs.rmSync(path.join(entryDir, junk), { recursive: true, force: true });
 }

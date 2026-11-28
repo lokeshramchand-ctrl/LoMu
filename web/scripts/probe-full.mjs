@@ -1,4 +1,3 @@
-// Probe: can a whole audio file be pulled in 1 MiB pieces, per client?
 import vm from 'node:vm';
 import { Innertube, Platform, Log } from 'youtubei.js';
 

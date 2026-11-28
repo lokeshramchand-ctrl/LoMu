@@ -1,7 +1,3 @@
-/* Dev-only "Demo data / Worst case" switch. The data is changed where it enters the app (api.ts get()), never in the components.
-   Values are realistic: YouTube titles run to 100 characters, uploaders credit six artists, catalogues hold CJK / Arabic / Thai / Vietnamese titles,
-   some tracks have no art, no artists or a zero length. Modes: demo | worst | empty | one. Never active in a production build. */
-
 export type DataMode = 'demo' | 'worst' | 'empty' | 'one';
 export const MODES: { id: DataMode; label: string }[] = [
   { id: 'demo', label: 'Demo data' },
@@ -17,7 +13,7 @@ export function dataMode(): DataMode {
 }
 
 const TITLES = [
-  'Pachai Nirame (From "Alaipayuthey") [Remastered 2019 Deluxe Anniversary Edition] - Official Music Video (4K)', // 100 chars, the YouTube limit
+  'Pachai Nirame (From "Alaipayuthey") [Remastered 2019 Deluxe Anniversary Edition] - Official Music Video (4K)',
   'Ö',
   '夜に駆ける (Yoru ni Kakeru) – YOASOBI 🎧✨',
   'ملكة جمال الكون – النسخة الكاملة',
@@ -37,14 +33,13 @@ const ARTIST_NAMES = [
 ];
 const ARTISTS = ARTIST_NAMES.map((l) => l.map((name) => ({ name })));
 const DURATIONS: (number | undefined)[] = [0, 59, undefined, 36000, 213, 7384];
-const THUMBS: (string | undefined)[] = ['https://invalid.example/missing.jpg', undefined, undefined]; // the rest keep their real art
+const THUMBS: (string | undefined)[] = ['https://invalid.example/missing.jpg', undefined, undefined];
 
 function nameOf(i: number, kind: string) {
   const t = TITLES[i % TITLES.length];
   return kind === 'artist' ? t.slice(0, 60) : t;
 }
 
-/** Rewrites every song / album / playlist / artist object in a response, spreading the failures across rows. */
 function worstify(v: unknown, n = { i: 0 }): unknown {
   if (Array.isArray(v)) return v.map((x) => worstify(x, n));
   if (!v || typeof v !== 'object') return v;
@@ -59,13 +54,12 @@ function worstify(v: unknown, n = { i: 0 }): unknown {
     return o;
   }
   for (const k of Object.keys(o)) {
-    if (k === 'title' && typeof o[k] === 'string' && Array.isArray(o.items)) o[k] = `Because you listened to ${TITLES[n.i % TITLES.length]} (${n.i++})`; // shelf titles
+    if (k === 'title' && typeof o[k] === 'string' && Array.isArray(o.items)) o[k] = `Because you listened to ${TITLES[n.i % TITLES.length]} (${n.i++})`;
     else o[k] = worstify(o[k], n);
   }
   return o;
 }
 
-/** Empties lists, or cuts every list to one item. */
 function shrink(v: unknown, keep: number): unknown {
   if (Array.isArray(v)) return v.slice(0, keep).map((x) => shrink(x, keep));
   if (!v || typeof v !== 'object') return v;

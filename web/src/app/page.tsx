@@ -32,11 +32,9 @@ export default function Home() {
   const mixes: Shelf[] = recs.data ?? [];
   const songsOf = (s?: Shelf) => (s?.items.filter((i): i is Track => i.kind === 'song') ?? []) as Track[];
   const trending = explore.data?.trending ?? [];
-  // On Repeat is its own row and page; everything else feeds the black feature card and the pastel picks.
   const onRepeatShelf = mixes.find((s) => /^on repeat$/i.test(s.title));
   const onRepeat = songsOf(onRepeatShelf);
   const dailyShelves = mixes.filter((s) => /^Daily Mix/.test(s.title));
-  // Discover Weekly and the four time-of-day mixes: a second row of tiles under the daily mixes.
   const dayShelves = mixes.filter((s) => s.title === 'Discover Weekly' || /^(Morning|Afternoon|Evening|Late Night) Mix$/.test(s.title));
   const momentShelves = mixes.filter((s) => /^(Repeat Rewind|Slowed & Reverb|Unplugged & Acoustic|Instrumentals & Themes)$/.test(s.title));
   const tileShelves = [...dailyShelves, ...dayShelves, ...momentShelves];
@@ -246,7 +244,6 @@ export default function Home() {
   );
 }
 
-/** The artist avatar comes from the song art of their most recent play (artist photos need a network call). */
 function artThumb(history: { track: Track }[], artistId: string) {
   return history.find((p) => p.track.artists[0]?.id === artistId)?.track.thumb;
 }
@@ -286,7 +283,6 @@ function MoodItem({ item, siblings }: { item: Item; siblings: Track[] }) {
   return <ItemCard item={item} siblings={siblings.length > 1 ? siblings : undefined} />;
 }
 
-/** A row of coloured tiles; each opens the mix as an album-style page. */
 function TileRow({ label, heading, shelves }: { label: string; heading: string; shelves: Shelf[] }) {
   return (
     <section className="picked" aria-label={label}>

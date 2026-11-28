@@ -3,13 +3,7 @@ import crypto from 'node:crypto';
 import { cookies, headers } from 'next/headers';
 import { db, getSetting, setSetting } from './db';
 
-/* Accounts. Each account has its own library, history, recommendations and devices. The first account created is
-   the admin and can add the others (up to LOMU_MAX_USERS, default 4: the owner plus three guests).
-   Passwords are scrypt-hashed; sessions are an HMAC-signed JWT (short lived) plus a random refresh token (stored
-   hashed, rotated on every use). Browsers carry both in httpOnly cookies, the phone sends the access token as a
-   Bearer header. */
-
-const ACCESS_TTL = 15 * 60; // seconds
+const ACCESS_TTL = 15 * 60;
 const REFRESH_TTL = 60 * 24 * 3600;
 
 const b64 = (b: Buffer | string) => Buffer.from(b).toString('base64url');
@@ -17,7 +11,7 @@ const sha = (s: string) => crypto.createHash('sha256').update(s).digest('hex');
 
 let secretKey: Buffer | null = null;
 function secret(): Buffer {
-  if (secretKey) return secretKey; // read once: every authenticated request verifies a token
+  if (secretKey) return secretKey;
   let s = getSetting('jwt_secret');
   if (!s) {
     s = crypto.randomBytes(32).toString('hex');
@@ -57,7 +51,6 @@ export function verify(token: string | undefined | null): { sub: string; uid?: n
 export type User = { id: number; username: string; role: 'admin' | 'user' };
 type UserRow = { id: number; username: string; salt: string; hash: string; role: string; disabled: number; created: number };
 
-/** How many accounts this server allows (the owner plus guests). Raise it with LOMU_MAX_USERS. */
 export const maxUsers = () => Math.max(1, Math.min(50, Number(process.env.LOMU_MAX_USERS) || 4));
 
 export const hasOwner = () => !!db().prepare('SELECT 1 FROM users LIMIT 1').get();
@@ -80,7 +73,6 @@ function checkNewCredentials(username: string, password: string, strictName: boo
   return name;
 }
 
-/** First-run setup: the very first account, always an admin. */
 export function createOwner(username: string, password: string): User {
   if (hasOwner()) throw new Error('already set up');
   const name = checkNewCredentials(username, password, false);
@@ -89,7 +81,6 @@ export function createOwner(username: string, password: string): User {
   return { id: Number(r.lastInsertRowid), username: name, role: 'admin' };
 }
 
-/** Adds a guest account (admin only at the API level). Each account has its own library, history and recommendations. */
 export function createUser(username: string, password: string, role: 'admin' | 'user' = 'user'): User {
   const name = checkNewCredentials(username, password, true);
   if (userCount() >= maxUsers()) throw new Error(`this server is limited to ${maxUsers()} accounts`);
@@ -122,7 +113,7 @@ export function setPassword(id: number, password: string) {
   checkNewCredentials('xx', password, false);
   const { salt, hash } = hashPassword(password);
   db().prepare('UPDATE users SET salt = ?, hash = ? WHERE id = ?').run(salt, hash, id);
-  revokeUser(id); // every signed-in device has to sign in again
+  revokeUser(id);
 }
 
 export function setDisabled(id: number, disabled: boolean) {
@@ -133,7 +124,6 @@ export function setDisabled(id: number, disabled: boolean) {
   if (disabled) revokeUser(id);
 }
 
-/** Deletes an account and everything it owns (library, history, sessions, cached recommendations). */
 export function deleteUser(id: number) {
   const d = db();
   const u = d.prepare('SELECT role FROM users WHERE id = ?').get(id) as { role: string } | undefined;
@@ -153,16 +143,14 @@ export function deleteUser(id: number) {
 }
 
 const DUMMY_SALT = 'x'.repeat(32);
-// scrypt runs on the thread pool, so a burst of sign-ins does not freeze every other request.
 const scryptAsync = (password: string, salt: string) =>
   new Promise<Buffer>((resolve, reject) => crypto.scrypt(password, salt, 64, (e, k) => (e ? reject(e) : resolve(k))));
 
-/** Returns the account when the password is right (and the account is enabled). */
 export async function checkPassword(username: string, password: string): Promise<User | null> {
   if (password.length > 1000) return null;
   const row = db().prepare('SELECT id, username, salt, hash, role, disabled FROM users WHERE username = ?').get(username.trim()) as UserRow | undefined;
   if (!row) {
-    await scryptAsync(password, DUMMY_SALT); // keep timing similar
+    await scryptAsync(password, DUMMY_SALT);
     return null;
   }
   const h = await scryptAsync(password, row.salt);
@@ -172,7 +160,7 @@ export async function checkPassword(username: string, password: string): Promise
 
 export type Tokens = { access: string; refresh: string; expiresIn: number };
 
-const MAX_SESSIONS = 25; // refresh tokens kept per account; the oldest are dropped first
+const MAX_SESSIONS = 25;
 
 export function issueTokens(user: User, device = 'web'): Tokens {
   const now = Math.floor(Date.now() / 1000);
@@ -185,7 +173,6 @@ export function issueTokens(user: User, device = 'web'): Tokens {
   return { access, refresh, expiresIn: ACCESS_TTL };
 }
 
-/** Rotates a refresh token: the presented one stops working, a new pair is returned. */
 export function rotate(refresh: string, device = 'web'): (Tokens & { user: User }) | null {
   const d = db();
   const row = d.prepare('SELECT expires, uid FROM refresh WHERE hash = ?').get(sha(refresh)) as { expires: number; uid: number } | undefined;
@@ -195,12 +182,10 @@ export function rotate(refresh: string, device = 'web'): (Tokens & { user: User 
   return user ? { ...issueTokens(user, device), user } : null;
 }
 
-/** Signs one account out everywhere. */
 export function revokeUser(uid: number) {
   db().prepare('DELETE FROM refresh WHERE uid = ?').run(uid);
 }
 
-/** Which account a refresh token belongs to (logout needs it when the access token has already expired). */
 export function refreshOwner(refresh: string): number | null {
   const r = db().prepare('SELECT uid FROM refresh WHERE hash = ?').get(sha(refresh)) as { uid: number } | undefined;
   return r?.uid ?? null;
@@ -220,13 +205,8 @@ export async function clearAuthCookies() {
   c.delete('lomu_rt');
 }
 
-/** True inside the Windows desktop app, which runs this server for itself on 127.0.0.1. */
 export const isLocalMode = () => !!process.env.LOMU_LOCAL_TOKEN;
 
-/**
- * Desktop app: the app shell adds a per-launch secret header to every request it makes to its own server,
- * so there is no login screen. Nothing else on the machine knows the secret.
- */
 function localOwner(h: Headers): User | null {
   const want = process.env.LOMU_LOCAL_TOKEN;
   const got = h.get('x-lomu-local');
@@ -239,7 +219,6 @@ function localOwner(h: Headers): User | null {
   return toUser(r);
 }
 
-/** Returns the signed-in account, or null. Reads the Bearer header first, then the cookie. */
 export async function currentUser(): Promise<User | null> {
   const h = await headers();
   const local = localOwner(h);
@@ -256,17 +235,12 @@ export async function currentUser(): Promise<User | null> {
   return row && !row.disabled ? toUser(row) : null;
 }
 
-/**
- * Gate for every API route. Until an account exists the app is open (first-run setup); after that every request
- * needs a valid session. Returns the account to act as (before setup: the future owner, id 1), or a 401 Response.
- */
 export async function requireUser(): Promise<User | Response> {
   if (!hasOwner()) return { id: 1, username: '', role: 'admin' };
   const u = await currentUser();
   return u ?? Response.json({ error: 'unauthorized' }, { status: 401 });
 }
 
-/** Admin-only variant of [requireUser]. */
 export async function requireAdmin(): Promise<User | Response> {
   const u = await requireUser();
   if (u instanceof Response) return u;
@@ -274,7 +248,6 @@ export async function requireAdmin(): Promise<User | Response> {
   return u;
 }
 
-/** For routes that only need to know "signed in or not". */
 export async function gate(): Promise<Response | null> {
   const u = await requireUser();
   return u instanceof Response ? u : null;

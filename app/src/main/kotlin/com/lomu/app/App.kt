@@ -43,7 +43,6 @@ class App : Application(), SingletonImageLoader.Factory {
         super.onCreate()
         if (BuildConfig.DEBUG) Timber.plant(Timber.DebugTree())
 
-        // YouTube is used anonymously: no cookie, just a persisted visitor id.
         YouTube.cookie = null
         YouTube.visitorData = dataStore.get(VisitorDataKey, "").takeIf { it.isNotBlank() && it != "null" }
         val locale = Locale.getDefault()
@@ -65,7 +64,6 @@ class App : Application(), SingletonImageLoader.Factory {
                 }
             }
         }
-        // Warm the cipher WebView off the first-play critical path.
         applicationScope.launch(Dispatchers.IO) {
             delay(100)
             runCatching { CipherDeobfuscator.prewarm() }.onFailure { Timber.e(it, "Cipher prewarm failed") }

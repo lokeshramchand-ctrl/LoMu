@@ -18,9 +18,8 @@ export function home(): Promise<HomeData> {
       client.music.getHomeFeed().catch(() => null),
       exploreRaw().catch(() => null),
     ]);
-    if (!feed && !explore) throw new Error('YouTube unreachable'); // lets `cached` serve the last good page
+    if (!feed && !explore) throw new Error('YouTube unreachable');
     const shelves: Shelf[] = compact((feed?.sections ?? []).map(toShelf));
-    // Anonymous home feeds are thin; fill with explore shelves (new releases, trending, videos).
     for (const s of compact((explore?.sections ?? []).map(toShelf))) {
       if (!shelves.some((x) => x.title === s.title)) shelves.push(s);
     }
@@ -159,7 +158,6 @@ export function album(id: string): Promise<AlbumData> {
     const fallback = { artists, album: { id, name: title }, thumb };
     const tracks = compact<Track>((al.contents ?? []).map((n: any) => toTrack(n, fallback))).map((t) => ({
       ...t,
-      // YouTube reports a missing artist as the text "N/A"; fall back to the album's artists.
       artists: t.artists.filter((a) => a.name && a.name !== 'N/A').length ? t.artists.filter((a) => a.name && a.name !== 'N/A') : artists,
       album: { id, name: title },
       thumb,
@@ -221,7 +219,6 @@ export function playlist(id: string): Promise<PlaylistData> {
     let pl: any = await client.music.getPlaylist(id);
     const h = pl.header ?? {};
     const tracks: Track[] = compact<Track>((pl.items ?? []).map((n: any) => toTrack(n)));
-    // Pull continuations so whole playlists play/import, capped to keep latency sane.
     for (let i = 0; i < 20 && pl.has_continuation; i++) {
       try {
         pl = await pl.getContinuation();
@@ -242,7 +239,6 @@ export function playlist(id: string): Promise<PlaylistData> {
   });
 }
 
-/** YouTube's own radio for a seed song (the strongest "similar songs" signal YouTube offers). */
 export function radio(videoId: string): Promise<Track[]> {
   return cached(`radio:${videoId}`, 60 * MIN, async () => {
     const panel: any = await (await yt()).music.getUpNext(videoId, true);
@@ -257,7 +253,6 @@ export function related(videoId: string): Promise<Shelf[]> {
   });
 }
 
-/** Synced lyrics from LRCLIB when available, YouTube's plain lyrics otherwise. */
 export function lyrics(t: { id: string; title: string; artist: string; album?: string; duration?: number }): Promise<LyricsData> {
   return cached(`lyrics:${t.id}`, 24 * 60 * MIN, async () => {
     const lrc = await lrclib(t).catch(() => null);
@@ -309,7 +304,6 @@ async function lrclib(t: { title: string; artist: string; album?: string; durati
 
 export type ImportRef = { id?: string; title?: string; artist?: string };
 
-/** Resolves Google Takeout rows (a video id, or a title and artist) into playable tracks. */
 export async function resolveImport(refs: ImportRef[]): Promise<(Track | null)[]> {
   const client = await yt();
   const one = async (r: ImportRef): Promise<Track | null> => {
@@ -336,7 +330,6 @@ export async function resolveImport(refs: ImportRef[]): Promise<(Track | null)[]
         };
       }
     } catch {
-      /* unresolved rows are reported as null */
     }
     return null;
   };

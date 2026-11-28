@@ -30,7 +30,6 @@ private fun span(min: Int): Pair<String, String> =
 
 private fun hourLabel(h: Int) = "${if (h % 12 == 0) 12 else h % 12}${if (h < 12) "am" else "pm"}"
 
-/** The play log as Wrapped input: plays imported from Takeout have no song length, so two minutes heard counts as finished. */
 @Composable
 private fun rememberWrappedPlays(): List<WPlay>? {
     val player = LocalPlayer.current
@@ -59,7 +58,6 @@ fun WrappedScreen() {
     var all by remember { mutableStateOf(false) }
     val stats: WrappedStats? = remember(plays, year, all) { plays?.let { buildWrapped(it, if (all) null else year) } }
     val years = remember(plays) { plays?.let { l -> l.map { java.time.Instant.ofEpochMilli(it.at).atZone(java.time.ZoneId.systemDefault()).year }.distinct().sortedDescending() }.orEmpty() }
-    // The current year may have nothing yet: land on the newest year that does.
     LaunchedEffect(years) { if (years.isNotEmpty() && year !in years) year = years.first() }
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = bottomPad())) {

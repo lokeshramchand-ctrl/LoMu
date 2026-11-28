@@ -1,7 +1,5 @@
 import type { ArtistRef, Track } from './types';
 
-/* Pure helpers behind the personalised parts of the home page (no React, unit-tested). */
-
 export type PlayLike = { track: Track; at: number; playedMs: number; completed: boolean };
 
 const DAY = 86_400_000;
@@ -10,7 +8,6 @@ const dayKey = (t: number) => {
   return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
 };
 
-/** Last 7 days (oldest first) of listening minutes, plus headline numbers. */
 export function weekStats(history: PlayLike[], now = Date.now()) {
   const today = dayKey(now);
   const daily = Array.from({ length: 7 }, () => 0);
@@ -32,7 +29,6 @@ export function weekStats(history: PlayLike[], now = Date.now()) {
       }
     }
   }
-  // Streak: consecutive days with any listening, ending today (or yesterday if nothing yet today).
   let streak = 0;
   let cursor = days.has(today) ? today : today - DAY;
   while (days.has(cursor)) {
@@ -43,7 +39,6 @@ export function weekStats(history: PlayLike[], now = Date.now()) {
   return { minutes: Math.round(daily.reduce((a, b) => a + b, 0)), plays, streak, daily: daily.map((m) => Math.round(m)), topArtist: top?.ref };
 }
 
-/** Most recent distinct songs, topped up from likes when the history is short. */
 export function recentTracks(history: PlayLike[], liked: { track: Track; at: number }[], n = 8): Track[] {
   const seen = new Set<string>();
   const out: Track[] = [];
@@ -63,7 +58,6 @@ export function recentTracks(history: PlayLike[], liked: { track: Track; at: num
   return out;
 }
 
-/** Artists ranked by completed plays and listening time, with an id so they can be linked. */
 export function topArtists(history: PlayLike[], n = 12): ArtistRef[] {
   const score = new Map<string, { ref: ArtistRef; s: number }>();
   for (const p of history) {
@@ -82,27 +76,24 @@ export function formatMinutes(m: number): { value: string; unit: string } {
   return { value: String(m), unit: m === 1 ? 'minute' : 'minutes' };
 }
 
-/* ---------------------------------------------------------------- deeper analytics */
-
 export type DeepStats = {
   totalMs: number;
   monthMs: number;
   activeDays: number;
-  avgDayMs: number; // per day you listened
-  hourMs: number[]; // 24 buckets, local time
-  weekdayMs: number[]; // Monday first
-  completionRate: number; // 0..1 of plays that were finished
+  avgDayMs: number;
+  hourMs: number[];
+  weekdayMs: number[];
+  completionRate: number;
   skipRate: number;
   uniqueSongs: number;
   uniqueArtists: number;
-  longestStreak: number; // days in a row
+  longestStreak: number;
   topTracks: { track: Track; plays: number; ms: number }[];
   topArtistsMs: { name: string; ms: number; plays: number; id?: string }[];
   peakHour: number | null;
   newArtistsThisMonth: number;
 };
 
-/** Everything the Insights page shows, from the play log. `exclude` drops plays (e.g. the ones while asleep) from the totals and charts. */
 export function deepStats(history: (PlayLike & { skipped?: boolean })[], now = Date.now(), exclude: (p: PlayLike) => boolean = () => false): DeepStats {
   const hourMs = Array.from({ length: 24 }, () => 0);
   const weekdayMs = Array.from({ length: 7 }, () => 0);

@@ -1,8 +1,3 @@
-// Home-server (hub) run against the real homelab with the temporary admin login. It only ever writes clearly named
-// test documents of kind "search" (which no client displays) and tombstones them at the end; it never changes the account.
-//   node --require ./desktop/tests/dnsmap.cjs desktop/tests/hub.mjs
-// (dnsmap.cjs maps the public name to the homelab's LAN address, because from the home network the public name
-//  lands on the router. Over WARP or from outside the home network, run without --require and set LOMU_NO_DNSMAP=1.)
 import fs from 'node:fs';
 import path from 'node:path';
 import { DNSMAP, HUB_PASS, HUB_URL, HUB_USER, OFFLINE, OUT, expect, hubLogin, launch, quit, results, sleep, step, summary } from './harness.mjs';
@@ -146,7 +141,6 @@ try {
     expect(st.url === null && st.state === 'off', JSON.stringify(st));
   });
 } finally {
-  // Leave the home server as it was: tombstone every test document.
   const now = Date.now();
   await hub.push(Object.values(K).map((key) => ({ kind: 'search', key, value: null, updated: now + 1000, deleted: true }))).catch(() => {});
   await quit(c.app).catch(() => {});
