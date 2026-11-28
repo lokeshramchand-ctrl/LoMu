@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api as authFetch } from '@/player/sync';
 import { useLibrary } from '@/player/library';
 import type { Wrapped } from './wrapped';
+import { applyMode } from './worst';
 import type { AlbumData, ArtistData, ExploreData, HomeData, Item, LyricsData, PlaylistData, SearchData, Shelf, Track } from './types';
 
 async function get<T>(url: string): Promise<T> {
@@ -11,7 +12,7 @@ async function get<T>(url: string): Promise<T> {
     const body = await res.json().catch(() => ({}));
     throw new Error(body?.error || `Request failed (${res.status})`);
   }
-  return res.json();
+  return applyMode(await res.json()); // dev-only Demo / Worst case switch; a no-op in production
 }
 
 const enc = encodeURIComponent;

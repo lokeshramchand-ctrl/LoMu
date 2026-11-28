@@ -9,6 +9,7 @@ import { ToastHost } from './Toast';
 import { ContinueBanner } from './ContinueBanner';
 import { AuthGate } from './AuthGate';
 import { ConnectHost } from './Devices';
+import { DataToggle } from './DataToggle';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [qc] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } } }));
@@ -32,6 +33,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <TrackMenuHost />
         <ToastHost />
         <ContinueBanner />
+        <DataToggle />
       </AuthGate>
     </QueryClientProvider>
   );
