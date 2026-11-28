@@ -2,12 +2,15 @@ import type { ArtistRef, Item } from './types';
 
 export const fmtTime = (s: number) => {
   if (!Number.isFinite(s) || s < 0) s = 0;
-  const m = Math.floor(s / 60);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
   const sec = Math.floor(s % 60);
-  return `${m}:${sec.toString().padStart(2, '0')}`;
+  const ss = sec.toString().padStart(2, '0');
+  return h ? `${h}:${m.toString().padStart(2, '0')}:${ss}` : `${m}:${ss}`; // long mixes and podcasts run for hours
 };
 
-export const artistNames = (a: ArtistRef[] | undefined) => (a ?? []).map((x) => x.name).join(', ');
+/** Comma-joined names; an upload with no credited artist reads as Unknown artist instead of leaving a blank line. */
+export const artistNames = (a: ArtistRef[] | undefined) => (a ?? []).map((x) => x.name).filter(Boolean).join(', ') || 'Unknown artist';
 
 export const hrefFor = (i: Item): string | null => {
   switch (i.kind) {

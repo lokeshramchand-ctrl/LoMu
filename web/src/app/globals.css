@@ -209,7 +209,7 @@ html { scroll-behavior: smooth; }
 .cover { position: relative; border-radius: var(--r-sm); overflow: hidden; background: var(--surface-2); flex: none; box-shadow: inset 0 0 0 1px var(--border); }
 .cover img { width: 100%; height: 100%; object-fit: cover; }
 .cover.round { border-radius: 50%; }
-.ph { background: var(--surface-2); }
+.ph { background: var(--surface-2); display: grid; place-items: center; color: var(--faint); overflow: hidden; }
 
 /* ---------- states ---------- */
 .skeleton { background: var(--surface-2); animation: pulse 1.4s ease-in-out infinite; }
